@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --nexus-purple: #7C3AED;
+  --nexus-graphite: #111827;
+  --nexus-bg: #F3F4F6;
+  --nexus-surface: #FFFFFF;
+  --nexus-success: #22C55E;
+  --nexus-warning: #F59E0B;
+  --nexus-issue: #EF4444;
+  --nexus-info: #3B82F6;
+  --background: var(--nexus-bg);
+  --foreground: #111827;
 }
 
 @theme inline {

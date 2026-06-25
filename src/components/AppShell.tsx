@@ -6,26 +6,32 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Orders", href: "/orders" },
-  { label: "Consignments", href: "/consignments" },
-  { label: "Merchants", href: "/merchants" },
+  { label: "Home", href: "/dashboard" },
+  { label: "New Delivery", href: "/booking-forms" },
+  { label: "My Deliveries", href: "/orders" },
   { label: "Customers", href: "/customers" },
-  { label: "Booking Forms", href: "/booking-forms" },
-  { label: "Document Centre", href: "/document-centre" },
-  { label: "Drivers", href: "/drivers" },
+  { label: "Documents", href: "/document-centre" },
+  { label: "Planning", href: "/consignments" },
+  { label: "Fleet", href: "/drivers" },
+  { label: "Warehouse", href: "/merchants" },
+  { label: "Finance", href: "/finance" },
+  { label: "Reports", href: "/reports" },
+  { label: "Support", href: "/support" },
   { label: "Settings", href: "/settings" },
 ];
 
 const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/orders": "Orders",
-  "/consignments": "Consignments",
-  "/merchants": "Merchants",
+  "/dashboard": "Home",
+  "/orders": "My Deliveries",
+  "/consignments": "Planning",
+  "/merchants": "Warehouse",
   "/customers": "Customers",
-  "/booking-forms": "Booking Forms",
-  "/document-centre": "Document Centre",
-  "/drivers": "Drivers",
+  "/booking-forms": "New Delivery",
+  "/document-centre": "Documents",
+  "/drivers": "Fleet",
+  "/finance": "Finance",
+  "/reports": "Reports",
+  "/support": "Support",
   "/settings": "Settings",
 };
 
@@ -35,12 +41,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pageTitle = pageTitles[activePath] ?? "Dashboard";
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-[#F3F4F6] text-slate-900">
       <div className="lg:flex lg:min-h-screen">
         <Sidebar items={navItems} activePath={activePath} />
 
         <div className="flex-1 lg:min-h-screen lg:overflow-hidden">
-          <div className="border-b border-slate-200 bg-slate-50/95 backdrop-blur">
+          <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
             <Header title={pageTitle} subtitle="Logistics control room" />
           </div>
 
