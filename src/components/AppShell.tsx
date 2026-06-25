@@ -7,31 +7,26 @@ import Sidebar from "@/components/Sidebar";
 
 const navItems = [
   { label: "Home", href: "/dashboard" },
-  { label: "New Delivery", href: "/booking-forms" },
+  { label: "New Delivery", href: "/order-input" },
   { label: "My Deliveries", href: "/orders" },
   { label: "Customers", href: "/customers" },
   { label: "Documents", href: "/document-centre" },
   { label: "Planning", href: "/consignments" },
   { label: "Fleet", href: "/drivers" },
   { label: "Warehouse", href: "/merchants" },
-  { label: "Finance", href: "/finance" },
-  { label: "Reports", href: "/reports" },
-  { label: "Support", href: "/support" },
   { label: "Settings", href: "/settings" },
 ];
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Home",
+  "/order-input": "New Delivery",
   "/orders": "My Deliveries",
   "/consignments": "Planning",
   "/merchants": "Warehouse",
   "/customers": "Customers",
-  "/booking-forms": "New Delivery",
+  "/booking-forms": "Booking Forms",
   "/document-centre": "Documents",
   "/drivers": "Fleet",
-  "/finance": "Finance",
-  "/reports": "Reports",
-  "/support": "Support",
   "/settings": "Settings",
 };
 
@@ -41,7 +36,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pageTitle = pageTitles[activePath] ?? "Dashboard";
 
   return (
-    <div className="min-h-screen bg-[#F3F4F6] text-slate-900">
+    <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
       <div className="lg:flex lg:min-h-screen">
         <Sidebar items={navItems} activePath={activePath} />
 

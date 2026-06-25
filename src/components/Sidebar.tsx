@@ -63,6 +63,32 @@ const navIcons: Record<string, JSX.Element> = {
       <path d="M8 12h8" />
     </svg>
   ),
+  Finance: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M12 3v18" />
+      <path d="M7 8h10" />
+      <path d="M7 16h10" />
+      <path d="M17 4h2a2 2 0 012 2v2" />
+      <path d="M7 20H5a2 2 0 01-2-2v-2" />
+    </svg>
+  ),
+  Reports: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M4 6h16" />
+      <path d="M7 6v12" />
+      <path d="M12 10v8" />
+      <path d="M17 14v4" />
+      <path d="M4 18h16" />
+    </svg>
+  ),
+  Support: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M5 18h14" />
+      <path d="M12 22a2 2 0 100-4 2 2 0 000 4z" />
+      <path d="M12 18V8" />
+      <path d="M9 8a3 3 0 116 0c0 1.5-1 2.25-2 2.75" />
+    </svg>
+  ),
   Settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
       <circle cx="12" cy="12" r="3" />

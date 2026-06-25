@@ -1,0 +1,264 @@
+"use client";
+
+import { useState } from "react";
+import AppShell from "@/components/AppShell";
+import DocumentUploadCard from "@/components/DocumentUploadCard";
+
+const methods = [
+  {
+    id: "pdf",
+    title: "Upload PDF",
+    description: "Send us a PDF invoice, delivery note or purchase order.",
+    action: "Upload PDF",
+    status: "Available now",
+  },
+  {
+    id: "email",
+    title: "Email Order",
+    description: "Use your unique NEXUS order email to submit orders automatically.",
+    action: "View email address",
+    status: "Coming soon",
+  },
+  {
+    id: "manual",
+    title: "Enter Manually",
+    description: "Fill a simple delivery request form with one clear step.",
+    action: "Start manual entry",
+    status: "Available now",
+  },
+  {
+    id: "webform",
+    title: "Website Form",
+    description: "Open the customer booking form for online order entry.",
+    action: "Open booking form",
+    status: "Coming soon",
+  },
+  {
+    id: "woocommerce",
+    title: "WooCommerce",
+    description: "Import orders directly from your WooCommerce store.",
+    action: "View integration",
+    status: "Coming soon",
+  },
+  {
+    id: "api",
+    title: "API Integration",
+    description: "Connect your systems and send delivery requests programmatically.",
+    action: "View API details",
+    status: "Coming soon",
+  },
+];
+
+const actions: Record<string, string> = {
+  pdf: "upload",
+  email: "email",
+  manual: "manual",
+  webform: "webform",
+  woocommerce: "woocommerce",
+  api: "api",
+};
+
+export default function OrderInputPage() {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [uploadActive, setUploadActive] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+
+  const selectedMethod = methods.find((method) => method.id === selected);
+
+  return (
+    <AppShell>
+      <div className="space-y-8">
+        <header className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+          <div className="space-y-3">
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Order Input</p>
+            <h1 className="text-3xl font-semibold text-slate-950">Submit a delivery request</h1>
+            <p className="max-w-3xl text-base text-slate-600">
+              Choose how you want to send your order. All inputs are converted into one standard NEXUS Delivery.
+            </p>
+          </div>
+        </header>
+
+        <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {methods.map((method) => {
+            const active = selected === method.id;
+            return (
+              <button
+                key={method.id}
+                type="button"
+                onClick={() => setSelected(method.id)}
+                className={`group flex flex-col justify-between rounded-[28px] border p-6 text-left shadow-sm transition ${
+                  active
+                    ? "border-[#7C3AED] bg-white shadow-lg shadow-[#7C3AED]/10"
+                    : "border-slate-200 bg-white hover:border-[#7C3AED] hover:shadow-lg hover:shadow-[#7C3AED]/10"
+                }`}
+              >
+                <div className="space-y-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F3F4F6] text-[#7C3AED]">
+                    {method.id === "pdf" && (
+                      <span className="text-2xl font-bold">PDF</span>
+                    )}
+                    {method.id === "email" && (
+                      <span className="text-2xl">@</span>
+                    )}
+                    {method.id === "manual" && (
+                      <span className="text-2xl">✎</span>
+                    )}
+                    {method.id === "webform" && (
+                      <span className="text-2xl">🌐</span>
+                    )}
+                    {method.id === "woocommerce" && (
+                      <span className="text-2xl">W</span>
+                    )}
+                    {method.id === "api" && (
+                      <span className="text-2xl">API</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-semibold text-slate-950">{method.title}</h2>
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        {method.status}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-6 text-slate-600">{method.description}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex items-center justify-between gap-4">
+                  <span className="text-sm font-semibold text-[#7C3AED]">{method.action}</span>
+                  <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F3F4F6] text-[#7C3AED] ${active ? "ring-2 ring-[#7C3AED]" : ""}`}>
+                    →
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </section>
+
+        {selectedMethod && (
+          <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
+            <div className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Selected method</p>
+                    <h2 className="text-2xl font-semibold text-slate-950">{selectedMethod.title}</h2>
+                  </div>
+                  <span className="rounded-full bg-[#EDE9FE] px-3 py-1 text-sm font-semibold text-[#6D28D9]">
+                    {selectedMethod.status}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-600">{selectedMethod.description}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="rounded-2xl bg-[#7C3AED] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
+                  onClick={() => {
+                    if (selectedMethod.id === "pdf") {
+                      setUploadActive(true);
+                      setUploadComplete(false);
+                    }
+                  }}
+                >
+                  {selectedMethod.action}
+                </button>
+
+                <button
+                  type="button"
+                  className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-900 transition hover:border-[#7C3AED] hover:text-[#7C3AED]"
+                >
+                  Learn more
+                </button>
+              </div>
+
+              <div className="rounded-[28px] border border-slate-200 bg-[#F8FAFC] p-6">
+                <p className="text-sm font-semibold text-slate-900">How NEXUS handles your order</p>
+                <ul className="mt-4 space-y-3 text-sm text-slate-600">
+                  <li>1. Create one standard NEXUS Delivery from every order.</li>
+                  <li>2. Extract customer, addresses, goods, quantities, notes and order references.</li>
+                  <li>3. Show a review screen before delivery creation.</li>
+                </ul>
+              </div>
+            </div>
+
+            <aside className="space-y-6">
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">AI document analysis</p>
+                <h3 className="mt-4 text-xl font-semibold text-slate-950">AI placeholder</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  When a PDF upload completes successfully, NEXUS will extract delivery details and ask you to review them.
+                </p>
+
+                <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
+                  <div className="mb-4 h-36 rounded-3xl bg-white p-4 text-slate-400 shadow-sm">
+                    <p className="font-medium text-slate-900">AI document analysis coming in v0.3</p>
+                    <p className="mt-2">The extracted delivery preview will appear here after upload.</p>
+                  </div>
+                  <div className="grid gap-3 text-xs text-slate-500">
+                    <div className="flex justify-between gap-4">
+                      <span>Customer</span>
+                      <span className="text-slate-400">Example</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Collection address</span>
+                      <span className="text-slate-400">Example</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Delivery address</span>
+                      <span className="text-slate-400">Example</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>Goods, qty, notes</span>
+                      <span className="text-slate-400">Example</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Future workflow</p>
+                <ol className="mt-4 space-y-3 text-sm text-slate-600">
+                  <li>• Upload PDF or connect another order source.</li>
+                  <li>• NEXUS extracts delivery information.</li>
+                  <li>• Review and edit anything incorrect.</li>
+                  <li>• Create Delivery and continue to dispatch.</li>
+                </ol>
+              </div>
+            </aside>
+          </section>
+        )}
+
+        {uploadActive && (
+          <section className="space-y-4 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Upload PDF</p>
+              <h2 className="text-2xl font-semibold text-slate-950">Upload your delivery document</h2>
+              <p className="text-sm text-slate-600">
+                This links into the Document Centre. When upload succeeds, you’ll see the AI analysis placeholder.
+              </p>
+            </div>
+
+            <DocumentUploadCard
+              onUploadComplete={() => {
+                setUploadComplete(true);
+                setUploadActive(false);
+              }}
+            />
+
+            {uploadComplete && (
+              <div className="rounded-[24px] border border-[#7C3AED] bg-[#F5F3FF] p-6 text-slate-900">
+                <p className="font-semibold text-[#5B21B6]">Upload complete</p>
+                <p className="mt-2 text-sm text-slate-700">
+                  Your PDF is in the Document Centre now. AI document analysis coming in v0.3.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+    </AppShell>
+  );
+}
