@@ -89,7 +89,14 @@ export default function MerchantSidebar({ activePath }: MerchantSidebarProps) {
               <span className="flex h-5 w-5 items-center justify-center">
                 {navIcons[item.icon]}
               </span>
-              {item.label}
+              <span className="flex items-center gap-2">
+                {item.label}
+                {item.comingSoon ? (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    Coming Soon
+                  </span>
+                ) : null}
+              </span>
             </Link>
           );
         })}

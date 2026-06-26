@@ -2,6 +2,7 @@ export interface NavItem {
   label: string;
   href: string;
   icon: string;
+  comingSoon?: boolean;
 }
 
 export const merchantNavItems: NavItem[] = [
@@ -29,20 +30,24 @@ export const merchantNavItems: NavItem[] = [
     label: "Live Deliveries",
     href: "/portal/live",
     icon: "Truck",
+    comingSoon: true,
   },
   {
     label: "Documents",
     href: "/portal/documents",
     icon: "FileCheck",
+    comingSoon: true,
   },
   {
     label: "Finance",
     href: "/portal/finance",
     icon: "BarChart3",
+    comingSoon: true,
   },
   {
     label: "Warehouse",
     href: "/portal/warehouse",
     icon: "Box",
+    comingSoon: true,
   },
 ];
