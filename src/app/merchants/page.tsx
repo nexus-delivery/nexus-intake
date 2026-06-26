@@ -34,17 +34,17 @@ export default function MerchantsPage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Customers</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Merchants</p>
               <div>
-                <h1 className="text-3xl font-semibold text-slate-950">Customer network</h1>
+                <h1 className="text-3xl font-semibold text-slate-950">Merchant network</h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                  Active customers with order input method, documents and orders summary. Operations users can open each customer’s portal view — placeholder only.
+                  Active merchants and shippers with order input method, documents, and order summary. Operations users can open each merchant portal view — placeholder only.
                 </p>
               </div>
             </div>
 
             <div className="inline-flex items-center rounded-3xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-slate-950/20">
-              {merchants.length} customers active
+              {merchants.length} merchants active
             </div>
           </div>
 
@@ -93,7 +93,7 @@ export default function MerchantsPage() {
                     type="button"
                     className="inline-flex justify-center rounded-2xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
                   >
-                    View as Customer
+                    View merchant portal
                   </button>
                   <button
                     type="button"
@@ -102,7 +102,7 @@ export default function MerchantsPage() {
                     Upload PDF
                   </button>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">Operations users can open each customer’s portal view. This is a placeholder only.</p>
+                <p className="mt-3 text-xs text-slate-500">Operations users can open each merchant portal view. This is a placeholder only.</p>
               </article>
             ))}
           </div>

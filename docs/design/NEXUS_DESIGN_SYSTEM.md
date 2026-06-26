@@ -15,12 +15,12 @@
 ## Navigation principles
 - Icon-first sidebar
 - Sidebar can later collapse to icons only
-- Labels should be simple and customer-friendly
-- Use:
+- Labels should be simple and role-appropriate
+- Operations shell navigation should use:
   - Home
   - New Delivery
   - My Deliveries
-  - Customers
+  - Merchants
   - Documents
   - Planning
   - Fleet
@@ -29,12 +29,24 @@
   - Reports
   - Settings
   - Support
+- Merchant portal navigation should use:
+  - Dashboard
+  - Create Order
+  - Customers
+  - My Orders
+  - Tracking
+  - Documents
+  - Billing
+  - Inventory
+  - Support
 
-## Customer language
-- Use "Deliveries" instead of "Consignments" in customer-facing areas
-- Use "New Delivery" instead of "Order Intake"
-- Use "Submit Order" or "Send Delivery Request" instead of "Upload PDF"
-- Use "Documents" instead of "Document Centre" where customer-facing
+## Merchant and customer language
+- Use "Merchants" or "Shippers" for businesses that use NEXUS to create and manage logistics work
+- Reserve "Customers" for the end consumers or recipient companies served by each merchant/shipper
+- Use "Deliveries" instead of "Consignments" in merchant-facing or customer-facing areas where plain language is preferred
+- Use "Create Order" or "New Delivery" instead of "Order Intake" in merchant-facing flows
+- Use "Submit Order" or "Send Delivery Request" instead of "Upload PDF" in simplified merchant or customer-facing journeys
+- Use "Documents" instead of "Document Centre" where merchant-facing or customer-facing
 - Keep operational terms only for operations/admin pages
 
 ## Design principles

@@ -10,7 +10,7 @@ const navItems = [
   { label: "Home", href: "/dashboard" },
   { label: "New Delivery", href: "/order-input" },
   { label: "My Deliveries", href: "/orders" },
-  { label: "Customers", href: "/customers" },
+  { label: "Merchants", href: "/customers" },
   { label: "Documents", href: "/document-centre" },
   { label: "Planning", href: "/consignments" },
   { label: "Fleet", href: "/drivers" },
