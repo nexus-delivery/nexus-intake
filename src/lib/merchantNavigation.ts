@@ -11,23 +11,23 @@ export const merchantNavItems: NavItem[] = [
     icon: "Home",
   },
   {
-    label: "Upload Orders",
-    href: "/portal/upload",
-    icon: "Upload",
+    label: "New Booking",
+    href: "/portal/new-booking",
+    icon: "PlusSquare",
   },
   {
-    label: "AI Intake",
-    href: "/portal/intake",
-    icon: "FileText",
+    label: "My Bookings",
+    href: "/portal/bookings",
+    icon: "ClipboardList",
   },
   {
-    label: "Draft Orders",
-    href: "/portal/drafts",
-    icon: "FileText",
+    label: "Customers",
+    href: "/portal/customers",
+    icon: "Users",
   },
   {
-    label: "Live Deliveries",
-    href: "/portal/live",
+    label: "Tracking",
+    href: "/portal/tracking",
     icon: "Truck",
   },
   {
@@ -36,13 +36,18 @@ export const merchantNavItems: NavItem[] = [
     icon: "FileCheck",
   },
   {
-    label: "Finance",
-    href: "/portal/finance",
+    label: "Billing",
+    href: "/portal/billing",
+    icon: "CreditCard",
+  },
+  {
+    label: "Reports",
+    href: "/portal/reports",
     icon: "BarChart3",
   },
   {
-    label: "Warehouse",
-    href: "/portal/warehouse",
-    icon: "Box",
+    label: "Settings",
+    href: "/portal/settings",
+    icon: "Settings",
   },
 ];
