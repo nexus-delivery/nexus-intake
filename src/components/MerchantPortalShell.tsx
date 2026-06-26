@@ -31,7 +31,7 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
                   Merchant Portal
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">
-                  Merchant Dashboard
+                  Dashboard
                 </h1>
               </div>
 

@@ -14,10 +14,12 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/support": "Support",
   "/portal": "Merchant Dashboard",
-  "/portal/orders": "Orders",
-  "/portal/shipments": "Shipments",
-  "/portal/analytics": "Analytics",
-  "/portal/settings": "Merchant Settings",
+  "/portal/upload": "Upload Orders",
+  "/portal/drafts": "Draft Orders",
+  "/portal/live": "Live Deliveries",
+  "/portal/documents": "Documents",
+  "/portal/finance": "Finance",
+  "/portal/warehouse": "Warehouse",
 };
 
 export function getTitleForPath(pathname: string | null | undefined) {
