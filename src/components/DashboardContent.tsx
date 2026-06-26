@@ -54,7 +54,7 @@ export default function DashboardContent() {
           <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Summary</p>
             <div className="mt-5 space-y-3">
-              <p className="text-sm text-slate-600">Orders are flowing from booking forms and merchant feeds today.</p>
+              <p className="text-sm text-slate-600">Orders are flowing from booking forms and customer feeds today.</p>
               <p className="text-sm text-slate-600">Exceptions are low, with validation and operations teams aligned.</p>
             </div>
           </div>

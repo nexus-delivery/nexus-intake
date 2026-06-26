@@ -92,27 +92,45 @@ export default function OrderInputPage() {
                     : "border-slate-200 bg-white hover:border-[#7C3AED] hover:shadow-lg hover:shadow-[#7C3AED]/10"
                 }`}
               >
-                <div className="space-y-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F3F4F6] text-[#7C3AED]">
-                    {method.id === "pdf" && (
-                      <span className="text-2xl font-bold">PDF</span>
-                    )}
-                    {method.id === "email" && (
-                      <span className="text-2xl">@</span>
-                    )}
-                    {method.id === "manual" && (
-                      <span className="text-2xl">✎</span>
-                    )}
-                    {method.id === "webform" && (
-                      <span className="text-2xl">🌐</span>
-                    )}
-                    {method.id === "woocommerce" && (
-                      <span className="text-2xl">W</span>
-                    )}
-                    {method.id === "api" && (
-                      <span className="text-2xl">API</span>
-                    )}
-                  </div>
+                  <div className="space-y-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                      {method.id === "pdf" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <path d="M7 3h8l4 4v11a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3z" />
+                          <path d="M13 3v5h5" />
+                        </svg>
+                      )}
+                      {method.id === "email" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <path d="M3 8l8 5 8-5" />
+                          <path d="M21 8v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" />
+                        </svg>
+                      )}
+                      {method.id === "manual" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <path d="M3 21v-3l11-11 3 3L6 21H3z" />
+                          <path d="M14 7l3 3" />
+                        </svg>
+                      )}
+                      {method.id === "webform" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <rect x="3" y="4" width="18" height="14" rx="2" />
+                          <path d="M7 8h10M7 12h10" />
+                        </svg>
+                      )}
+                      {method.id === "woocommerce" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <path d="M3 7h18v10H3z" />
+                          <path d="M7 7v10" />
+                        </svg>
+                      )}
+                      {method.id === "api" && (
+                        <svg viewBox="0 0 24 24" className="h-6 w-6 text-[#7C3AED]" fill="none" stroke="#7C3AED" strokeWidth="1.8">
+                          <circle cx="12" cy="12" r="3" />
+                          <path d="M19 12h2M3 12H1M12 19v2M12 3v2" />
+                        </svg>
+                      )}
+                    </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">

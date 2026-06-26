@@ -34,17 +34,17 @@ export default function MerchantsPage() {
         <div className="space-y-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Merchants</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Customers</p>
               <div>
-                <h1 className="text-3xl font-semibold text-slate-950">Merchant network</h1>
+                <h1 className="text-3xl font-semibold text-slate-950">Customer network</h1>
                 <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                  Active merchant partners with intake status, document placeholders and PDF upload actions.
+                  Active customers with order input method, documents and orders summary. Operations users can open each customer’s portal view — placeholder only.
                 </p>
               </div>
             </div>
 
             <div className="inline-flex items-center rounded-3xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-slate-950/20">
-              {merchants.length} merchants active
+              {merchants.length} customers active
             </div>
           </div>
 
@@ -52,7 +52,7 @@ export default function MerchantsPage() {
             {merchants.map((merchant) => (
               <article
                 key={merchant.companyName}
-                className="rounded-[28px] border border-slate-200 bg-slate-50 p-6 shadow-sm shadow-slate-200/30"
+                className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
@@ -69,7 +69,7 @@ export default function MerchantsPage() {
                 <div className="mt-6 grid gap-3">
                   <div className="rounded-3xl bg-white p-4 shadow-sm shadow-slate-200/30">
                     <div className="flex items-center justify-between gap-4 text-sm text-slate-700">
-                      <span className="font-medium text-slate-900">Intake type</span>
+                      <span className="font-medium text-slate-900">Order Input Method</span>
                       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-700">
                         {merchant.intakeType}
                       </span>
@@ -91,9 +91,9 @@ export default function MerchantsPage() {
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
-                    className="inline-flex justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="inline-flex justify-center rounded-2xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
                   >
-                    View Merchant
+                    View as Customer
                   </button>
                   <button
                     type="button"
@@ -102,6 +102,7 @@ export default function MerchantsPage() {
                     Upload PDF
                   </button>
                 </div>
+                <p className="mt-3 text-xs text-slate-500">Operations users can open each customer’s portal view. This is a placeholder only.</p>
               </article>
             ))}
           </div>

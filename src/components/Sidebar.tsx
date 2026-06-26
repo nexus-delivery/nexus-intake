@@ -12,43 +12,43 @@ type SidebarProps = {
 
 const navIcons: Record<string, JSX.Element> = {
   Home: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 11.5L12 4l9 7.5" />
       <path d="M4 12v8h6v-5h4v5h6v-8" />
     </svg>
   ),
   "New Delivery": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
   "My Deliveries": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 7h16M4 12h12M4 17h8" />
     </svg>
   ),
   Customers: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" />
       <path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1" />
     </svg>
   ),
   Documents: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M6 3h9l6 6v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2z" />
       <path d="M14 3v6h6" />
       <path d="M9 13h6M9 17h6" />
     </svg>
   ),
   Planning: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 7h18M7 21V7" />
       <path d="M16 21V11" />
       <path d="M12 21V14" />
     </svg>
   ),
   Fleet: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 13h16v6H3z" />
       <path d="M19 13h2v6h-2z" />
       <path d="M6 13V7h10v6" />
@@ -57,14 +57,14 @@ const navIcons: Record<string, JSX.Element> = {
     </svg>
   ),
   Warehouse: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 8l8-5 8 5v11H4V8z" />
       <path d="M12 3v18" />
       <path d="M8 12h8" />
     </svg>
   ),
   Finance: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 3v18" />
       <path d="M7 8h10" />
       <path d="M7 16h10" />
@@ -73,7 +73,7 @@ const navIcons: Record<string, JSX.Element> = {
     </svg>
   ),
   Reports: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 6h16" />
       <path d="M7 6v12" />
       <path d="M12 10v8" />
@@ -82,7 +82,7 @@ const navIcons: Record<string, JSX.Element> = {
     </svg>
   ),
   Support: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M5 18h14" />
       <path d="M12 22a2 2 0 100-4 2 2 0 000 4z" />
       <path d="M12 18V8" />
@@ -90,7 +90,7 @@ const navIcons: Record<string, JSX.Element> = {
     </svg>
   ),
   Settings: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
     </svg>
@@ -136,7 +136,7 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
                 }
                 aria-current={active ? "page" : undefined}
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-200">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg">
                   {navIcons[item.label] ?? <span className="block h-4 w-4 rounded-full bg-slate-300" />}
                 </span>
                 <span>{item.label}</span>

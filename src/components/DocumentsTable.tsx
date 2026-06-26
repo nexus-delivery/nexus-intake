@@ -26,7 +26,7 @@ export default function DocumentsTable({ documents = defaultDocuments }: Documen
                 Document Name
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
-                Merchant
+                Customer
               </th>
               <th className="px-6 py-4 text-left text-sm font-semibold text-slate-900">
                 Document Type

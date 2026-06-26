@@ -14,7 +14,10 @@ const navItems = [
   { label: "Planning", href: "/consignments" },
   { label: "Fleet", href: "/drivers" },
   { label: "Warehouse", href: "/merchants" },
+  { label: "Finance", href: "/finance" },
+  { label: "Reports", href: "/reports" },
   { label: "Settings", href: "/settings" },
+  { label: "Support", href: "/support" },
 ];
 
 const pageTitles: Record<string, string> = {
@@ -27,6 +30,9 @@ const pageTitles: Record<string, string> = {
   "/booking-forms": "Booking Forms",
   "/document-centre": "Documents",
   "/drivers": "Fleet",
+  "/finance": "Finance",
+  "/reports": "Reports",
+  "/support": "Support",
   "/settings": "Settings",
 };
 
