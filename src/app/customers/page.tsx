@@ -1,4 +1,5 @@
 import AppShell from "@/components/AppShell";
+import Link from "next/link";
 
 const customers = [
   {
@@ -8,6 +9,7 @@ const customers = [
     intakeType: "PDF Upload",
     documentsCount: "—",
     ordersCount: "—",
+    href: "/customers/doorway-group",
   },
   {
     companyName: "DI Designs LTD",
@@ -16,6 +18,7 @@ const customers = [
     intakeType: "PDF Upload",
     documentsCount: "—",
     ordersCount: "—",
+    href: "/customers/di-designs",
   },
   {
     companyName: "BLB Group LTD",
@@ -24,6 +27,7 @@ const customers = [
     intakeType: "PDF Upload",
     documentsCount: "—",
     ordersCount: "—",
+    href: "/customers/nook-home",
   },
 ];
 
@@ -89,12 +93,12 @@ export default function CustomersPage() {
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
+                  <Link
+                    href={customer.href}
                     className="inline-flex justify-center rounded-2xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
                   >
                     View as Customer
-                  </button>
+                  </Link>
                   <button
                     type="button"
                     className="inline-flex justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:border-slate-400 hover:bg-slate-50"

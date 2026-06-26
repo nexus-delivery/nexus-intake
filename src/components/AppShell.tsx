@@ -1,9 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
   { label: "Home", href: "/dashboard" },
@@ -13,33 +14,23 @@ const navItems = [
   { label: "Documents", href: "/document-centre" },
   { label: "Planning", href: "/consignments" },
   { label: "Fleet", href: "/drivers" },
-  { label: "Warehouse", href: "/merchants" },
+  { label: "Warehouse", href: "/warehouse" },
   { label: "Finance", href: "/finance" },
   { label: "Reports", href: "/reports" },
   { label: "Settings", href: "/settings" },
   { label: "Support", href: "/support" },
 ];
-
-const pageTitles: Record<string, string> = {
-  "/dashboard": "Home",
-  "/order-input": "New Delivery",
-  "/orders": "My Deliveries",
-  "/consignments": "Planning",
-  "/merchants": "Warehouse",
-  "/customers": "Customers",
-  "/booking-forms": "Booking Forms",
-  "/document-centre": "Documents",
-  "/drivers": "Fleet",
-  "/finance": "Finance",
-  "/reports": "Reports",
-  "/support": "Support",
-  "/settings": "Settings",
-};
-
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
   const activePath = pathname === "/" ? "/dashboard" : pathname;
-  const pageTitle = pageTitles[activePath] ?? "Dashboard";
+  const pageTitle = getTitleForPath(activePath);
+
+  useEffect(() => {
+    // keep browser title in sync with page title mapping
+    if (typeof document !== "undefined") {
+      document.title = `${pageTitle} — NEXUS`;
+    }
+  }, [pageTitle]);
 
   return (
     <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
