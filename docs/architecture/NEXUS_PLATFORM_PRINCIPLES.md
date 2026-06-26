@@ -167,3 +167,53 @@ The model may include:
 - Flexible commercial arrangements to suit different customer and market profiles
 
 The commercial model should reinforce the platform strategy: NEXUS remains the operating system, while specialist tools and partner channels remain connected components within the broader ecosystem.
+
+## 13. Merchant-Branded POD and Signed Documents
+
+NEXUS should provide a comprehensive proof of delivery (POD) and signed documents capability that allows merchants to brand and customize their delivery documentation.
+
+### Merchant-aware POD branding
+
+PODs must be merchant-aware, allowing each merchant to maintain their brand identity throughout the delivery experience.
+
+Each merchant can configure:
+- Logo and branding assets
+- Trading name
+- Contact details
+- Support email and phone
+- Terms and conditions
+- Custom POD template
+- Tracking page branding
+- Email branding
+
+### POD content and structure
+
+Generated POD documents should include:
+- Merchant logo and merchant details
+- NEXUS fulfilment details
+- Delivery details and delivery date/time
+- Recipient information
+- Driver notes
+- Delivery photos
+- Recipient signature
+- POD reference number
+
+### Document storage and management
+
+- Original uploaded PDFs must remain stored against the job for audit and compliance purposes
+- Generated POD PDFs should be stored against the delivery for easy retrieval and distribution
+- Generated POD PDFs should be emailable to recipient, merchant, collection contact, and internal operations
+
+### POD generation and proof of delivery approach
+
+Track-POD signature, photos, and status data should be used to generate a NEXUS-branded POD PDF that combines operational evidence with merchant branding.
+
+Use Track-POD POD evidence as the standard delivery proof for all merchants.
+
+### E-signature and formal document execution
+
+E-signature provider support (such as DocuSign) should be available as an optional future capability for merchants that require formal document execution.
+
+Use DocuSign or other e-signature solutions only where a merchant explicitly requires formal document execution, maintaining Track-POD evidence as the default standard delivery proof.
+
+This approach preserves operational efficiency while supporting merchants with higher formal documentation requirements.
