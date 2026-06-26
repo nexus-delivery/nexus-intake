@@ -27,7 +27,6 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/portal/billing": "Billing",
   "/portal/reports": "Reports",
   "/portal/settings": "Settings",
-  "/portal/intake": "New Booking",
 };
 
 export function getTitleForPath(pathname: string | null | undefined) {
