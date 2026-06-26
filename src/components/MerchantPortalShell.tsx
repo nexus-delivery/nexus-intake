@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import MerchantSidebar from "@/components/MerchantSidebar";
+import { getTitleForPath } from "@/lib/routeTitles";
 
 type MerchantPortalShellProps = {
   children: ReactNode;
@@ -11,12 +12,13 @@ type MerchantPortalShellProps = {
 export default function MerchantPortalShell({ children }: MerchantPortalShellProps) {
   const pathname = usePathname() || "/portal";
   const activePath = pathname;
+  const heading = getTitleForPath(pathname);
 
   useEffect(() => {
     if (typeof document !== "undefined") {
-      document.title = `Merchant Portal — NEXUS`;
+      document.title = `${heading} — Merchant Portal — NEXUS`;
     }
-  }, []);
+  }, [heading]);
 
   return (
     <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
@@ -27,11 +29,9 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
           <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
             <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
               <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.32em] text-slate-500">
-                  Merchant Portal
-                </p>
+                <p className="text-xs uppercase tracking-[0.32em] text-slate-500">Merchant Portal</p>
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">
-                  Dashboard
+                  {heading}
                 </h1>
               </div>
 

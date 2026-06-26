@@ -8,14 +8,45 @@ NEXUS does not replace specialist systems by default. It connects them.
 
 The platform is designed to be the central operating layer for logistics operations while preserving the flexibility to use best-in-class specialist tools where needed.
 
-NEXUS should provide a single experience for customers, merchants, operators, and partners, while allowing specialist workflows to remain in their native systems where appropriate.
+NEXUS should provide a single experience for merchants, their customers, operators, and partners, while allowing specialist workflows to remain in their native systems where appropriate.
+
+### Multi-tenant hierarchy and terminology (architectural baseline)
+
+NEXUS is a multi-tenant platform. Every portal and workflow must follow this hierarchy:
+
+```
+Merchant (or Shipper)
+→ Customers
+→ Bookings
+→ Consignments
+→ Tracking
+→ POD
+→ Documents
+```
+
+Terminology is strict:
+
+- **Merchant / Shipper** = the business using NEXUS (our customer).
+- **Customer** = the merchant's customer (recipient / end customer).
+- **Booking** = shipment request.
+- **Consignment** = one delivery item within a booking.
+- **Tracking, POD, Documents** = managed per consignment.
+
+Scale assumptions:
+
+- One merchant may have thousands of customers.
+- One customer may have thousands of bookings.
+- One booking may contain one or more consignments.
+- Every consignment has its own tracking, POD, documents, and events.
+
+Until data-model work is approved, apply this hierarchy in UI wording, navigation, and architecture documentation only.
 
 ## 2. User roles
 
 NEXUS serves multiple user groups through one connected operating environment:
 
-- Customers interact with NEXUS as their primary service experience.
-- Merchants operate through the merchant portal inside NEXUS.
+- Merchants (shippers) operate through the merchant portal inside NEXUS.
+- Merchant customers interact through merchant-managed booking, tracking, and delivery experiences.
 - Planners may use Track-POD or another planning platform for operational planning.
 - Drivers may use Track-POD Mobile or another driver application for execution.
 - Partners and agents interact through a dedicated portal experience.
@@ -56,7 +87,7 @@ This rule ensures that NEXUS remains the control layer and customer-facing syste
 Track-POD is treated as an operational execution connector rather than the primary customer-facing platform.
 
 The integration approach should preserve the following principles:
-- Customers and merchants stay inside NEXUS.
+- Merchants and their customers stay inside NEXUS.
 - Planners may use Track-POD or another planning platform.
 - Drivers may use Track-POD Mobile or another driver app.
 - Core status, tasks, documents, visibility, and customer communication remain available inside NEXUS.
