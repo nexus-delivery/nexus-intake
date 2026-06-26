@@ -14,7 +14,7 @@ type LabeledValue = {
 const pipelineStages: PipelineStage[] = [
   { step: 1, title: "Upload Document", status: "done" },
   { step: 2, title: "Store Original PDF", status: "done" },
-  { step: 3, title: "AI Extraction", status: "done" },
+  { step: 3, title: "Document Processing", status: "done" },
   { step: 4, title: "Draft Order Created", status: "done" },
   { step: 5, title: "Merchant Review", status: "current" },
   { step: 6, title: "Approve Order", status: "pending" },
@@ -88,7 +88,7 @@ export default function MerchantIntakePage() {
     <div className="space-y-6 pb-8">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
-          AI Intake Engine v0.6.0
+          Document Intake v0.6.0
         </p>
         <h1 className="text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
           Delivery intake workflow
@@ -98,7 +98,7 @@ export default function MerchantIntakePage() {
         </p>
       </header>
 
-      <SectionCard title="Pipeline status display" subtitle="Full AI intake flow from upload to Track-POD readiness.">
+      <SectionCard title="Pipeline status display" subtitle="Full document processing flow from upload to Track-POD readiness.">
         <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {pipelineStages.map((stage) => (
             <li
@@ -134,7 +134,7 @@ export default function MerchantIntakePage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Extraction preview" subtitle="Mock fields extracted by AI from your document.">
+          <SectionCard title="Extraction preview" subtitle="Extracted fields from your document.">
             <dl className="grid gap-4 sm:grid-cols-2">
               {extractedFields.map((item) => (
                 <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
