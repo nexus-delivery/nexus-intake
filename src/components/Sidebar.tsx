@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 type NavItem = {
   label: string;
@@ -10,7 +11,7 @@ type SidebarProps = {
   activePath: string;
 };
 
-const navIcons: Record<string, JSX.Element> = {
+const navIcons: Record<string, ReactNode> = {
   Home: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 11.5L12 4l9 7.5" />

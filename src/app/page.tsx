@@ -252,47 +252,83 @@ export default function Home() {
           <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Live Operations</p>
-                <h2 className="mt-3 text-2xl font-semibold text-[var(--nexus-graphite)]">Live Fleet Map</h2>
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Live Fleet Map</p>
+                <h2 className="mt-3 text-2xl font-semibold text-[var(--nexus-graphite)]">Fleet route preview</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Google Maps integration coming next.</p>
               </div>
               <span className="inline-flex rounded-2xl bg-[var(--nexus-purple)] px-4 py-2 text-sm font-semibold text-white">
-                Google Maps coming soon
+                Placeholder only
               </span>
             </div>
 
-            <div className="mt-6 grid gap-5">
-              <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-200 p-6 shadow-inner shadow-slate-200/50">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(124,58,237,0.12),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(17,24,39,0.12),_transparent_30%)]" />
-                <div className="relative grid h-72 gap-4 sm:h-80">
-                  <div className="absolute inset-6 rounded-[24px] bg-[linear-gradient(180deg,_rgba(255,255,255,0.6),_transparent)] shadow-[inset_0_0_0_1px_rgba(148,163,184,0.12)]" />
-                  <div className="absolute left-7 top-10 h-2 w-2 rounded-full bg-[var(--nexus-purple)] shadow-[0_0_0_8px_rgba(124,58,237,0.15)]" />
-                  <div className="absolute right-8 top-16 h-2 w-2 rounded-full bg-slate-700/90 shadow-[0_0_0_8px_rgba(17,24,39,0.12)]" />
-                  <div className="absolute left-16 bottom-20 h-2 w-2 rounded-full bg-slate-700/90 shadow-[0_0_0_8px_rgba(17,24,39,0.12)]" />
-                  <div className="absolute right-16 bottom-14 h-2 w-2 rounded-full bg-slate-700/90 shadow-[0_0_0_8px_rgba(17,24,39,0.12)]" />
-                  <div className="absolute left-14 top-28 h-0.5 w-28 rounded-full bg-slate-500/40 rotate-12" />
-                  <div className="absolute right-10 top-24 h-0.5 w-20 rounded-full bg-slate-500/40 -rotate-12" />
-                  <div className="absolute left-20 bottom-24 h-0.5 w-32 rounded-full bg-slate-500/40" />
-                  <div className="absolute inset-x-10 top-32 h-0.5 rounded-full bg-slate-500/20" />
-                  <div className="absolute inset-0 rounded-[24px] border border-dashed border-slate-300/60" />
-                  <div className="absolute bottom-6 left-6 rounded-3xl border border-slate-300/80 bg-white/90 p-4 text-sm text-slate-700 shadow-sm">
-                    <p className="font-semibold text-slate-900">Depot Locations</p>
-                    <p className="mt-1 text-xs text-slate-500">Core hubs and staging yards</p>
+            <div className="mt-6 grid gap-6 xl:grid-cols-[1.7fr_0.9fr]">
+              <div className="relative overflow-hidden rounded-[28px] bg-slate-100 p-6 shadow-sm shadow-slate-200/30">
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(241,245,249,0.95),rgba(226,232,240,0.95))]" />
+                <div className="absolute inset-6 rounded-[24px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.14),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(15,23,42,0.08),transparent_35%)]" />
+                <div className="relative h-80 rounded-[24px] bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300">
+                  <div className="absolute inset-6 rounded-[24px] bg-slate-100/80" />
+                  <div className="absolute left-10 top-10 h-3 w-3 rounded-full bg-[var(--nexus-purple)] shadow-[0_0_0_10px_rgba(124,58,237,0.18)]" />
+                  <div className="absolute left-24 top-20 h-3 w-3 rounded-full bg-slate-700/90 shadow-[0_0_0_10px_rgba(15,23,42,0.15)]" />
+                  <div className="absolute right-16 top-24 h-3 w-3 rounded-full bg-slate-700/90 shadow-[0_0_0_10px_rgba(15,23,42,0.15)]" />
+                  <div className="absolute left-20 bottom-20 h-3 w-3 rounded-full bg-slate-700/90 shadow-[0_0_0_10px_rgba(15,23,42,0.15)]" />
+                  <div className="absolute right-10 bottom-16 h-3 w-3 rounded-full bg-slate-700/90 shadow-[0_0_0_10px_rgba(15,23,42,0.15)]" />
+                  <div className="absolute left-16 top-14 h-0.5 w-40 rounded-full bg-[var(--nexus-purple)]/30 rotate-6" />
+                  <div className="absolute left-10 top-28 h-0.5 w-52 rounded-full bg-[var(--nexus-purple)]/30 rotate-[6deg]" />
+                  <div className="absolute right-12 top-40 h-0.5 w-36 rounded-full bg-[var(--nexus-purple)]/30 -rotate-12" />
+                  <div className="absolute left-14 bottom-14 h-0.5 w-28 rounded-full bg-slate-500/30 rotate-2" />
+                  <div className="absolute left-8 bottom-32 h-0.5 w-24 rounded-full bg-slate-500/20" />
+                  <div className="absolute inset-x-8 top-2/3 h-0.5 rounded-full bg-slate-400/20" />
+                  <div className="absolute left-8 top-1/2 rounded-full border border-slate-300 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                    Delivery area A
+                  </div>
+                  <div className="absolute right-8 top-20 rounded-full border border-slate-300 bg-white/80 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                    Delivery area B
+                  </div>
+                  <div className="absolute left-1/2 top-32 -translate-x-1/2 rounded-full border border-slate-300 bg-white/85 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                    Route line placeholder
+                  </div>
+                  <div className="absolute right-8 bottom-8 rounded-[20px] border border-slate-300 bg-white/95 px-4 py-3 text-sm shadow-sm">
+                    <p className="font-semibold text-slate-900">ETA placeholder</p>
+                    <p className="mt-1 text-xs text-slate-500">Driver 14 arriving in 14 min</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {[
-                  { label: "Fleet Locations", text: "Active vehicles in the field." },
-                  { label: "Route Planning", text: "Planned routes and stops." },
-                  { label: "Traffic", text: "Traffic conditions for today." },
-                  { label: "ETA", text: "Estimated arrival times." },
-                ].map((item) => (
-                  <div key={item.label} className="rounded-3xl bg-slate-50 p-4 shadow-sm shadow-slate-200/20">
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{item.text}</p>
+              <div className="grid gap-4">
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/30">
+                  <p className="text-sm uppercase tracking-[0.18em] text-slate-500">Map markers</p>
+                  <div className="mt-5 space-y-4 text-sm leading-6 text-slate-700">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-3.5 w-3.5 rounded-full bg-[var(--nexus-purple)]" />
+                      Depot marker
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-3.5 w-3.5 rounded-full bg-slate-700/90" />
+                      Driver markers
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-3.5 w-3.5 rounded-full border border-slate-300 bg-white" />
+                      Delivery area labels
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/30">
+                  <p className="text-sm uppercase tracking-[0.18em] text-slate-500">Status legend</p>
+                  <div className="mt-5 space-y-3 text-sm">
+                    {[
+                      { label: "On route", color: "bg-[var(--nexus-purple)]" },
+                      { label: "At collection", color: "bg-sky-400" },
+                      { label: "Delayed", color: "bg-amber-400" },
+                      { label: "Delivered", color: "bg-emerald-400" },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
+                        <span className={`inline-flex h-3.5 w-3.5 rounded-full ${item.color}`} />
+                        <span className="text-slate-700">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
