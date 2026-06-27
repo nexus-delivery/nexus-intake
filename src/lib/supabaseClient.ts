@@ -1,17 +1,24 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
-}
+/**
+ * Whether Supabase env vars are present and the client is usable.
+ * When false, upload functions return graceful errors and confirmJob uses mock data,
+ * allowing the merchant journey to work visually in preview/local dev environments.
+ */
+export const SUPABASE_AVAILABLE = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Only create the client when env vars are present – never throw at module load.
+export const supabase: SupabaseClient | null = SUPABASE_AVAILABLE
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : null;
 
-// TODO: replace with authenticated company_id from session when auth is implemented
+/**
+ * TEMPORARY: Placeholder company ID used for preview/local dev only.
+ * TODO: Replace with authenticated company_id when auth is implemented.
+ */
 const DEFAULT_COMPANY_ID = "724ef0a7-4371-4350-9e59-ab93a960183f";
 
 // Supported MIME types mapped to their normalised file_type values
@@ -27,6 +34,21 @@ function getFileTypeFromMime(mimeType: string): string | null {
 }
 
 /**
+ * Generate a random UUID v4 for use as a mock job ID in preview/local dev.
+ * Falls back to a manual implementation when crypto.randomUUID is unavailable.
+ */
+export function generateMockJobId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
  * Upload a multi-format document (PDF, PNG, JPG, JPEG) to the
  * merchant-documents Supabase Storage bucket.
  *
@@ -36,6 +58,10 @@ export async function uploadMultiFormatFile(
   file: File,
   companyId: string = DEFAULT_COMPANY_ID
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
   const fileType = getFileTypeFromMime(file.type);
   if (!fileType) {
     return {
@@ -85,6 +111,10 @@ export async function insertUploadedDocument(params: {
   companyId?: string;
   uploadedByUserId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
   const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
@@ -132,6 +162,10 @@ export async function createDraftJob(params: {
   companyId?: string;
   createdByUserId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
   const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
@@ -180,6 +214,10 @@ export async function uploadMultiFormatDocument(
   file: File,
   companyId?: string
 ): Promise<{ success: boolean; error?: string; metadata?: UploadedDocumentMetadata }> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
   const fileType = getFileTypeFromMime(file.type);
   if (!fileType) {
     return {
@@ -257,6 +295,12 @@ export async function confirmJob(params: {
   draftJobId?: string;
   companyId?: string;
 }): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
+  // Graceful fallback for preview/local dev without Supabase env vars
+  if (!supabase) {
+    const mockId = generateMockJobId();
+    return { success: true, jobId: mockId, jobReference: generateJobReference(mockId) };
+  }
+
   const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
@@ -314,6 +358,10 @@ export async function fetchUploadedDocuments(companyId?: string): Promise<
   | { success: true; data: UploadedDocumentRow[] }
   | { success: false; error: string }
 > {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
   try {
     let query = supabase
       .from("uploaded_documents")

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { uploadMultiFormatDocument, type UploadedDocumentMetadata } from "@/lib/supabaseClient";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
+
+const UPLOAD_TIMEOUT_MS = 10_000;
 
 type DocumentUploadCardProps = {
   onUploadComplete?: (fileName: string) => void;
@@ -43,6 +45,8 @@ export default function DocumentUploadCard({
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [metadata, setMetadata] = useState<UploadedDocumentMetadata | null>(null);
+  const cancelledRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -56,11 +60,30 @@ export default function DocumentUploadCard({
   };
 
   const processFile = async (file: File) => {
+    cancelledRef.current = false;
     setUploadState("uploading");
     setErrorMessage("");
     setMetadata(null);
 
+    // Start 10-second timeout; show an error if upload doesn't complete in time.
+    timeoutRef.current = setTimeout(() => {
+      if (!cancelledRef.current) {
+        cancelledRef.current = true;
+        setUploadState("error");
+        setErrorMessage("Upload timeout. Please try again.");
+      }
+    }, UPLOAD_TIMEOUT_MS);
+
     const result = await uploadMultiFormatDocument(file);
+
+    // Clear the timeout now that we have a result.
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // Ignore the result if the upload was already cancelled or timed out.
+    if (cancelledRef.current) return;
 
     if (result.success && result.metadata) {
       setUploadState("success");
@@ -73,6 +96,16 @@ export default function DocumentUploadCard({
       setErrorMessage(error);
       onUploadError?.(error);
     }
+  };
+
+  const handleCancel = () => {
+    cancelledRef.current = true;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setUploadState("error");
+    setErrorMessage("Upload cancelled. Please try again.");
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -93,6 +126,11 @@ export default function DocumentUploadCard({
   };
 
   const handleReset = () => {
+    cancelledRef.current = false;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     setUploadState("idle");
     setErrorMessage("");
     setMetadata(null);
@@ -238,6 +276,16 @@ export default function DocumentUploadCard({
 
             <p className="text-xs text-slate-400">Supported formats: PDF, PNG, JPG, JPEG</p>
           </>
+        )}
+
+        {uploadState === "uploading" && (
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="rounded-lg border border-slate-300 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancel Upload
+          </button>
         )}
 
         {(uploadState === "success" || uploadState === "error") && (
