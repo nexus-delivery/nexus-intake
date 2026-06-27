@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import ManageItControlRoom from "@/components/ManageItControlRoom";
-import { getManageItSection, type ManageItSectionSlug } from "@/lib/manageIt";
+import { getManageItSection } from "@/lib/manageIt";
 
 export default async function ManageItSectionPage({
   params,
@@ -17,7 +17,7 @@ export default async function ManageItSectionPage({
 
   return (
     <AppShell>
-      <ManageItControlRoom sectionSlug={currentSection.slug as ManageItSectionSlug} />
+      <ManageItControlRoom sectionSlug={currentSection.slug} />
     </AppShell>
   );
 }

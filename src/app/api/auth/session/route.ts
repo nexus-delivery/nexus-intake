@@ -6,7 +6,9 @@ import {
   MANAGE_IT_SESSION_COOKIE,
 } from "@/lib/manageIt";
 
-const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8;
+const HOUR_IN_SECONDS = 60 * 60;
+const SESSION_DURATION_HOURS = 8;
+const SESSION_COOKIE_MAX_AGE_SECONDS = SESSION_DURATION_HOURS * HOUR_IN_SECONDS;
 
 function clearSessionCookies(response: NextResponse) {
   response.cookies.delete(MANAGE_IT_SESSION_COOKIE);

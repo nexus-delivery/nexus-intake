@@ -6,6 +6,10 @@ import {
   MANAGE_IT_SESSION_COOKIE,
 } from "@/lib/manageIt";
 
+const DEFAULT_AUDIT_LOG_LIMIT = 25;
+const MIN_AUDIT_LOG_LIMIT = 1;
+const MAX_AUDIT_LOG_LIMIT = 100;
+
 function createSupabaseTokenClient(accessToken: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -35,10 +39,10 @@ export async function GET(request: Request) {
   const hasAccess = cookieHeader.includes(`${MANAGE_IT_ACCESS_COOKIE}=1`);
   const sessionCookieMatch = cookieHeader.match(new RegExp(`${MANAGE_IT_SESSION_COOKIE}=([^;]+)`));
   const accessToken = sessionCookieMatch?.[1] ? decodeURIComponent(sessionCookieMatch[1]) : null;
-  const parsedLimit = Number(url.searchParams.get("limit") ?? 25);
+  const parsedLimit = Number(url.searchParams.get("limit") ?? DEFAULT_AUDIT_LOG_LIMIT);
   const limit = Number.isFinite(parsedLimit)
-    ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 100)
-    : 25;
+    ? Math.min(Math.max(Math.trunc(parsedLimit), MIN_AUDIT_LOG_LIMIT), MAX_AUDIT_LOG_LIMIT)
+    : DEFAULT_AUDIT_LOG_LIMIT;
 
   if (!hasAccess || !accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
