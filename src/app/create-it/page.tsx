@@ -139,6 +139,25 @@ export default function CreateItPage() {
             </div>
           ))}
         </div>
+        {/* Related settings */}
+        <div className="rounded-[24px] border border-slate-100 bg-slate-50 p-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            Related settings
+          </p>
+          <Link
+            href="/account-it/pod-settings"
+            className="group inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#7C3AED]/30 hover:text-[#7C3AED]"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5 text-[#7C3AED]">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Configure POD settings
+            <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">→</span>
+          </Link>
+        </div>
       </div>
     </AppShell>
   );
