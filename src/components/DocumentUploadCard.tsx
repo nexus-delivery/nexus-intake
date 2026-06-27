@@ -104,8 +104,9 @@ export default function DocumentUploadCard({
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    setUploadState("error");
-    setErrorMessage("Upload cancelled. Please try again.");
+    setUploadState("idle");
+    setErrorMessage("");
+    setMetadata(null);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
