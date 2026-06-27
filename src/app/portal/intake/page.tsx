@@ -156,6 +156,7 @@ export default function MerchantIntakePage() {
         <JobDetailsForm
           initialData={jobFormData ?? undefined}
           onReview={handleFormReview}
+          onSaveDraft={(data) => setJobFormData(data)}
           onBack={handleBack}
         />
       )}

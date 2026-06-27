@@ -31,6 +31,7 @@ type ValidationErrors = Partial<Record<keyof JobFormData, string>>;
 type JobDetailsFormProps = {
   initialData?: Partial<JobFormData>;
   onReview: (data: JobFormData) => void;
+  onSaveDraft?: (data: JobFormData) => void;
   onBack: () => void;
 };
 
@@ -92,6 +93,7 @@ const textareaErrorClass =
 export default function JobDetailsForm({
   initialData,
   onReview,
+  onSaveDraft,
   onBack,
 }: JobDetailsFormProps) {
   const [formData, setFormData] = useState<JobFormData>({
@@ -99,6 +101,7 @@ export default function JobDetailsForm({
     ...initialData,
   });
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [draftSaved, setDraftSaved] = useState(false);
 
   const validate = (): boolean => {
     const newErrors: ValidationErrors = {};
@@ -132,6 +135,12 @@ export default function JobDetailsForm({
     if (validate()) {
       onReview(formData);
     }
+  };
+
+  const handleSaveDraft = () => {
+    onSaveDraft?.(formData);
+    setDraftSaved(true);
+    setTimeout(() => setDraftSaved(false), 2500);
   };
 
   return (
@@ -425,10 +434,15 @@ export default function JobDetailsForm({
         >
           Back
         </button>
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {draftSaved && (
+            <span className="text-center text-xs font-medium text-emerald-600 sm:text-left">
+              Draft saved
+            </span>
+          )}
           <button
             type="button"
-            onClick={() => onReview(formData)}
+            onClick={handleSaveDraft}
             className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
           >
             Save Draft
