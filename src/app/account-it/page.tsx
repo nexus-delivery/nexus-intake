@@ -3,6 +3,44 @@ import AppShell from "@/components/AppShell";
 
 const sections = [
   {
+    title: "Company Profile",
+    description: "Set up your company details, branding, contact information and notification preferences.",
+    href: "/account-it/company-profile",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M3 21h18" />
+        <path d="M5 21V7l8-4v18" />
+        <path d="M19 21V11l-6-4" />
+      </svg>
+    ),
+  },
+  {
+    title: "POD Settings",
+    description: "Configure branded proof of delivery — logo, header, footer, wording and disclaimers.",
+    href: "/account-it/pod-settings",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+  },
+  {
+    title: "Terms Library",
+    description: "Manage your T&Cs and disclaimers. Add, edit, approve and select terms for generic PODs.",
+    href: "/account-it/terms-library",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M9 12h6M9 16h6M9 8h6M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+      </svg>
+    ),
+  },
+  {
     title: "Customers",
     description: "View and manage customer records, contacts and delivery history.",
     href: "/customers",
