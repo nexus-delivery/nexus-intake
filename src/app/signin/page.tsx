@@ -66,11 +66,30 @@ export default function SignInPage() {
         return;
       }
 
-      await syncManageItSession(data.session?.access_token ?? null);
-      const destination = await resolvePostSignInPath(user.id, user.email ?? email.trim());
-      router.replace(destination);
+      // Sync session with server (this can now throw meaningful errors)
+      try {
+        await syncManageItSession(data.session?.access_token ?? null);
+      } catch (syncErr) {
+        const syncMessage = syncErr instanceof Error ? syncErr.message : "Session synchronization failed";
+        console.error("Session sync error during signin:", syncMessage);
+        setError(`Session setup failed: ${syncMessage}`);
+        return;
+      }
+
+      // Resolve post-signin path
+      try {
+        const destination = await resolvePostSignInPath(user.id, user.email ?? email.trim());
+        router.replace(destination);
+      } catch (resolveErr) {
+        const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to load your profile";
+        console.error("Resolve signin path error:", resolveMessage);
+        setError(`Profile lookup failed: ${resolveMessage}`);
+        return;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to sign in right now.");
+      const message = err instanceof Error ? err.message : "Unable to sign in right now.";
+      console.error("Signin error:", message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -137,7 +156,7 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
