@@ -1,13 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { uploadDocument } from "@/lib/supabaseClient";
+import { uploadMultiFormatDocument, type UploadedDocumentMetadata } from "@/lib/supabaseClient";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
 type DocumentUploadCardProps = {
   onUploadComplete?: (fileName: string) => void;
   onUploadError?: (error: string) => void;
+};
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatTimestamp(isoString: string): string {
+  return new Date(isoString).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+const FILE_TYPE_LABELS: Record<string, string> = {
+  pdf: "PDF",
+  png: "PNG",
+  jpg: "JPG",
+  jpeg: "JPEG",
 };
 
 export default function DocumentUploadCard({
@@ -17,7 +40,7 @@ export default function DocumentUploadCard({
   const [isDragging, setIsDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [metadata, setMetadata] = useState<UploadedDocumentMetadata | null>(null);
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -31,32 +54,21 @@ export default function DocumentUploadCard({
   };
 
   const processFile = async (file: File) => {
-    if (file.type !== "application/pdf") {
-      const error = "Only PDF files are supported";
-      setErrorMessage(error);
-      setUploadState("error");
-      onUploadError?.(error);
-      return;
-    }
-
     setUploadState("uploading");
     setErrorMessage("");
+    setMetadata(null);
 
-    const result = await uploadDocument(file);
+    const result = await uploadMultiFormatDocument(file);
 
-    if (result.success) {
+    if (result.success && result.metadata) {
       setUploadState("success");
-      setUploadedFileName(file.name);
-      onUploadComplete?.(file.name);
-      // Reset to idle after 3 seconds
-      setTimeout(() => {
-        setUploadState("idle");
-        setUploadedFileName("");
-      }, 3000);
+      setMetadata(result.metadata);
+      onUploadComplete?.(result.metadata.fileName);
     } else {
       setUploadState("error");
-      setErrorMessage(result.error || "Upload failed");
-      onUploadError?.(result.error || "Upload failed");
+      const error = result.error || "Upload failed";
+      setErrorMessage(error);
+      onUploadError?.(error);
     }
   };
 
@@ -75,6 +87,12 @@ export default function DocumentUploadCard({
     if (files && files.length > 0) {
       processFile(files[0]);
     }
+  };
+
+  const handleReset = () => {
+    setUploadState("idle");
+    setErrorMessage("");
+    setMetadata(null);
   };
 
   return (
@@ -139,7 +157,7 @@ export default function DocumentUploadCard({
           {uploadState === "idle" && (
             <>
               <p className="text-base font-semibold text-slate-900">
-                Drag and drop your PDF here
+                Drag and drop your document here
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 or use the button below to browse
@@ -153,20 +171,36 @@ export default function DocumentUploadCard({
                 Uploading your document...
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Please wait while we process your file
+                Please wait while we store your file
               </p>
             </>
           )}
 
-          {uploadState === "success" && (
-            <>
-              <p className="text-base font-semibold text-emerald-900">
-                Upload successful!
+          {uploadState === "success" && metadata && (
+            <div className="space-y-3 text-left">
+              <p className="text-center text-base font-semibold text-emerald-900">
+                Document Uploaded
               </p>
-              <p className="mt-1 text-sm text-emerald-700">
-                {uploadedFileName} has been uploaded
-              </p>
-            </>
+              <div className="rounded-xl border border-emerald-200 bg-white p-4 text-sm">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-medium text-slate-900 truncate" title={metadata.fileName}>{metadata.fileName}</span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                      {FILE_TYPE_LABELS[metadata.fileType] ?? metadata.fileType.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-slate-500">
+                    <span>{formatFileSize(metadata.fileSize)}</span>
+                    <span>·</span>
+                    <span>{formatTimestamp(metadata.uploadedAt)}</span>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2">
+                    <span className="text-xs text-slate-400">Draft Job: </span>
+                    <span className="font-mono text-xs text-slate-600">{metadata.jobId}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {uploadState === "error" && (
@@ -183,52 +217,48 @@ export default function DocumentUploadCard({
 
         {uploadState === "idle" && (
           <>
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <button
-                type="button"
-                className="rounded-lg bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 active:bg-sky-800"
-                onClick={() => document.getElementById("file-upload")?.click()}
-              >
-                Upload PDF
-              </button>
-            </label>
+            <button
+              type="button"
+              className="rounded-lg bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 active:bg-sky-800"
+              onClick={() => document.getElementById("file-upload")?.click()}
+            >
+              Choose File
+            </button>
 
             <input
               id="file-upload"
               type="file"
-              accept=".pdf"
+              accept=".pdf,.png,.jpg,.jpeg"
               onChange={handleFileInputChange}
               className="hidden"
             />
 
-            <p className="text-xs text-slate-400">Supported format: PDF</p>
+            <p className="text-xs text-slate-400">Supported formats: PDF, PNG, JPG, JPEG</p>
           </>
         )}
 
-        {uploadState !== "idle" && uploadState !== "uploading" && (
-          <label htmlFor="file-upload-retry" className="cursor-pointer">
+        {(uploadState === "success" || uploadState === "error") && (
+          <>
             <button
               type="button"
               className="rounded-lg bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 active:bg-sky-800"
               onClick={() => {
-                setUploadState("idle");
-                setErrorMessage("");
-                setUploadedFileName("");
+                handleReset();
                 document.getElementById("file-upload-retry")?.click();
               }}
             >
               {uploadState === "success" ? "Upload Another" : "Try Again"}
             </button>
-          </label>
-        )}
 
-        <input
-          id="file-upload-retry"
-          type="file"
-          accept=".pdf"
-          onChange={handleFileInputChange}
-          className="hidden"
-        />
+            <input
+              id="file-upload-retry"
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+          </>
+        )}
       </div>
     </div>
   );
