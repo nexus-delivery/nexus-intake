@@ -5,7 +5,7 @@ export type DocumentTableRow = {
   name: string;
   merchant: string;
   type: "Delivery Note" | "Manifest" | "Purchase Order";
-  status: "Uploaded" | "Processing" | "Extracted" | "Needs Review" | "Confirmed" | "Failed";
+  status: "Uploaded" | "Processing" | "Processed" | "Needs Review" | "Confirmed" | "Failed";
   uploaded: string;
 };
 

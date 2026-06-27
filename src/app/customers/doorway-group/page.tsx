@@ -34,14 +34,14 @@ const sourceDocuments = [
     name: "Warehouse receipt #2455",
     date: "Today, 09:30",
     sourceDocumentUrl: "https://nexus.delivery/documents/warehouse-receipt-2455.pdf",
-    status: "Extracted",
+    status: "Processed",
   },
   {
     id: "doc-002",
     name: "Invoice #7801",
     date: "Jun 24, 14:15",
     sourceDocumentUrl: "https://nexus.delivery/documents/invoice-7801.pdf",
-    status: "Extracted",
+    status: "Processed",
   },
 ];
 

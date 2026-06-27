@@ -204,15 +204,15 @@ export default function OrderInputPage() {
 
             <aside className="space-y-6">
               <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">AI document analysis</p>
-                <h3 className="mt-4 text-xl font-semibold text-slate-950">AI placeholder</h3>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Document Processing</p>
+                <h3 className="mt-4 text-xl font-semibold text-slate-950">Document Preview</h3>
                 <p className="mt-2 text-sm text-slate-600">
                   When a PDF upload completes successfully, NEXUS will extract delivery details and ask you to review them.
                 </p>
 
                 <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
                   <div className="mb-4 h-36 rounded-3xl bg-white p-4 text-slate-400 shadow-sm">
-                    <p className="font-medium text-slate-900">AI document analysis coming in v0.3</p>
+                    <p className="font-medium text-slate-900">Document processing coming in v0.3</p>
                     <p className="mt-2">The extracted delivery preview will appear here after upload.</p>
                   </div>
                   <div className="grid gap-3 text-xs text-slate-500">
@@ -255,7 +255,7 @@ export default function OrderInputPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Upload PDF</p>
               <h2 className="text-2xl font-semibold text-slate-950">Upload your delivery document</h2>
               <p className="text-sm text-slate-600">
-                This links into the Document Centre. When upload succeeds, you’ll see the AI analysis placeholder.
+                This links into the Document Centre. When upload succeeds, you'll see the document preview.
               </p>
             </div>
 
@@ -270,7 +270,7 @@ export default function OrderInputPage() {
               <div className="rounded-[24px] border border-[#7C3AED] bg-[#F5F3FF] p-6 text-slate-900">
                 <p className="font-semibold text-[#5B21B6]">Upload complete</p>
                 <p className="mt-2 text-sm text-slate-700">
-                  Your PDF is in the Document Centre now. AI document analysis coming in v0.3.
+                  Your PDF is in the Document Centre now. Document processing coming in v0.3.
                 </p>
               </div>
             )}

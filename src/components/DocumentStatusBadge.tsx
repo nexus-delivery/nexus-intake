@@ -1,7 +1,7 @@
 type DocumentStatus = 
   | "Uploaded" 
   | "Processing" 
-  | "Extracted" 
+  | "Processed" 
   | "Needs Review" 
   | "Confirmed" 
   | "Failed";
@@ -13,7 +13,7 @@ type DocumentStatusBadgeProps = {
 const statusClasses: Record<DocumentStatus, string> = {
   "Uploaded": "bg-slate-200 text-slate-700",
   "Processing": "bg-sky-200 text-sky-700",
-  "Extracted": "bg-emerald-200 text-emerald-700",
+  "Processed": "bg-emerald-200 text-emerald-700",
   "Needs Review": "bg-amber-200 text-amber-700",
   "Confirmed": "bg-purple-200 text-purple-700",
   "Failed": "bg-red-200 text-red-700",

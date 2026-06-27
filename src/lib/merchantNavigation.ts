@@ -16,7 +16,7 @@ export const merchantNavItems: NavItem[] = [
     icon: "Upload",
   },
   {
-    label: "AI Intake",
+    label: "Document Upload",
     href: "/portal/intake",
     icon: "FileText",
   },
