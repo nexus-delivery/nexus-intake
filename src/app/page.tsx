@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { fetchCustomerByUserId } from "@/lib/customerAuth";
+import { supabase } from "@/lib/supabaseClient";
 
 const operationalSpotlights = [
   {
@@ -124,6 +130,59 @@ const platformSpotlights = [
 ];
 
 export default function HubPage() {
+  const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function bootstrap() {
+      try {
+        if (!supabase) {
+          setAuthLoading(false);
+          return;
+        }
+
+        const { data } = await supabase.auth.getUser();
+        const user = data.user;
+
+        if (!user) {
+          router.replace("/signin");
+          return;
+        }
+
+        const customer = await fetchCustomerByUserId(user.id);
+        if (!customer?.onboarding_complete) {
+          router.replace("/onboarding");
+          return;
+        }
+
+        setCompanyName(customer.company_name);
+        setUserEmail(user.email ?? null);
+        setAuthLoading(false);
+      } catch {
+        setAuthLoading(false);
+      }
+    }
+
+    void bootstrap();
+  }, [router]);
+
+  async function handleSignOut() {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    router.replace("/signin");
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4 text-sm text-slate-300">
+        Loading The Hub...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#111827] flex flex-col">
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
@@ -134,7 +193,19 @@ export default function HubPage() {
           </div>
           <span className="text-sm font-semibold text-white tracking-wide">NEXUS Platform</span>
         </div>
-        <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">The Hub</span>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">The Hub</p>
+            <p className="text-xs text-slate-300">{companyName ?? userEmail ?? "Customer"}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* ── Main ────────────────────────────────────────────────────────── */}
