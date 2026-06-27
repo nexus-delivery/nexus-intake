@@ -8,23 +8,30 @@ NEXUS does not replace specialist systems by default. It connects them.
 
 The platform is designed to be the central operating layer for logistics operations while preserving the flexibility to use best-in-class specialist tools where needed.
 
-NEXUS should provide a single experience for customers, merchants, operators, and partners, while allowing specialist workflows to remain in their native systems where appropriate.
+NEXUS should provide a single experience for merchants/shippers, their customers, operators, and partners, while allowing specialist workflows to remain in their native systems where appropriate.
 
 ## 2. User roles
 
 NEXUS serves multiple user groups through one connected operating environment:
 
-- Customers interact with NEXUS as their primary service experience.
-- Merchants operate through the merchant portal inside NEXUS.
+- Merchants/Shippers use NEXUS as their primary service experience for creating and managing logistics work.
+- Customers are the people or companies served by each merchant/shipper and may receive updates, documents, and visibility through NEXUS.
 - Planners may use Track-POD or another planning platform for operational planning.
 - Drivers may use Track-POD Mobile or another driver application for execution.
 - Partners and agents interact through a dedicated portal experience.
+
+### Definitions
+
+- **Merchants/Shippers**: Businesses who use NEXUS to create and manage logistics work.
+- **Customers**: The people or companies served by each merchant/shipper.
+- **Consignments**: Individual delivery jobs linked to a merchant/shipper and optionally linked to one of their customers.
 
 ## 3. Replaceable connector rule
 
 NEXUS owns the core operating experience, while external systems are treated as replaceable connectors.
 
 NEXUS owns:
+- Merchant/shipper experience
 - Customer experience
 - Merchant portal
 - Operations view
@@ -49,38 +56,38 @@ External systems are replaceable connectors:
 - Google Maps
 - WMS systems
 
-This rule ensures that NEXUS remains the control layer and customer-facing system, while specialist tools can be swapped without breaking the core platform experience.
+This rule ensures that NEXUS remains the control layer and merchant- and customer-facing system, while specialist tools can be swapped without breaking the core platform experience.
 
 ## 4. Track-POD integration approach
 
-Track-POD is treated as an operational execution connector rather than the primary customer-facing platform.
+Track-POD is treated as an operational execution connector rather than the primary merchant- or customer-facing platform.
 
 The integration approach should preserve the following principles:
-- Customers and merchants stay inside NEXUS.
+- Merchants/shippers and their customers stay inside NEXUS.
 - Planners may use Track-POD or another planning platform.
 - Drivers may use Track-POD Mobile or another driver app.
 - Core status, tasks, documents, visibility, and customer communication remain available inside NEXUS.
-- Track-POD is integrated where it adds operational value, but NEXUS remains the system of record for the customer journey.
+- Track-POD is integrated where it adds operational value, but NEXUS remains the system of record for the merchant and customer journey.
 
 ## 5. Partner / agent model
 
-NEXUS should support a partner and agent operating model where partners can run parts of the customer lifecycle through a dedicated portal.
+NEXUS should support a partner and agent operating model where partners can run parts of the merchant/shipper and customer lifecycle through a dedicated portal.
 
 The partner / agent experience should include:
-- Customer onboarding support
+- Merchant/shipper onboarding support
 - Merchant and shipment oversight
 - Document and status visibility
 - Commission-aware workflows
 - White-label or co-branded opportunities where appropriate
 
-This model allows third parties to participate in the ecosystem without becoming the primary owner of the customer experience.
+This model allows third parties to participate in the ecosystem without becoming the primary owner of the merchant/shipper or customer experience.
 
-## 6. New-start customer option
+## 6. New-start merchant/shipper option
 
-For new-start customers, NEXUS should provide a simpler onboarding path that prioritizes speed and clarity.
+For new-start merchants/shippers, NEXUS should provide a simpler onboarding path that prioritizes speed and clarity.
 
 This option should include:
-- Rapid setup of customer and merchant accounts
+- Rapid setup of merchant/shipper accounts and their customer records
 - Guided onboarding flows
 - Standard operating templates
 - Flexible use of connectors without heavy implementation overhead
@@ -154,7 +161,7 @@ Over time, the platform may be offered as:
 - A co-branded partner environment
 - A platform that can be presented under another brand while retaining the same core architecture
 
-The white-label future should not change the central principle that NEXUS owns the customer experience and operational control layer, while external systems remain connectors.
+The white-label future should not change the central principle that NEXUS owns the merchant/shipper and customer experience and operational control layer, while external systems remain connectors.
 
 ## 12. Subscription and commission model
 
@@ -164,7 +171,7 @@ The model may include:
 - Subscription fees for platform access and core capabilities
 - Charges for advanced modules such as customs, marketplace, or partner workflows
 - Commission structures for partner and agent-led activity
-- Flexible commercial arrangements to suit different customer and market profiles
+- Flexible commercial arrangements to suit different merchant/shipper and market profiles
 
 The commercial model should reinforce the platform strategy: NEXUS remains the operating system, while specialist tools and partner channels remain connected components within the broader ecosystem.
 

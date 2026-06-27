@@ -28,7 +28,7 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M4 7h16M4 12h12M4 17h8" />
     </svg>
   ),
-  Customers: (
+  Merchants: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" />
       <path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1" />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
-const customer = {
+const merchant = {
   companyName: "DI Designs LTD",
   tradingName: null,
   status: "Active",
@@ -54,7 +54,7 @@ const trackingEvents = [
 const supportNotes = [
   "Please keep package labels in plain English.",
   "Confirm next delivery slot before 09:00 on Monday.",
-  "Customer wants delivery alerts by email.",
+  "Merchant wants delivery alerts by email.",
 ];
 
 export default function DiDesignsPage() {
@@ -63,17 +63,17 @@ export default function DiDesignsPage() {
       <section className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Customer portal</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Merchant Portal</p>
             <h1 className="text-3xl font-semibold text-slate-950">DI Designs LTD</h1>
             <p className="max-w-2xl text-sm text-slate-600">
-              Mock customer portal view for deliveries, documents, tracking and support notes.
+              Mock merchant portal view for deliveries, documents, tracking, and support notes.
             </p>
           </div>
           <Link
             href="/customers"
             className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:border-slate-400 hover:bg-slate-50"
           >
-            Back to Customers
+            Back to Merchants
           </Link>
         </div>
 
@@ -83,20 +83,20 @@ export default function DiDesignsPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Summary</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Customer summary</h2>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Merchant summary</h2>
                 </div>
                 <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                  {customer.status}
+                  {merchant.status}
                 </span>
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-200/30">
                   <p className="text-sm text-slate-500">Account owner</p>
-                  <p className="mt-2 text-base font-semibold text-slate-950">{customer.owner}</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">{merchant.owner}</p>
                 </div>
                 <div className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-200/30">
                   <p className="text-sm text-slate-500">Next delivery</p>
-                  <p className="mt-2 text-base font-semibold text-slate-950">{customer.nextDelivery}</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">{merchant.nextDelivery}</p>
                 </div>
               </div>
             </div>

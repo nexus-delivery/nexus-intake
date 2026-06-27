@@ -44,35 +44,35 @@ const activityTimeline = [
     time: "08:12",
     icon: "driver",
     event: "Route 205 loaded",
-    customer: "Doorway Group",
+    merchant: "Doorway Group",
     status: "Completed",
   },
   {
     time: "07:58",
     icon: "document",
     event: "Invoice authorised",
-    customer: "Nook Home",
+    merchant: "Nook Home",
     status: "Completed",
   },
   {
     time: "07:30",
     icon: "package",
     event: "Collection scheduled",
-    customer: "Doorway Group",
+    merchant: "Doorway Group",
     status: "Pending",
   },
   {
     time: "06:50",
     icon: "traffic",
     event: "Traffic delay reported",
-    customer: "Warehouse",
+    merchant: "Warehouse",
     status: "Delayed",
   },
   {
     time: "06:15",
     icon: "route",
     event: "Vehicle dispatched",
-    customer: "Depot 3",
+    merchant: "Depot 3",
     status: "In transit",
   },
 ];
@@ -120,9 +120,9 @@ const quickActions = [
     description: "Upload shipment documents and invoices.",
   },
   {
-    title: "Customers",
+    title: "Merchants",
     icon: "users",
-    description: "Review customer details and delivery history.",
+    description: "Review merchant account details and delivery history.",
   },
   {
     title: "Planning",
@@ -382,14 +382,14 @@ export default function Home() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-base font-semibold text-[var(--nexus-graphite)]">{item.time}</p>
-                        <p className="text-sm text-slate-500">{item.customer}</p>
+                        <p className="text-sm text-slate-500">{item.merchant}</p>
                       </div>
                     </div>
 
                     <div className="grid gap-2 rounded-[24px] bg-white p-4 shadow-sm shadow-slate-200/20 sm:grid-cols-[1fr_auto] sm:items-center">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{item.event}</p>
-                        <p className="mt-1 text-sm text-slate-600">{item.customer}</p>
+                        <p className="mt-1 text-sm text-slate-600">{item.merchant}</p>
                       </div>
                       <span
                         className={`inline-flex items-center rounded-full px-3 py-2 text-sm font-semibold ${
@@ -486,7 +486,7 @@ export default function Home() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Quick Actions</p>
               <h2 className="mt-2 text-2xl font-semibold text-[var(--nexus-graphite)]">Jump to common workflows</h2>
             </div>
-            <p className="max-w-xl text-sm text-slate-600">Launch delivery, customer, warehouse and finance tasks in one place.</p>
+            <p className="max-w-xl text-sm text-slate-600">Launch delivery, merchant, warehouse and finance tasks in one place.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

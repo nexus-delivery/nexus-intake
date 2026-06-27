@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
-const customer = {
+const merchant = {
   companyName: "Doorway Group LTD",
   tradingName: null,
   status: "Active",
@@ -124,7 +124,7 @@ const trackingEvents = [
 
 const supportNotes = [
   "Weekly delivery window confirmed for 07:00–08:30.",
-  "Customer prefers layout labels in plain English.",
+  "Merchant prefers layout labels in plain English.",
   "Next order due after stock review on Monday.",
 ];
 
@@ -134,17 +134,17 @@ export default function DoorwayGroupPage() {
       <section className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Customer portal</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Merchant Portal</p>
             <h1 className="text-3xl font-semibold text-slate-950">Doorway Group LTD</h1>
             <p className="max-w-2xl text-sm text-slate-600">
-              Mock customer view with deliveries, documents, tracking and support notes for operations sign-off.
+              Mock merchant portal view with deliveries, documents, tracking, and support notes for operations sign-off.
             </p>
           </div>
           <Link
             href="/customers"
             className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:border-slate-400 hover:bg-slate-50"
           >
-            Back to Customers
+            Back to Merchants
           </Link>
         </div>
 
@@ -154,20 +154,20 @@ export default function DoorwayGroupPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Summary</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Customer summary</h2>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Merchant summary</h2>
                 </div>
                 <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700">
-                  {customer.status}
+                  {merchant.status}
                 </span>
               </div>
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-200/30">
                   <p className="text-sm text-slate-500">Account owner</p>
-                  <p className="mt-2 text-base font-semibold text-slate-950">{customer.owner}</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">{merchant.owner}</p>
                 </div>
                 <div className="rounded-3xl bg-white p-5 shadow-sm shadow-slate-200/30">
                   <p className="text-sm text-slate-500">Next delivery</p>
-                  <p className="mt-2 text-base font-semibold text-slate-950">{customer.nextDelivery}</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">{merchant.nextDelivery}</p>
                 </div>
               </div>
             </div>
