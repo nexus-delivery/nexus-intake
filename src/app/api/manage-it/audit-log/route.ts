@@ -14,10 +14,12 @@ function createSupabaseTokenClient(accessToken: string) {
     return null;
   }
 
+  const authorizationHeader = ["Bearer", accessToken].join(" ");
+
   return createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
-        Authorization: "Bearer " + accessToken,
+        Authorization: authorizationHeader,
       },
     },
     auth: {

@@ -282,6 +282,14 @@ function formatAuditTime(value: string) {
   });
 }
 
+function createLocalId(prefix: string) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: ManageItSectionSlug }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -701,7 +709,7 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
         onUploadComplete={(fileName) => {
           setDocuments((current) => [
             {
-              id: `doc-${Date.now()}`,
+              id: createLocalId("doc"),
               name: fileName,
               merchant: "Manage IT Upload",
               type: "Delivery Note",
@@ -765,7 +773,7 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
             () => {
               setTeamMembers((current) => [
                 {
-                  id: `team-${Date.now()}`,
+                  id: createLocalId("team"),
                   name: email.split("@")[0],
                   email,
                   role: inviteRole,
