@@ -49,7 +49,7 @@ const methods = [
   },
 ];
 
-export default function OrderInputPage() {
+export default function BookingInputPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [uploadActive, setUploadActive] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);

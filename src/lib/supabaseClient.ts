@@ -5,16 +5,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const missingSupabaseEnvError =
   "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY";
 
-let supabaseClient: SupabaseClient | null = null;
-
 function getSupabaseClient() {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(missingSupabaseEnvError);
   }
 
-  supabaseClient ??= createClient(supabaseUrl, supabaseAnonKey);
-
-  return supabaseClient;
+  return createClient(supabaseUrl, supabaseAnonKey) as SupabaseClient;
 }
 
 /**
