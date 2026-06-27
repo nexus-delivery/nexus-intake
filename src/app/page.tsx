@@ -132,25 +132,25 @@ const quickActions = [
     title: "Planning",
     icon: "planning",
     description: "Set routes and schedules for the operations team.",
-    href: "#",
+    href: null,
   },
   {
     title: "Warehouse",
     icon: "warehouse",
     description: "Manage inventory, stock levels, and locations.",
-    href: "#",
+    href: null,
   },
   {
     title: "Finance",
     icon: "wallet",
     description: "Track invoices, approvals, and billing status.",
-    href: "#",
+    href: null,
   },
   {
     title: "Reports",
     icon: "chart",
     description: "View performance metrics and daily reports.",
-    href: "#",
+    href: null,
   },
 ];
 
@@ -498,12 +498,10 @@ export default function Home() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {quickActions.map((action) => (
-              <Link
-                key={action.title}
-                href={action.href}
-                className="group rounded-[32px] border border-slate-200 bg-white p-6 text-left shadow-sm shadow-slate-200/30 transition duration-200 hover:-translate-y-1 hover:border-[var(--nexus-purple)] hover:bg-[var(--nexus-purple)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexus-purple)]/40"
-              >
+            {quickActions.map((action) => {
+              const cardClass =
+                "group rounded-[32px] border border-slate-200 bg-white p-6 text-left shadow-sm shadow-slate-200/30 transition duration-200 hover:-translate-y-1 hover:border-[var(--nexus-purple)] hover:bg-[var(--nexus-purple)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexus-purple)]/40";
+              const cardInner = (
                 <div className="flex items-start gap-4">
                   <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--nexus-purple)] text-white shadow-sm shadow-[var(--nexus-purple)]/20">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
@@ -551,8 +549,17 @@ export default function Home() {
                     <p className="mt-2 text-sm leading-6 text-slate-600">{action.description}</p>
                   </div>
                 </div>
-              </Link>
-            ))}
+              );
+              return action.href ? (
+                <Link key={action.title} href={action.href} className={cardClass}>
+                  {cardInner}
+                </Link>
+              ) : (
+                <button key={action.title} type="button" className={cardClass}>
+                  {cardInner}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
