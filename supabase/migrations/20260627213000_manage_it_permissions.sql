@@ -39,10 +39,19 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.platform_admin_bootstrap (
+  email TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS audit_log_created_at_idx ON public.audit_log (created_at DESC);
 CREATE INDEX IF NOT EXISTS audit_log_action_idx ON public.audit_log (action);
 CREATE INDEX IF NOT EXISTS user_roles_user_id_idx ON public.user_roles (user_id);
 CREATE INDEX IF NOT EXISTS role_permissions_permission_id_idx ON public.role_permissions (permission_id);
+
+INSERT INTO public.platform_admin_bootstrap (email)
+VALUES ('office@nexus.delivery')
+ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO public.roles (slug, name, description)
 VALUES
@@ -222,7 +231,11 @@ BEGIN
   SELECT id INTO resolved_role_id
   FROM public.roles
   WHERE slug = CASE
-    WHEN NEW.email ILIKE 'office@nexus.delivery' THEN 'super_admin'
+    WHEN EXISTS (
+      SELECT 1
+      FROM public.platform_admin_bootstrap bootstrap
+      WHERE bootstrap.email ILIKE NEW.email
+    ) THEN 'super_admin'
     ELSE 'user'
   END
   LIMIT 1;
@@ -248,7 +261,11 @@ SELECT users.id, roles.id
 FROM auth.users AS users
 JOIN public.roles AS roles
   ON roles.slug = CASE
-    WHEN users.email ILIKE 'office@nexus.delivery' THEN 'super_admin'
+    WHEN EXISTS (
+      SELECT 1
+      FROM public.platform_admin_bootstrap bootstrap
+      WHERE bootstrap.email ILIKE users.email
+    ) THEN 'super_admin'
     ELSE 'user'
   END
 ON CONFLICT (user_id, role_id) DO NOTHING;

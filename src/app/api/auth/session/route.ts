@@ -6,6 +6,8 @@ import {
   MANAGE_IT_SESSION_COOKIE,
 } from "@/lib/manageIt";
 
+const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8;
+
 function clearSessionCookies(response: NextResponse) {
   response.cookies.delete(MANAGE_IT_SESSION_COOKIE);
   response.cookies.delete(MANAGE_IT_ACCESS_COOKIE);
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
   });
 
   if (permissions.includes(MANAGE_IT_ACCESS_PERMISSION)) {
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 8,
+      maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
     });
   } else {
     response.cookies.delete(MANAGE_IT_ACCESS_COOKIE);

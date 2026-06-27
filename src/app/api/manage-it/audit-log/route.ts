@@ -33,6 +33,10 @@ export async function GET(request: Request) {
   const hasAccess = cookieHeader.includes(`${MANAGE_IT_ACCESS_COOKIE}=1`);
   const sessionCookieMatch = cookieHeader.match(new RegExp(`${MANAGE_IT_SESSION_COOKIE}=([^;]+)`));
   const accessToken = sessionCookieMatch?.[1] ? decodeURIComponent(sessionCookieMatch[1]) : null;
+  const parsedLimit = Number(url.searchParams.get("limit") ?? 25);
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.min(Math.max(Math.trunc(parsedLimit), 1), 100)
+    : 25;
 
   if (!hasAccess || !accessToken) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,7 +51,7 @@ export async function GET(request: Request) {
     .from("audit_log")
     .select("id, actor_email, action, resource_type, resource_id, details, created_at")
     .order("created_at", { ascending: false })
-    .limit(Number(url.searchParams.get("limit") ?? 25));
+    .limit(limit);
 
   if (error) {
     return NextResponse.json({ data: FALLBACK_AUDIT_LOGS });
