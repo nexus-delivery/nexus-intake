@@ -197,12 +197,14 @@ export default function CompanyProfilePage() {
             <h2 className="mb-1 text-base font-semibold text-[#111827]">Notification preferences</h2>
             <p className="mb-5 text-xs text-slate-400">Control which notifications your team receives.</p>
             <div className="space-y-3">
-              {[
-                { key: "deliveryConfirmation", label: "Delivery confirmation", desc: "When a delivery is marked as complete" },
-                { key: "collectionReminders", label: "Collection reminders", desc: "Reminder before scheduled collection windows" },
-                { key: "podAvailable", label: "POD available", desc: "When a signed proof of delivery is ready" },
-                { key: "weeklyDigest", label: "Weekly digest", desc: "Summary of activity sent every Monday morning" },
-              ].map((pref) => (
+              {(
+                [
+                  { key: "deliveryConfirmation", label: "Delivery confirmation", desc: "When a delivery is marked as complete" },
+                  { key: "collectionReminders", label: "Collection reminders", desc: "Reminder before scheduled collection windows" },
+                  { key: "podAvailable", label: "POD available", desc: "When a signed proof of delivery is ready" },
+                  { key: "weeklyDigest", label: "Weekly digest", desc: "Summary of activity sent every Monday morning" },
+                ] as { key: keyof typeof mockProfile.notifications; label: string; desc: string }[]
+              ).map((pref) => (
                 <label
                   key={pref.key}
                   className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 transition hover:border-[#7C3AED]/20 hover:bg-[#7C3AED]/5"
@@ -214,7 +216,7 @@ export default function CompanyProfilePage() {
                   <div className="relative">
                     <input
                       type="checkbox"
-                      defaultChecked={mockProfile.notifications[pref.key as keyof typeof mockProfile.notifications]}
+                      defaultChecked={mockProfile.notifications[pref.key]}
                       className="peer sr-only"
                     />
                     <div className="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-[#7C3AED] after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5" />

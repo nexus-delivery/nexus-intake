@@ -48,9 +48,9 @@ export default function BetaAccessPage() {
 
         <p className="mt-6 text-center text-xs text-slate-500">
           By accessing IT you agree to the NEXUS Platform{" "}
-          <span className="text-[#A78BFA] cursor-pointer hover:underline">Terms of Service</span>{" "}
+          <button className="text-[#A78BFA] hover:underline">Terms of Service</button>{" "}
           and{" "}
-          <span className="text-[#A78BFA] cursor-pointer hover:underline">Privacy Policy</span>.
+          <button className="text-[#A78BFA] hover:underline">Privacy Policy</button>.
         </p>
       </div>
 
