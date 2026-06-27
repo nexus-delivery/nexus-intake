@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { resolvePostSignInPath } from "@/lib/customerAuth";
+import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function AuthCallbackPage() {
@@ -24,6 +25,7 @@ export default function AuthCallbackPage() {
           return;
         }
 
+        await syncManageItSession(data.session.access_token ?? null);
         const destination = await resolvePostSignInPath(
           data.session.user.id,
           data.session.user.email ?? null

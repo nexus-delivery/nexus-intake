@@ -10,6 +10,7 @@ import {
   validateEmail,
   validatePassword,
 } from "@/lib/customerAuth";
+import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignUpPage() {
@@ -26,6 +27,8 @@ export default function SignUpPage() {
         if (!supabase) return;
         const { data } = await supabase.auth.getUser();
         if (data.user) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          await syncManageItSession(sessionData.session?.access_token ?? null);
           const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
           router.replace(destination);
         }
@@ -80,6 +83,7 @@ export default function SignUpPage() {
         return;
       }
 
+      await syncManageItSession(data.session?.access_token ?? null);
       await ensureCustomerRecord(data.user.id, data.user.email ?? email.trim());
       router.replace("/onboarding");
     } catch (err) {

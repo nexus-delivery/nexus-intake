@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchCustomerByUserId } from "@/lib/customerAuth";
+import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
 const operationalSpotlights = [
@@ -134,6 +135,7 @@ export default function HubPage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [canAccessManageIt, setCanAccessManageIt] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -148,6 +150,7 @@ export default function HubPage() {
         const user = data.user;
 
         if (!user) {
+          await syncManageItSession(null);
           router.replace("/signin");
           return;
         }
@@ -160,6 +163,8 @@ export default function HubPage() {
 
         setCompanyName(customer.company_name);
         setUserEmail(user.email ?? null);
+        const profile = await getManageItAccessProfile();
+        setCanAccessManageIt(profile.canAccessManageIt);
         setAuthLoading(false);
       } catch (err) {
         console.error("Hub auth bootstrap failed", err);
@@ -183,6 +188,7 @@ export default function HubPage() {
       setSignOutError("Unable to sign out right now. Please try again.");
       return;
     }
+    await syncManageItSession(null);
     router.replace("/signin");
   }
 
@@ -242,7 +248,9 @@ export default function HubPage() {
               Operational Spotlights
             </p>
             <div className="hub-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {operationalSpotlights.map((s) => (
+              {operationalSpotlights
+                .filter((spotlight) => spotlight.href !== "/manage-it" || canAccessManageIt)
+                .map((s) => (
                 <Link
                   key={s.href}
                   href={s.href}
