@@ -8,6 +8,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
 type DocumentUploadCardProps = {
   onUploadComplete?: (fileName: string) => void;
   onUploadError?: (error: string) => void;
+  onUploadSuccess?: (metadata: UploadedDocumentMetadata) => void;
 };
 
 function formatFileSize(bytes: number): string {
@@ -36,6 +37,7 @@ const FILE_TYPE_LABELS: Record<string, string> = {
 export default function DocumentUploadCard({
   onUploadComplete,
   onUploadError,
+  onUploadSuccess,
 }: DocumentUploadCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
@@ -64,6 +66,7 @@ export default function DocumentUploadCard({
       setUploadState("success");
       setMetadata(result.metadata);
       onUploadComplete?.(result.metadata.fileName);
+      onUploadSuccess?.(result.metadata);
     } else {
       setUploadState("error");
       const error = result.error || "Upload failed";
