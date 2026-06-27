@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ensureCustomerRecord, fetchCustomerByUserId } from "@/lib/customerAuth";
+import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
 const PUBLIC_PATHS = new Set(["/signin", "/signup"]);
@@ -28,10 +29,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         const isAuthEntry = pathname === "/signin" || pathname === "/signup";
         const isOnboarding = pathname === "/onboarding";
 
-        const { data } = await supabase.auth.getUser();
+        const [{ data }, { data: sessionData }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
         const user = data.user;
 
         if (!user) {
+          await syncManageItSession(null);
           if (!isPublic) {
             router.replace("/signin");
             return;
@@ -40,6 +45,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           return;
         }
 
+        await syncManageItSession(sessionData.session?.access_token ?? null);
         await ensureCustomerRecord(user.id, user.email ?? null);
         const customer = await fetchCustomerByUserId(user.id);
         const onboardingComplete = Boolean(customer?.onboarding_complete);
@@ -62,6 +68,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         setChecking(false);
       } catch (err) {
         console.error("Auth guard failed", err);
+        await syncManageItSession(null);
         if (!isPublicRoute(pathname)) {
           router.replace("/signin");
           return;

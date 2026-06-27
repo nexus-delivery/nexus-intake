@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { mapAuthError, resolvePostSignInPath, validateEmail } from "@/lib/customerAuth";
+import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function SignInPage() {
@@ -19,6 +20,8 @@ export default function SignInPage() {
         if (!supabase) return;
         const { data } = await supabase.auth.getUser();
         if (data.user) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          await syncManageItSession(sessionData.session?.access_token ?? null);
           const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
           router.replace(destination);
         }
@@ -63,6 +66,7 @@ export default function SignInPage() {
         return;
       }
 
+      await syncManageItSession(data.session?.access_token ?? null);
       const destination = await resolvePostSignInPath(user.id, user.email ?? email.trim());
       router.replace(destination);
     } catch (err) {

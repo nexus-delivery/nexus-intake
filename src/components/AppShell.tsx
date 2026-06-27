@@ -1,9 +1,10 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
@@ -23,6 +24,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
   const activePath = pathname;
   const pageTitle = getTitleForPath(activePath);
+  const [showManageIt, setShowManageIt] = useState(pathname.startsWith("/manage-it"));
 
   useEffect(() => {
     // keep browser title in sync with page title mapping
@@ -31,10 +33,35 @@ export default function AppShell({ children }: { children: ReactNode }) {
     }
   }, [pageTitle]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function hydrateAccess() {
+      try {
+        const profile = await getManageItAccessProfile();
+        if (active) {
+          setShowManageIt(profile.canAccessManageIt || pathname.startsWith("/manage-it"));
+        }
+      } catch {
+        if (active) {
+          setShowManageIt(pathname.startsWith("/manage-it"));
+        }
+      }
+    }
+
+    void hydrateAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  const filteredNavItems = navItems.filter((item) => item.href !== "/manage-it" || showManageIt);
+
   return (
     <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
       <div className="lg:flex lg:min-h-screen">
-        <Sidebar items={navItems} activePath={activePath} />
+        <Sidebar items={filteredNavItems} activePath={activePath} />
 
         <div className="flex-1 lg:min-h-screen lg:overflow-hidden">
           <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
