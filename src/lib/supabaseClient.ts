@@ -2,14 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const missingSupabaseEnvError =
+  "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase =
+  supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 /**
  * Upload a PDF file to Supabase Storage
@@ -29,6 +28,10 @@ export async function uploadPdfToStorage(
   const rawFileName = file.name.replace(/\.pdf$/i, "");
   const fileName = `${rawFileName}.pdf`;
   const filePath = `${companyId}/uploads/${timestamp}-${fileName}`;
+
+  if (!supabase) {
+    return { success: false, error: missingSupabaseEnvError };
+  }
 
   try {
     const { data, error } = await supabase.storage
@@ -57,6 +60,10 @@ export async function insertUploadedDocument(params: {
   companyId?: string;
 }) {
   const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id when available
+
+  if (!supabase) {
+    return { success: false, error: missingSupabaseEnvError };
+  }
 
   try {
     const { data, error } = await supabase.from("uploaded_documents").insert({
@@ -95,6 +102,10 @@ export async function fetchUploadedDocuments(companyId?: string): Promise<
   | { success: true; data: UploadedDocumentRow[] }
   | { success: false; error: string }
 > {
+  if (!supabase) {
+    return { success: false, error: missingSupabaseEnvError };
+  }
+
   try {
     let query = supabase
       .from("uploaded_documents")

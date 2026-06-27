@@ -18,12 +18,11 @@ const orderMethods = [
 
 // Order intake workflow steps
 const orderIntakeWorkflow = [
-  { step: 1, label: "Upload Documents", status: "Complete" },
-  { step: 2, label: "Extract Delivery Details", status: "Complete" },
-  { step: 3, label: "Review Draft Order", status: "In Progress" },
-  { step: 4, label: "Create Delivery", status: "Pending" },
-  { step: 5, label: "Send to Operations", status: "Pending" },
-  { step: 6, label: "Send to Track-POD", status: "Pending" },
+  { step: 1, label: "Document Uploaded", status: "Complete" },
+  { step: 2, label: "Booking Created", status: "Complete" },
+  { step: 3, label: "In Progress", status: "In Progress" },
+  { step: 4, label: "Delivered", status: "Pending" },
+  { step: 5, label: "Proof of Delivery Ready", status: "Pending" },
 ];
 
 // Source documents section
@@ -137,7 +136,7 @@ export default function DoorwayGroupPage() {
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Customer portal</p>
             <h1 className="text-3xl font-semibold text-slate-950">Doorway Group LTD</h1>
             <p className="max-w-2xl text-sm text-slate-600">
-              Mock customer view with deliveries, documents, tracking and support notes for operations sign-off.
+              Mock customer view with deliveries, documents, tracking and support notes in plain English.
             </p>
           </div>
           <Link
@@ -188,8 +187,8 @@ export default function DoorwayGroupPage() {
             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Order workflow</p>
-                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Order intake process</h2>
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Booking Status</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-slate-950">Booking Journey</h2>
                 </div>
               </div>
 
@@ -241,7 +240,7 @@ export default function DoorwayGroupPage() {
                   type="button"
                   className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:border-slate-400 hover:bg-slate-50"
                 >
-                  Create Delivery
+                  Create Booking
                 </button>
               </div>
             </div>
@@ -269,9 +268,8 @@ export default function DoorwayGroupPage() {
                           <p className="mt-1 break-all text-xs font-mono text-slate-600">{doc.sourceDocumentUrl}</p>
                         </div>
 
-                        {/* Track-POD Note Preview - Internal field name: trackpodGoodsNote */}
                         <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3">
-                          <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Track-POD note preview</p>
+                          <p className="text-xs uppercase tracking-[0.12em] text-slate-400">Document preview</p>
                           <p className="mt-2 whitespace-pre-wrap font-mono text-xs text-slate-600">
                             {trackpodGoodsNotePreview(doc.sourceDocumentUrl)}
                           </p>
@@ -348,11 +346,11 @@ export default function DoorwayGroupPage() {
               <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Next steps</p>
                 <ol className="mt-3 space-y-2 text-sm text-slate-600">
-                  <li>1. Complete delivery with Track-POD mobile app</li>
-                  <li>2. Driver captures photos and signature</li>
-                  <li>3. NEXUS generates merchant-branded POD</li>
-                  <li>4. Documents automatically available here</li>
-                  <li>5. Tracking link updated for customer visibility</li>
+                  <li>1. Track delivery progress from your live tracking link.</li>
+                  <li>2. Delivery is completed and recorded automatically.</li>
+                  <li>3. Proof of delivery documents are prepared for your team.</li>
+                  <li>4. Documents become available here once ready.</li>
+                  <li>5. Share updates with your customer using the tracking link.</li>
                 </ol>
               </div>
             </div>
@@ -481,8 +479,8 @@ export default function DoorwayGroupPage() {
                 </div>
 
                 <div className="rounded-[28px] border border-slate-200 bg-white p-5">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Operations notes</p>
-                  <p className="mt-2 text-sm text-slate-600">Visible only in Operations View.</p>
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Tracking details</p>
+                  <p className="mt-2 text-sm text-slate-600">Live updates and delivery references for your booking.</p>
                   <div className="mt-4 grid gap-3">
                     <div className="rounded-3xl bg-slate-50 p-4">
                       <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Tracking provider</p>
