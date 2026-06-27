@@ -49,7 +49,7 @@ const methods = [
   },
 ];
 
-export default function OrderInputPage() {
+export default function BookingInputPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [uploadActive, setUploadActive] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -61,7 +61,7 @@ export default function OrderInputPage() {
       <div className="space-y-8">
         <header className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
           <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Order Input</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Booking Input</p>
             <h1 className="text-3xl font-semibold text-slate-950">Submit a booking request</h1>
             <p className="max-w-3xl text-base text-slate-600">
               Choose how you want to send your booking. All inputs are converted into one standard NEXUS booking.
