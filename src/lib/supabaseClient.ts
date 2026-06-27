@@ -11,6 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// TODO: replace with authenticated company_id from session when auth is implemented
+const DEFAULT_COMPANY_ID = "724ef0a7-4371-4350-9e59-ab93a960183f";
+
 // Supported MIME types mapped to their normalised file_type values
 const SUPPORTED_MIME_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
@@ -31,7 +34,7 @@ function getFileTypeFromMime(mimeType: string): string | null {
  */
 export async function uploadMultiFormatFile(
   file: File,
-  companyId: string = "724ef0a7-4371-4350-9e59-ab93a960183f"
+  companyId: string = DEFAULT_COMPANY_ID
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   const fileType = getFileTypeFromMime(file.type);
   if (!fileType) {
@@ -82,7 +85,7 @@ export async function insertUploadedDocument(params: {
   companyId?: string;
   uploadedByUserId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id when available
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
     const { data, error } = await supabase
@@ -129,7 +132,7 @@ export async function createDraftJob(params: {
   companyId?: string;
   createdByUserId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
-  const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id when available
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
     const { data, error } = await supabase
@@ -186,7 +189,7 @@ export async function uploadMultiFormatDocument(
   }
 
   const uploadedAt = new Date().toISOString();
-  const effectiveCompanyId = companyId || "724ef0a7-4371-4350-9e59-ab93a960183f";
+  const effectiveCompanyId = companyId || DEFAULT_COMPANY_ID;
 
   // Step 1: Upload to storage
   const storageResult = await uploadMultiFormatFile(file, effectiveCompanyId);
@@ -233,7 +236,9 @@ export async function uploadMultiFormatDocument(
  * Generate a human-readable job reference from a job UUID.
  * Format: NEX-YYYYMMDD-XXXXX (last 5 chars of UUID, uppercased)
  *
- * @param jobId - A UUID string (e.g. "724ef0a7-4371-4350-9e59-ab93a960183f")
+ * @param jobId - A valid UUID string (e.g. "724ef0a7-4371-4350-9e59-ab93a960183f").
+ *   The function assumes the input is a non-empty UUID; the last 5 alphanumeric
+ *   characters (dashes excluded) are used as the unique suffix.
  */
 export function generateJobReference(jobId: string): string {
   const now = new Date();
@@ -252,7 +257,7 @@ export async function confirmJob(params: {
   draftJobId?: string;
   companyId?: string;
 }): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
-  const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
     let jobId: string;

@@ -39,6 +39,9 @@ export const JOB_REQUIREMENTS: { key: RequirementKey; label: string }[] = [
   { key: "timedDelivery", label: "Timed Delivery Required" },
 ];
 
+/** Duration in ms to display the "Draft saved" confirmation message. */
+const DRAFT_SAVED_MESSAGE_DURATION_MS = 2500;
+
 type ValidationErrors = Partial<Record<keyof JobFormData, string>>;
 
 type JobDetailsFormProps = {
@@ -153,7 +156,7 @@ export default function JobDetailsForm({
   const handleSaveDraft = () => {
     onSaveDraft?.(formData);
     setDraftSaved(true);
-    setTimeout(() => setDraftSaved(false), 2500);
+    setTimeout(() => setDraftSaved(false), DRAFT_SAVED_MESSAGE_DURATION_MS);
   };
 
   return (

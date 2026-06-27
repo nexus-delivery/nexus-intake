@@ -14,7 +14,8 @@ type ReviewJobScreenProps = {
 };
 
 function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
-  if (!value && value !== false) return null;
+  // Render nothing for null/undefined values; allow false and 0 through
+  if (value == null) return null;
   return (
     <div className="flex flex-col gap-0.5 py-2 sm:flex-row sm:gap-4">
       <dt className="min-w-[180px] shrink-0 text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
