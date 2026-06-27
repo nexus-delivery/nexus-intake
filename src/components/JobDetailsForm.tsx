@@ -26,6 +26,19 @@ export type JobFormData = {
   specialInstructions: string;
 };
 
+export type RequirementKey =
+  | "dedicatedVehicle"
+  | "twoMan"
+  | "tailLift"
+  | "timedDelivery";
+
+export const JOB_REQUIREMENTS: { key: RequirementKey; label: string }[] = [
+  { key: "dedicatedVehicle", label: "Dedicated Vehicle Required" },
+  { key: "twoMan", label: "Two Man Required" },
+  { key: "tailLift", label: "Tail Lift Required" },
+  { key: "timedDelivery", label: "Timed Delivery Required" },
+];
+
 type ValidationErrors = Partial<Record<keyof JobFormData, string>>;
 
 type JobDetailsFormProps = {
@@ -380,22 +393,15 @@ export default function JobDetailsForm({
               Requirements
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {(
-                [
-                  { name: "dedicatedVehicle", label: "Dedicated Vehicle Required" },
-                  { name: "twoMan", label: "Two Man Required" },
-                  { name: "tailLift", label: "Tail Lift Required" },
-                  { name: "timedDelivery", label: "Timed Delivery Required" },
-                ] as const
-              ).map(({ name, label }) => (
+              {JOB_REQUIREMENTS.map(({ key, label }) => (
                 <label
-                  key={name}
+                  key={key}
                   className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-[var(--nexus-purple)]/40 hover:bg-slate-100"
                 >
                   <input
                     type="checkbox"
-                    name={name}
-                    checked={formData[name]}
+                    name={key}
+                    checked={formData[key]}
                     onChange={handleChange}
                     className="h-4 w-4 rounded border-slate-300 text-[var(--nexus-purple)] focus:ring-[var(--nexus-purple)]/30"
                   />

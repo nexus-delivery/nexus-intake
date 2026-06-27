@@ -1,9 +1,7 @@
 "use client";
 
-import { type JobFormData } from "@/components/JobDetailsForm";
+import { type JobFormData, JOB_REQUIREMENTS } from "@/components/JobDetailsForm";
 import { type UploadedDocumentMetadata } from "@/lib/supabaseClient";
-
-type RequirementKey = "dedicatedVehicle" | "twoMan" | "tailLift" | "timedDelivery";
 
 type ReviewJobScreenProps = {
   method: "upload" | "enter_details";
@@ -156,18 +154,11 @@ export default function ReviewJobScreen({
                   : null
               }
             />
-            {(
-              [
-                { key: "dedicatedVehicle", label: "Dedicated Vehicle" },
-                { key: "twoMan", label: "Two Man" },
-                { key: "tailLift", label: "Tail Lift" },
-                { key: "timedDelivery", label: "Timed Delivery" },
-              ] as { key: RequirementKey; label: string }[]
-            )
-              .filter(({ key }) => formData[key])
-              .map(({ key, label }) => (
+            {JOB_REQUIREMENTS.filter(({ key }) => formData[key]).map(
+              ({ key, label }) => (
                 <ReviewRow key={key} label={label} value="Required" />
-              ))}
+              )
+            )}
             <ReviewRow
               label="Special Instructions"
               value={

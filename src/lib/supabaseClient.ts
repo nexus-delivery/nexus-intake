@@ -232,6 +232,8 @@ export async function uploadMultiFormatDocument(
 /**
  * Generate a human-readable job reference from a job UUID.
  * Format: NEX-YYYYMMDD-XXXXX (last 5 chars of UUID, uppercased)
+ *
+ * @param jobId - A UUID string (e.g. "724ef0a7-4371-4350-9e59-ab93a960183f")
  */
 export function generateJobReference(jobId: string): string {
   const now = new Date();
