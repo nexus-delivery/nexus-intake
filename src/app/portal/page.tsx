@@ -1,10 +1,31 @@
-"use client";
+import Link from "next/link";
 
 import { merchantMockData, merchantStatsMockData } from "@/lib/merchantMockData";
 
 export default function MerchantPortalPage() {
   return (
     <div className="space-y-8">
+      {/* CTA — Create Job */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-[var(--nexus-purple)]/20 bg-[var(--nexus-purple)]/5 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
+            NEXUS Booking
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-[var(--nexus-graphite)]">
+            Ready to book a new job?
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Upload a document or enter job details manually to get started.
+          </p>
+        </div>
+        <Link
+          href="/portal/intake"
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-[var(--nexus-purple)]/40"
+        >
+          Create Job
+        </Link>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

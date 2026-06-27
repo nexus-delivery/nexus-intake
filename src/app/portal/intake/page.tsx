@@ -57,9 +57,11 @@ export default function MerchantIntakePage() {
     setIsConfirming(true);
     setConfirmError(null);
 
-    const result = await confirmJob({
-      draftJobId: uploadData?.jobId,
-    });
+    const result = await confirmJob(
+      method === "upload"
+        ? { draftJobId: uploadData?.jobId }
+        : {}
+    );
 
     if (result.success) {
       setJobReference(result.jobReference ?? null);
