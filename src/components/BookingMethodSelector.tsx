@@ -1,12 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 export type BookingMethod = "upload" | "enter_details";
 
 type BookingMethodSelectorProps = {
   onSelectMethod: (method: BookingMethod) => void;
 };
 
-const activeMethods: { id: BookingMethod; title: string; description: string; icon: React.ReactNode }[] = [
+const activeMethods: { id: BookingMethod; title: string; description: string; icon: ReactNode }[] = [
   {
     id: "upload",
     title: "Upload Document",
