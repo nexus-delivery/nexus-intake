@@ -32,3 +32,44 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Hub Spotlight hover effects ──────────────────────────────────────────
+   When hovering anywhere on the grid, non-hovered cards fade gently to
+   create the "spotlight" visual metaphor — only one thing is in focus.
+   ───────────────────────────────────────────────────────────────────────── */
+.hub-grid:hover .hub-card {
+  opacity: 0.55;
+  transition: opacity 250ms ease, transform 250ms ease, box-shadow 250ms ease;
+}
+
+.hub-grid .hub-card:hover {
+  opacity: 1 !important;
+  transform: translateY(-6px);
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.35),
+              0 20px 60px -10px rgba(124, 58, 237, 0.4),
+              0 8px 24px -4px rgba(0, 0, 0, 0.4);
+}
+
+.hub-card {
+  transition: opacity 250ms ease, transform 250ms ease, box-shadow 250ms ease;
+}
+
+.hub-card .hub-card-icon {
+  transition: filter 250ms ease, transform 250ms ease;
+}
+
+.hub-card:hover .hub-card-icon {
+  filter: brightness(1.25);
+  transform: scale(1.08);
+}
+
+.hub-card .hub-card-arrow {
+  transition: transform 250ms ease, opacity 250ms ease;
+  opacity: 0;
+  transform: translateX(-4px);
+}
+
+.hub-card:hover .hub-card-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}

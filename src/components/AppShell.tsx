@@ -7,22 +7,21 @@ import Sidebar from "@/components/Sidebar";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "Home", href: "/dashboard" },
-  { label: "New Delivery", href: "/portal/intake" },
-  { label: "My Deliveries", href: "/orders" },
-  { label: "Customers", href: "/customers" },
-  { label: "Documents", href: "/document-centre" },
-  { label: "Planning", href: "/consignments" },
-  { label: "Fleet", href: "/drivers" },
-  { label: "Warehouse", href: "/warehouse" },
-  { label: "Finance", href: "/finance" },
-  { label: "Reports", href: "/reports" },
-  { label: "Settings", href: "/settings" },
-  { label: "Support", href: "/support" },
+  { label: "The Hub", href: "/" },
+  { label: "Create IT", href: "/create-it" },
+  { label: "Route IT", href: "/route-it" },
+  { label: "Track IT", href: "/track-it" },
+  { label: "Store IT", href: "/store-it" },
+  { label: "Account IT", href: "/account-it" },
+  { label: "Manage IT", href: "/manage-it" },
+  { label: "Report IT", href: "/report-it" },
+  { label: "Build IT", href: "/build-it" },
+  { label: "Improve IT", href: "/improve-it" },
+  { label: "Need IT", href: "/need-it" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
-  const activePath = pathname === "/" ? "/dashboard" : pathname;
+  const activePath = pathname;
   const pageTitle = getTitleForPath(activePath);
 
   useEffect(() => {
