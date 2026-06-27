@@ -12,14 +12,11 @@ type LabeledValue = {
 };
 
 const pipelineStages: PipelineStage[] = [
-  { step: 1, title: "Upload Document", status: "done" },
-  { step: 2, title: "Store Original PDF", status: "done" },
-  { step: 3, title: "Document Processing", status: "done" },
-  { step: 4, title: "Draft Order Created", status: "done" },
-  { step: 5, title: "Merchant Review", status: "current" },
-  { step: 6, title: "Approve Order", status: "pending" },
-  { step: 7, title: "Send to Operations", status: "pending" },
-  { step: 8, title: "Ready for Track-POD", status: "pending" },
+  { step: 1, title: "Document Uploaded", status: "done" },
+  { step: 2, title: "Booking Created", status: "done" },
+  { step: 3, title: "In Progress", status: "current" },
+  { step: 4, title: "Delivered", status: "pending" },
+  { step: 5, title: "Proof of Delivery Ready", status: "pending" },
 ];
 
 const uploadTypes = ["Upload PDF", "Upload Delivery Note", "Upload Invoice", "Upload Purchase Order", "Upload CSV"];
@@ -44,7 +41,7 @@ const extractedFields: LabeledValue[] = [
 ];
 
 const draftOrderFields: LabeledValue[] = [
-  { label: "Order title", value: "Doorway Group retail replenishment" },
+  { label: "Booking title", value: "Doorway Group retail replenishment" },
   { label: "Service level", value: "Standard next-day" },
   { label: "Vehicle type", value: "7.5T box truck" },
   { label: "Collection window", value: "07:30 - 09:00" },
@@ -54,11 +51,11 @@ const draftOrderFields: LabeledValue[] = [
 ];
 
 const statusCards = [
-  { label: "Awaiting upload", value: "0 files pending", tone: "text-slate-600" },
-  { label: "Extraction complete", value: "16 fields mapped", tone: "text-[var(--nexus-info)]" },
-  { label: "Review required", value: "3 checks to confirm", tone: "text-[var(--nexus-warning)]" },
-  { label: "Approved", value: "Pending merchant action", tone: "text-slate-600" },
-  { label: "Sent to operations", value: "Not sent yet", tone: "text-slate-600" },
+  { label: "Document uploaded", value: "1 file received", tone: "text-[var(--nexus-info)]" },
+  { label: "Booking created", value: "16 fields mapped", tone: "text-slate-600" },
+  { label: "In progress", value: "3 checks to confirm", tone: "text-[var(--nexus-warning)]" },
+  { label: "Delivered", value: "Pending completion", tone: "text-slate-600" },
+  { label: "Proof of delivery ready", value: "Not available yet", tone: "text-slate-600" },
 ];
 
 const sourceDocumentUrl = "https://nexus.delivery/documents/warehouse-receipt-2455.pdf";
@@ -91,14 +88,14 @@ export default function MerchantIntakePage() {
           Document Intake v0.6.0
         </p>
         <h1 className="text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
-          Delivery intake workflow
+          Booking status
         </h1>
         <p className="max-w-3xl text-sm text-slate-600 sm:text-base">
-          Upload your source documents, review extracted details, and approve before we send to operations.
+          Upload your documents and we&apos;ll process your booking.
         </p>
       </header>
 
-      <SectionCard title="Pipeline status display" subtitle="Full document processing flow from upload to Track-POD readiness.">
+      <SectionCard title="Booking status" subtitle="Your booking journey">
         <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {pipelineStages.map((stage) => (
             <li
@@ -134,7 +131,7 @@ export default function MerchantIntakePage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Extraction preview" subtitle="Extracted fields from your document.">
+          <SectionCard title="Document preview" subtitle="Extracted fields from your document.">
             <dl className="grid gap-4 sm:grid-cols-2">
               {extractedFields.map((item) => (
                 <div key={item.label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -145,7 +142,7 @@ export default function MerchantIntakePage() {
             </dl>
           </SectionCard>
 
-          <SectionCard title="Draft order review" subtitle="Editable-style layout for merchant review (mock only).">
+          <SectionCard title="Review booking" subtitle="Editable-style layout for merchant review (mock only).">
             <div className="grid gap-4 sm:grid-cols-2">
               {draftOrderFields.map((item) => (
                 <label key={item.label} className="space-y-1">
@@ -160,7 +157,7 @@ export default function MerchantIntakePage() {
         </div>
 
         <aside className="space-y-6">
-          <SectionCard title="Source document" subtitle="Original source file and Track-POD note preview.">
+          <SectionCard title="Source document" subtitle="Original source file reference.">
             <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <p className="font-medium text-[var(--nexus-graphite)]">Original PDF</p>
               <p className="truncate">{sourceDocumentUrl}</p>
@@ -170,13 +167,6 @@ export default function MerchantIntakePage() {
               >
                 View Document
               </button>
-            </div>
-            <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Track-POD note preview</p>
-              <pre className="mt-2 whitespace-pre-wrap font-mono text-xs text-[var(--nexus-graphite)]">
-{`NEXUS source document:
-{{sourceDocumentUrl}}`}
-              </pre>
             </div>
           </SectionCard>
 
@@ -197,19 +187,13 @@ export default function MerchantIntakePage() {
                 type="button"
                 className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-semibold text-[var(--nexus-purple)]"
               >
-                Review Draft
+                Review Booking
               </button>
               <button
                 type="button"
                 className="rounded-lg bg-[var(--nexus-purple)] px-4 py-2 text-sm font-semibold text-white"
               >
-                Approve Order
-              </button>
-              <button
-                type="button"
-                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-[var(--nexus-graphite)]"
-              >
-                Send to Operations
+                Submit Booking
               </button>
             </div>
           </SectionCard>

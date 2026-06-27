@@ -14,15 +14,15 @@ const methods = [
   },
   {
     id: "email",
-    title: "Email Order",
-    description: "Use your unique NEXUS order email to submit orders automatically.",
+    title: "Email Booking",
+    description: "Use your unique NEXUS booking email to submit bookings automatically.",
     action: "View email address",
     status: "Coming soon",
   },
   {
     id: "manual",
     title: "Enter Manually",
-    description: "Fill a simple delivery request form with one clear step.",
+    description: "Fill a simple booking request form with one clear step.",
     action: "Start manual entry",
     status: "Available now",
   },
@@ -43,22 +43,13 @@ const methods = [
   {
     id: "api",
     title: "API Integration",
-    description: "Connect your systems and send delivery requests programmatically.",
+    description: "Connect your systems and send booking requests programmatically.",
     action: "View API details",
     status: "Coming soon",
   },
 ];
 
-const actions: Record<string, string> = {
-  pdf: "upload",
-  email: "email",
-  manual: "manual",
-  webform: "webform",
-  woocommerce: "woocommerce",
-  api: "api",
-};
-
-export default function OrderInputPage() {
+export default function BookingInputPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [uploadActive, setUploadActive] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
@@ -70,10 +61,10 @@ export default function OrderInputPage() {
       <div className="space-y-8">
         <header className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
           <div className="space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Order Input</p>
-            <h1 className="text-3xl font-semibold text-slate-950">Submit a delivery request</h1>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Booking Input</p>
+            <h1 className="text-3xl font-semibold text-slate-950">Submit a booking request</h1>
             <p className="max-w-3xl text-base text-slate-600">
-              Choose how you want to send your order. All inputs are converted into one standard NEXUS Delivery.
+              Choose how you want to send your booking. All inputs are converted into one standard NEXUS booking.
             </p>
           </div>
         </header>
@@ -193,11 +184,11 @@ export default function OrderInputPage() {
               </div>
 
               <div className="rounded-[28px] border border-slate-200 bg-[#F8FAFC] p-6">
-                <p className="text-sm font-semibold text-slate-900">How NEXUS handles your order</p>
+                <p className="text-sm font-semibold text-slate-900">How NEXUS handles your booking</p>
                 <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                  <li>1. Create one standard NEXUS Delivery from every order.</li>
-                  <li>2. Extract customer, addresses, goods, quantities, notes and order references.</li>
-                  <li>3. Show a review screen before delivery creation.</li>
+                  <li>1. Capture your booking details from any document or entry method.</li>
+                  <li>2. Process customer, address, goods, quantity and reference details automatically.</li>
+                  <li>3. Show a review screen before you submit the booking.</li>
                 </ul>
               </div>
             </div>
@@ -240,9 +231,9 @@ export default function OrderInputPage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Future workflow</p>
                 <ol className="mt-4 space-y-3 text-sm text-slate-600">
                   <li>• Upload PDF or connect another order source.</li>
-                  <li>• NEXUS extracts delivery information.</li>
+                  <li>• NEXUS processes your document automatically.</li>
                   <li>• Review and edit anything incorrect.</li>
-                  <li>• Create Delivery and continue to dispatch.</li>
+                  <li>• Create Booking and continue to tracking.</li>
                 </ol>
               </div>
             </aside>
@@ -255,7 +246,7 @@ export default function OrderInputPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Upload PDF</p>
               <h2 className="text-2xl font-semibold text-slate-950">Upload your delivery document</h2>
               <p className="text-sm text-slate-600">
-                This links into the Document Centre. When upload succeeds, you'll see the document preview.
+                This links into the Document Centre. When upload succeeds, you&apos;ll see the document preview.
               </p>
             </div>
 
