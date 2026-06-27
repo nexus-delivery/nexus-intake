@@ -11,6 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// TODO: replace with authenticated company_id from session when auth is implemented
+const DEFAULT_COMPANY_ID = "724ef0a7-4371-4350-9e59-ab93a960183f";
+
 // Supported MIME types mapped to their normalised file_type values
 const SUPPORTED_MIME_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
@@ -31,7 +34,7 @@ function getFileTypeFromMime(mimeType: string): string | null {
  */
 export async function uploadMultiFormatFile(
   file: File,
-  companyId: string = "724ef0a7-4371-4350-9e59-ab93a960183f"
+  companyId: string = DEFAULT_COMPANY_ID
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   const fileType = getFileTypeFromMime(file.type);
   if (!fileType) {
@@ -82,7 +85,7 @@ export async function insertUploadedDocument(params: {
   companyId?: string;
   uploadedByUserId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
-  const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id when available
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
     const { data, error } = await supabase
@@ -129,7 +132,7 @@ export async function createDraftJob(params: {
   companyId?: string;
   createdByUserId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
-  const companyId = params.companyId || "724ef0a7-4371-4350-9e59-ab93a960183f"; // TODO: replace with authenticated company_id when available
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
 
   try {
     const { data, error } = await supabase
@@ -186,7 +189,7 @@ export async function uploadMultiFormatDocument(
   }
 
   const uploadedAt = new Date().toISOString();
-  const effectiveCompanyId = companyId || "724ef0a7-4371-4350-9e59-ab93a960183f";
+  const effectiveCompanyId = companyId || DEFAULT_COMPANY_ID;
 
   // Step 1: Upload to storage
   const storageResult = await uploadMultiFormatFile(file, effectiveCompanyId);
@@ -227,6 +230,74 @@ export async function uploadMultiFormatDocument(
       uploadedAt,
     },
   };
+}
+
+/**
+ * Generate a human-readable job reference from a job UUID.
+ * Format: NEX-YYYYMMDD-XXXXX (last 5 chars of UUID, uppercased)
+ *
+ * @param jobId - A valid UUID string (e.g. "724ef0a7-4371-4350-9e59-ab93a960183f").
+ *   The function assumes the input is a non-empty UUID; the last 5 alphanumeric
+ *   characters (dashes excluded) are used as the unique suffix.
+ */
+export function generateJobReference(jobId: string): string {
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const suffix = jobId.replace(/-/g, "").slice(-5).toUpperCase();
+  return `NEX-${dateStr}-${suffix}`;
+}
+
+/**
+ * Confirm a job: create or update a draft_jobs record with status = "job_created".
+ * - Upload path: update existing draft_jobs record by draftJobId.
+ * - Manual entry path: create a new draft_jobs record (no document).
+ * Returns the job ID and a human-readable job reference.
+ */
+export async function confirmJob(params: {
+  draftJobId?: string;
+  companyId?: string;
+}): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
+  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
+
+  try {
+    let jobId: string;
+
+    if (params.draftJobId) {
+      // Upload path: update existing draft job to job_created status
+      const { error } = await supabase
+        .from("draft_jobs")
+        .update({ status: "job_created" })
+        .eq("id", params.draftJobId);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      jobId = params.draftJobId;
+    } else {
+      // Manual entry path: create a new draft job with no primary document
+      const { data, error } = await supabase
+        .from("draft_jobs")
+        .insert({
+          company_id: companyId,
+          created_by_user_id: null, // TODO: replace with authenticated user_id
+          primary_document_id: null,
+          status: "job_created",
+        })
+        .select("id")
+        .single();
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      jobId = data.id;
+    }
+
+    const jobReference = generateJobReference(jobId);
+    return { success: true, jobId, jobReference };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to confirm job";
+    return { success: false, error: message };
+  }
 }
 
 export type UploadedDocumentRow = {
