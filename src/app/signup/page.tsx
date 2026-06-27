@@ -83,11 +83,31 @@ export default function SignUpPage() {
         return;
       }
 
-      await syncManageItSession(data.session?.access_token ?? null);
-      await ensureCustomerRecord(data.user.id, data.user.email ?? email.trim());
+      // Sync session with server (this can now throw meaningful errors)
+      try {
+        await syncManageItSession(data.session?.access_token ?? null);
+      } catch (syncErr) {
+        const syncMessage = syncErr instanceof Error ? syncErr.message : "Session synchronization failed";
+        console.error("Session sync error during signup:", syncMessage);
+        setError(`Session setup failed: ${syncMessage}`);
+        return;
+      }
+
+      // Ensure customer record exists
+      try {
+        await ensureCustomerRecord(data.user.id, data.user.email ?? email.trim());
+      } catch (ensureErr) {
+        const ensureMessage = ensureErr instanceof Error ? ensureErr.message : "Failed to create customer record";
+        console.error("Ensure customer record error:", ensureMessage);
+        setError(`Profile setup failed: ${ensureMessage}`);
+        return;
+      }
+
       router.replace("/onboarding");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create account right now.");
+      const message = err instanceof Error ? err.message : "Unable to create account right now.";
+      console.error("Signup error:", message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -165,7 +185,7 @@ export default function SignUpPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Creating account..." : "Sign up"}
           </button>
