@@ -11,19 +11,9 @@ export const merchantNavItems: NavItem[] = [
     icon: "Home",
   },
   {
-    label: "Upload Orders",
-    href: "/portal/upload",
-    icon: "Upload",
-  },
-  {
-    label: "Document Upload",
+    label: "New Booking",
     href: "/portal/intake",
-    icon: "FileText",
-  },
-  {
-    label: "Draft Orders",
-    href: "/portal/drafts",
-    icon: "FileText",
+    icon: "PlusCircle",
   },
   {
     label: "Live Deliveries",
