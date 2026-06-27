@@ -29,8 +29,8 @@ export default function SignUpPage() {
           const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
           router.replace(destination);
         }
-      } catch {
-        // no-op: leave user on signup if onboarding status lookup fails
+      } catch (err) {
+        console.error("Signup bootstrap check failed", err);
       }
     }
 
@@ -76,7 +76,7 @@ export default function SignUpPage() {
       }
 
       if (!data.user) {
-        setError("Signup succeeded, but session was not created. Please confirm your email then sign in.");
+        setError("Signup succeeded, but your session is not ready yet. Please continue from sign in.");
         return;
       }
 

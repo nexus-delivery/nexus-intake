@@ -134,6 +134,7 @@ export default function HubPage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [companyName, setCompanyName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
   useEffect(() => {
     async function bootstrap() {
@@ -160,7 +161,9 @@ export default function HubPage() {
         setCompanyName(customer.company_name);
         setUserEmail(user.email ?? null);
         setAuthLoading(false);
-      } catch {
+      } catch (err) {
+        console.error("Hub auth bootstrap failed", err);
+        router.replace("/signin");
         setAuthLoading(false);
       }
     }
@@ -169,8 +172,16 @@ export default function HubPage() {
   }, [router]);
 
   async function handleSignOut() {
-    if (supabase) {
-      await supabase.auth.signOut();
+    setSignOutError(null);
+    if (!supabase) {
+      router.replace("/signin");
+      return;
+    }
+
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setSignOutError("Unable to sign out right now. Please try again.");
+      return;
     }
     router.replace("/signin");
   }
@@ -197,6 +208,7 @@ export default function HubPage() {
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">The Hub</p>
             <p className="text-xs text-slate-300">{companyName ?? userEmail ?? "Customer"}</p>
+            {signOutError ? <p className="text-[11px] text-red-300">{signOutError}</p> : null}
           </div>
           <button
             type="button"

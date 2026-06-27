@@ -16,8 +16,18 @@ export type CustomerRecord = {
   onboarding_complete: boolean;
 };
 
+// 10MB aligns with onboarding upload requirements for company branding assets.
 const LOGO_MAX_SIZE_BYTES = 10 * 1024 * 1024;
+// 30 seconds prevents indefinite wait states while still allowing normal uploads.
+const LOGO_UPLOAD_TIMEOUT_MS = 30_000;
 const LOGO_ALLOWED_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/gif", "image/webp"]);
+const LOGO_EXTENSION_BY_MIME: Record<string, string> = {
+  "image/png": "png",
+  "image/jpg": "jpg",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
 
 export function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -51,7 +61,14 @@ export function mapAuthError(message: string): string {
 
 function getFileExtension(file: File): string {
   const parts = file.name.split(".");
-  return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "png";
+  if (parts.length > 1) {
+    const extension = parts[parts.length - 1].toLowerCase();
+    const nameWithoutExtension = parts.slice(0, -1).join("").trim();
+    if (nameWithoutExtension.length > 0) {
+      return extension;
+    }
+  }
+  return LOGO_EXTENSION_BY_MIME[file.type] ?? "bin";
 }
 
 export function validateLogoFile(file: File): string | null {
@@ -129,7 +146,7 @@ export async function uploadCompanyLogo(file: File, userId: string): Promise<str
   });
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error("Logo upload timed out. Please try again.")), 30_000);
+    setTimeout(() => reject(new Error("Logo upload timed out. Please try again.")), LOGO_UPLOAD_TIMEOUT_MS);
   });
 
   const result = await Promise.race([uploadPromise, timeoutPromise]);
@@ -168,7 +185,6 @@ export async function completeCustomerOnboarding(params: {
       business_address: params.businessAddress,
       terms_accepted: true,
       onboarding_complete: true,
-      updated_at: new Date().toISOString(),
     })
     .eq("user_id", params.userId);
 

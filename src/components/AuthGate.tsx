@@ -60,9 +60,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         }
 
         setChecking(false);
-      } catch {
+      } catch (err) {
+        console.error("Auth guard failed", err);
+        if (!isPublicRoute(pathname)) {
+          router.replace("/signin");
+          return;
+        }
         setChecking(false);
-        return;
       }
     }
 

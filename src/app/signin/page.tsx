@@ -22,8 +22,8 @@ export default function SignInPage() {
           const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
           router.replace(destination);
         }
-      } catch {
-        // no-op: leave user on signin if onboarding status lookup fails
+      } catch (err) {
+        console.error("Signin bootstrap check failed", err);
       }
     }
 

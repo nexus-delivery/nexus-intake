@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   BusinessType,
   completeCustomerOnboarding,
@@ -23,6 +24,7 @@ const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const [bootstrapRetryKey, setBootstrapRetryKey] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -79,7 +81,7 @@ export default function OnboardingPage() {
     }
 
     void bootstrap();
-  }, [router]);
+  }, [router, bootstrapRetryKey]);
 
   const logoPreviewUrl = useMemo(() => {
     if (logoFile) {
@@ -88,13 +90,33 @@ export default function OnboardingPage() {
     return logoUrl;
   }, [logoFile, logoUrl]);
 
+  const safeLogoPreviewUrl = useMemo(() => {
+    if (!logoPreviewUrl) {
+      return null;
+    }
+
+    if (logoPreviewUrl.startsWith("blob:")) {
+      return logoPreviewUrl;
+    }
+
+    try {
+      const parsed = new URL(logoPreviewUrl);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        return logoPreviewUrl;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [logoPreviewUrl]);
+
   useEffect(() => {
     return () => {
-      if (logoPreviewUrl && logoFile) {
+      if (logoPreviewUrl?.startsWith("blob:")) {
         URL.revokeObjectURL(logoPreviewUrl);
       }
     };
-  }, [logoFile, logoPreviewUrl]);
+  }, [logoPreviewUrl]);
 
   function onLogoSelected(event: ChangeEvent<HTMLInputElement>) {
     setError(null);
@@ -230,10 +252,16 @@ export default function OnboardingPage() {
                 onChange={onLogoSelected}
                 className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-[#7C3AED] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white"
               />
-              {logoPreviewUrl ? (
+              {safeLogoPreviewUrl ? (
                 <div className="mt-3 flex items-center gap-3">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={logoPreviewUrl} alt="Company logo preview" className="h-12 w-12 rounded-md object-cover" />
+                  <Image
+                    src={safeLogoPreviewUrl}
+                    alt="Company logo preview"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="h-12 w-12 rounded-md object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => {
@@ -343,9 +371,23 @@ export default function OnboardingPage() {
           </section>
 
           {error ? (
-            <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {error}
-            </p>
+            <div
+              role="alert"
+              className="space-y-2 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs text-red-200"
+            >
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setLoading(true);
+                  setBootstrapRetryKey((current) => current + 1);
+                }}
+                className="rounded-lg border border-red-300/30 px-2.5 py-1 text-[11px] font-semibold text-red-100 hover:bg-red-500/20"
+              >
+                Retry
+              </button>
+            </div>
           ) : null}
 
           <button
