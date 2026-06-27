@@ -15,9 +15,61 @@ const sections = [
     ),
   },
   {
+    title: "Steer IT",
+    description: "Steer product direction with priorities, constraints and operating principles.",
+    href: "/build-it/steer-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 3v18" />
+        <path d="M3 12h18" />
+      </svg>
+    ),
+  },
+  {
+    title: "Think IT",
+    description: "Capture thinking work, assumptions and strategic options for upcoming work.",
+    href: "/build-it/think-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M12 2a7 7 0 015.29 11.56A5 5 0 0115 17H9a5 5 0 01-2.29-3.44A7 7 0 0112 2z" />
+        <path d="M9 21h6" />
+      </svg>
+    ),
+  },
+  {
+    title: "Market IT",
+    description: "Coordinate launch messaging, positioning and campaign readiness.",
+    href: "/build-it/market-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M3 11v2" />
+        <path d="M7 8v8" />
+        <path d="M11 5v14" />
+        <path d="M15 9v6" />
+        <path d="M19 7v10" />
+      </svg>
+    ),
+  },
+  {
+    title: "Sell IT",
+    description: "Prepare value propositions, sales assets and commercial rollout readiness.",
+    href: "/build-it/sell-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M12 1v22" />
+        <path d="M17 5H9a4 4 0 000 8h6a4 4 0 010 8H7" />
+      </svg>
+    ),
+  },
+  {
     title: "Roadmap",
     description: "Strategic product roadmap showing upcoming initiatives and milestones.",
-    href: "/admin/product-hub",
+    href: "/build-it/roadmap",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -31,9 +83,9 @@ const sections = [
     ),
   },
   {
-    title: "Sprint Board",
+    title: "Sprint",
     description: "Current sprint cards, progress and team velocity at a glance.",
-    href: "/admin/product-hub",
+    href: "/build-it/sprint",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -46,7 +98,7 @@ const sections = [
   {
     title: "Progress",
     description: "Sprint velocity, feature completion percentages and milestone tracking.",
-    href: "/admin/product-hub",
+    href: "/build-it/progress",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -57,8 +109,8 @@ const sections = [
   {
     title: "Architecture",
     description: "System design, data models, infrastructure diagrams and technical decisions.",
-    href: "#",
-    status: "coming-soon",
+    href: "/build-it/architecture",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <rect x="2" y="3" width="6" height="6" rx="1" />
@@ -72,8 +124,8 @@ const sections = [
   {
     title: "Integrations",
     description: "Third-party service integrations, API connections and webhook registry.",
-    href: "#",
-    status: "coming-soon",
+    href: "/build-it/integrations",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
@@ -84,8 +136,8 @@ const sections = [
   {
     title: "Issues",
     description: "Open bugs, technical debt and known limitations tracked in one place.",
-    href: "#",
-    status: "coming-soon",
+    href: "/build-it/issues",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -97,8 +149,8 @@ const sections = [
   {
     title: "Decisions",
     description: "Architectural decision records (ADRs) and key product choices made.",
-    href: "#",
-    status: "coming-soon",
+    href: "/build-it/decisions",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M9 12l2 2 4-4" />
@@ -109,8 +161,8 @@ const sections = [
   {
     title: "Release Notes",
     description: "Changelog of every deployed release, feature and breaking change.",
-    href: "#",
-    status: "coming-soon",
+    href: "/build-it/release-notes",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />

@@ -1,0 +1,72 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import AppShell from "@/components/AppShell";
+
+const sectionContent: Record<
+  string,
+  {
+    title: string;
+    summary: string;
+    mockItems: string[];
+  }
+> = {
+  "suggest-it": {
+    title: "Suggest IT",
+    summary: "Collect structured suggestions for improving the platform.",
+    mockItems: ["Suggestion intake queue", "Submitted idea themes", "Owner assignment placeholders"],
+  },
+  "vote-it": {
+    title: "Vote IT",
+    summary: "Prioritise suggestions with transparent voting.",
+    mockItems: ["Top-voted suggestion list", "Vote trend snapshot", "Priority threshold examples"],
+  },
+  "future-it": {
+    title: "Future IT",
+    summary: "Planned future capabilities and directional placeholders.",
+    mockItems: ["Future capability shortlist", "Exploration backlog", "Deferred opportunities"],
+  },
+  "report-it": {
+    title: "Report IT",
+    summary: "Capture bugs and quality issues from users.",
+    mockItems: ["Issue intake placeholders", "Severity buckets", "Resolution status samples"],
+  },
+};
+
+export default async function ImproveItSectionPage({
+  params,
+}: {
+  params: Promise<{ section: string }>;
+}) {
+  const { section } = await params;
+  const content = sectionContent[section];
+
+  if (!content) {
+    notFound();
+  }
+
+  return (
+    <AppShell>
+      <div className="space-y-6">
+        <div className="rounded-[32px] border border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED]/5 to-white p-8 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7C3AED]">Improve IT Section</p>
+          <h1 className="mt-2 text-3xl font-semibold text-[#111827]">{content.title}</h1>
+          <p className="mt-2 text-sm text-slate-600">{content.summary}</p>
+        </div>
+
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Mock Data</p>
+          <ul className="mt-4 space-y-2 text-sm text-slate-600">
+            {content.mockItems.map((item) => (
+              <li key={item} className="rounded-xl bg-slate-50 px-4 py-3">
+                {item}
+              </li>
+            ))}
+          </ul>
+          <Link href="/improve-it" className="mt-5 inline-flex text-sm font-medium text-[#7C3AED] hover:underline">
+            Back to Improve IT
+          </Link>
+        </div>
+      </div>
+    </AppShell>
+  );
+}
