@@ -109,7 +109,7 @@ export default function NeedItPage() {
               key={section.title}
               className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 opacity-65 shadow-sm"
             >
-              <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                   {section.icon}
                 </div>
