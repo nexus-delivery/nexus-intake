@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
 const kpis = [
@@ -113,36 +114,43 @@ const quickActions = [
     title: "New Delivery",
     icon: "plus",
     description: "Create a new delivery request for fast dispatch.",
+    href: "/portal/intake",
   },
   {
     title: "Upload PDF",
     icon: "upload",
     description: "Upload shipment documents and invoices.",
+    href: "/portal/intake",
   },
   {
     title: "Customers",
     icon: "users",
     description: "Review customer details and delivery history.",
+    href: "/customers",
   },
   {
     title: "Planning",
     icon: "planning",
     description: "Set routes and schedules for the operations team.",
+    href: "#",
   },
   {
     title: "Warehouse",
     icon: "warehouse",
     description: "Manage inventory, stock levels, and locations.",
+    href: "#",
   },
   {
     title: "Finance",
     icon: "wallet",
     description: "Track invoices, approvals, and billing status.",
+    href: "#",
   },
   {
     title: "Reports",
     icon: "chart",
     description: "View performance metrics and daily reports.",
+    href: "#",
   },
 ];
 
@@ -491,10 +499,10 @@ export default function Home() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {quickActions.map((action) => (
-              <button
+              <Link
                 key={action.title}
-                type="button"
-                className="group rounded-[32px] border border-slate-200 bg-white p-6 text-left shadow-sm shadow-slate-200/30 transition duration-200 hover:-translate-y-1 hover:border-[var(--nexus-purple)] hover:bg-[var(--nexus-purple)]/5"
+                href={action.href}
+                className="group rounded-[32px] border border-slate-200 bg-white p-6 text-left shadow-sm shadow-slate-200/30 transition duration-200 hover:-translate-y-1 hover:border-[var(--nexus-purple)] hover:bg-[var(--nexus-purple)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nexus-purple)]/40"
               >
                 <div className="flex items-start gap-4">
                   <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--nexus-purple)] text-white shadow-sm shadow-[var(--nexus-purple)]/20">
@@ -543,7 +551,7 @@ export default function Home() {
                     <p className="mt-2 text-sm leading-6 text-slate-600">{action.description}</p>
                   </div>
                 </div>
-              </button>
+              </Link>
             ))}
           </div>
         </div>
