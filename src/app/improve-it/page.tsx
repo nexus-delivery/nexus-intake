@@ -1,9 +1,11 @@
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
 const sections = [
   {
     title: "Suggest IT",
     description: "Submit a suggestion for a new platform feature or capability improvement.",
+    href: "/improve-it/suggest-it",
     status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -16,6 +18,7 @@ const sections = [
   {
     title: "Vote IT",
     description: "Vote on platform feature requests and help prioritise the product roadmap.",
+    href: "/improve-it/vote-it",
     status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -27,6 +30,7 @@ const sections = [
   {
     title: "Future IT",
     description: "See what capabilities are planned for future sprints and product phases.",
+    href: "/improve-it/future-it",
     status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -38,24 +42,13 @@ const sections = [
   {
     title: "Report IT",
     description: "Report a bug, broken feature or unexpected behaviour on the platform.",
+    href: "/improve-it/report-it",
     status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
         <line x1="12" y1="9" x2="12" y2="13" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-    ),
-  },
-  {
-    title: "Ideas",
-    description: "Browse the community ideas board and contribute to platform innovation.",
-    status: "coming-soon",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <path d="M12 2a7 7 0 015.29 11.56 5 5 0 01-1.3 2.4A3 3 0 0113 18H11a3 3 0 01-2.99-2.04 5 5 0 01-1.3-2.4A7 7 0 0112 2z" />
-        <line x1="12" y1="18" x2="12" y2="22" />
-        <line x1="9" y1="21" x2="15" y2="21" />
       </svg>
     ),
   },
@@ -106,12 +99,13 @@ export default function ImproveItPage() {
         {/* Sections */}
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {sections.map((section) => (
-            <div
+            <Link
+              href={section.href}
               key={section.title}
-              className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 opacity-65 shadow-sm"
+              className="group flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 opacity-65 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#7C3AED]/30 hover:opacity-100 hover:shadow-[0_8px_32px_-8px_rgba(124,58,237,0.2)]"
             >
               <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition group-hover:bg-[#7C3AED]/10 group-hover:text-[#7C3AED]">
                   {section.icon}
                 </div>
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
@@ -120,7 +114,7 @@ export default function ImproveItPage() {
               </div>
               <h3 className="text-base font-semibold text-[#111827]">{section.title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">{section.description}</p>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
