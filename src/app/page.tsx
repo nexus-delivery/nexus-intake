@@ -1,3 +1,4 @@
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
 const kpis = [
@@ -113,11 +114,13 @@ const quickActions = [
     title: "New Delivery",
     icon: "plus",
     description: "Create a new delivery request for fast dispatch.",
+    href: "/portal/intake",
   },
   {
     title: "Upload PDF",
     icon: "upload",
     description: "Upload shipment documents and invoices.",
+    href: "/portal/intake",
   },
   {
     title: "Customers",
@@ -490,7 +493,62 @@ export default function Home() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {quickActions.map((action) => (
+            {quickActions.map((action) =>
+              action.href ? (
+              <Link
+                key={action.title}
+                href={action.href}
+                className="group rounded-[32px] border border-slate-200 bg-white p-6 text-left shadow-sm shadow-slate-200/30 transition duration-200 hover:-translate-y-1 hover:border-[var(--nexus-purple)] hover:bg-[var(--nexus-purple)]/5"
+              >
+                <div className="flex items-start gap-4">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--nexus-purple)] text-white shadow-sm shadow-[var(--nexus-purple)]/20">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                      {action.icon === "plus" ? (
+                        <path d="M12 5v14M5 12h14" />
+                      ) : action.icon === "upload" ? (
+                        <>
+                          <path d="M12 5v10" />
+                          <path d="M8 11l4-4 4 4" />
+                          <path d="M8 19h8" />
+                        </>
+                      ) : action.icon === "users" ? (
+                        <>
+                          <path d="M16 21v-2a4 4 0 00-8 0v2" />
+                          <path d="M12 7a4 4 0 100-8 4 4 0 000 8z" />
+                          <path d="M20 8a4 4 0 110-8 4 4 0 010 8z" />
+                        </>
+                      ) : action.icon === "planning" ? (
+                        <>
+                          <path d="M4 6h16M4 12h8M4 18h12" />
+                        </>
+                      ) : action.icon === "warehouse" ? (
+                        <>
+                          <path d="M4 8l8-5 8 5v11H4z" />
+                          <path d="M12 3v18" />
+                        </>
+                      ) : action.icon === "wallet" ? (
+                        <>
+                          <path d="M3 7h18v10H3z" />
+                          <path d="M3 12h18" />
+                        </>
+                      ) : (
+                        <>
+                          <path d="M5 19h14" />
+                          <path d="M5 15l7-7 7 7" />
+                        </>
+                      )}
+                    </svg>
+                  </span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-lg font-semibold text-[var(--nexus-graphite)]">{action.title}</p>
+                      <span className="text-[var(--nexus-purple)] transition group-hover:text-[var(--nexus-graphite)]">→</span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{action.description}</p>
+                  </div>
+                </div>
+              </Link>
+              ) : (
               <button
                 key={action.title}
                 type="button"
@@ -544,7 +602,8 @@ export default function Home() {
                   </div>
                 </div>
               </button>
-            ))}
+              )
+            )}
           </div>
         </div>
       </section>
