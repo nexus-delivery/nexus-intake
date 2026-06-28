@@ -8,17 +8,19 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "The Hub", href: "/" },
-  { label: "Create IT", href: "/create-it" },
-  { label: "Route IT", href: "/route-it" },
-  { label: "Track IT", href: "/track-it" },
-  { label: "Store IT", href: "/store-it" },
-  { label: "Account IT", href: "/account-it" },
-  { label: "Manage IT", href: "/manage-it" },
-  { label: "Report IT", href: "/report-it" },
-  { label: "Build IT", href: "/build-it" },
-  { label: "Improve IT", href: "/improve-it" },
-  { label: "Need IT", href: "/need-it" },
+  { label: "Manage it.", href: "/" },
+  { label: "Create it.", href: "/create-it" },
+  { label: "Upload it.", href: "/portal/intake" },
+  { label: "Document it.", href: "/manage-it/document-it" },
+  { label: "Search it.", href: "/manage-it/search-it" },
+  { label: "Plan it.", href: "/route-it" },
+  { label: "Route it.", href: "/route-it" },
+  { label: "Track it.", href: "/track-it" },
+  { label: "Account it.", href: "/account-it" },
+  { label: "Manage it. (Admin)", href: "/manage-it" },
+  { label: "Report it.", href: "/report-it" },
+  { label: "Build it.", href: "/build-it" },
+  { label: "Improve it.", href: "/improve-it" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -56,7 +58,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  const filteredNavItems = navItems.filter((item) => item.href !== "/manage-it" || showManageIt);
+  const filteredNavItems = navItems.filter(
+    (item) => {
+      const isManageItOnly =
+        item.href === "/manage-it" ||
+        item.href === "/manage-it/document-it" ||
+        item.href === "/manage-it/search-it";
+      return !isManageItOnly || showManageIt;
+    },
+  );
 
   return (
     <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
