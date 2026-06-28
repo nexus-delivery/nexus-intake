@@ -205,16 +205,29 @@ export async function getManageItAccessProfile(): Promise<ManageItAccessProfile>
 }
 
 export async function syncManageItSession(accessToken: string | null): Promise<void> {
-  if (!accessToken) {
-    await fetch("/api/auth/session", { method: "DELETE" });
-    return;
-  }
+  try {
+    if (!accessToken) {
+      const deleteResponse = await fetch("/api/auth/session", { method: "DELETE" });
+      if (!deleteResponse.ok) {
+        throw new Error(`Session clear failed: ${deleteResponse.status} ${deleteResponse.statusText}`);
+      }
+      return;
+    }
 
-  await fetch("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accessToken }),
-  });
+    const postResponse = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken }),
+    });
+
+    if (!postResponse.ok) {
+      throw new Error(`Session sync failed: ${postResponse.status} ${postResponse.statusText}`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Session synchronization failed";
+    console.error("syncManageItSession error:", message);
+    throw new Error(message);
+  }
 }
 
 export async function logAdminAction(params: {
