@@ -106,9 +106,9 @@ export default function SignInPage() {
           N
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">NEXUS Platform</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Enter IT</h1>
-          <p className="mt-1 text-sm text-slate-400">Sign in to access your company workspace.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus IT</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white">Sign in to Nexus IT</h1>
+          <p className="mt-1 text-sm text-slate-400">Access your Nexus IT workspace</p>
         </div>
       </div>
 
@@ -169,7 +169,7 @@ export default function SignInPage() {
         <p className="mt-6 text-center text-xs text-slate-500">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-[#A78BFA] hover:underline">
-            Join IT
+            Create account
           </Link>
         </p>
       </div>
