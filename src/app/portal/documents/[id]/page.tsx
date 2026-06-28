@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import DocumentStatusBadge from "@/components/DocumentStatusBadge";
 import { fetchCompanyById } from "@/lib/authOnboarding";
 import {
+  formatDocumentFileType,
   formatDocumentFileSize,
   formatDocumentTimestamp,
   resolveDocumentPreviewType,
@@ -224,7 +225,7 @@ export default function MerchantDocumentViewerPage() {
           <dl className="mt-4">
             <MetadataRow label="Status" value={<DocumentStatusBadge status={toDocumentStatus(document.status)} />} />
             <MetadataRow label="Uploaded" value={formatDocumentTimestamp(document.created_at)} />
-            <MetadataRow label="File type" value={document.file_type.toUpperCase()} />
+            <MetadataRow label="File type" value={formatDocumentFileType(document.file_type)} />
             <MetadataRow label="File size" value={formatDocumentFileSize(document.file_size)} />
             <MetadataRow label="Company" value={companyName ?? document.company_id} />
             <MetadataRow label="Company ID" value={document.company_id} />

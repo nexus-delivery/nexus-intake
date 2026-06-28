@@ -28,6 +28,10 @@ export function formatDocumentTimestamp(value: string): string {
   });
 }
 
+export function formatDocumentFileType(value: string): string {
+  return value ? value.toUpperCase() : "—";
+}
+
 export function toDocumentStatus(value: string): DocumentStatus {
   const normalized = value.trim().toLowerCase();
 
@@ -55,7 +59,26 @@ export function toDocumentStatus(value: string): DocumentStatus {
 export function resolveDocumentPreviewType(
   document: UploadedDocumentRow
 ): "pdf" | "image" | "unsupported" {
-  const value = `${document.file_type} ${document.file_name} ${document.file_path}`.toLowerCase();
+  const normalizedType = document.file_type.toLowerCase();
+
+  if (normalizedType === "pdf" || normalizedType === "application/pdf") {
+    return "pdf";
+  }
+
+  if (
+    normalizedType === "png" ||
+    normalizedType === "image/png" ||
+    normalizedType === "jpg" ||
+    normalizedType === "jpeg" ||
+    normalizedType === "image/jpg" ||
+    normalizedType === "image/jpeg" ||
+    normalizedType === "webp" ||
+    normalizedType === "image/webp"
+  ) {
+    return "image";
+  }
+
+  const value = `${document.file_name} ${document.file_path}`.toLowerCase();
 
   if (value.includes("pdf")) {
     return "pdf";

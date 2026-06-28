@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import DocumentStatusBadge from "@/components/DocumentStatusBadge";
 import { fetchCompanyById } from "@/lib/authOnboarding";
 import {
+  formatDocumentFileType,
   formatDocumentFileSize,
   formatDocumentTimestamp,
   toDocumentStatus,
@@ -21,10 +22,6 @@ import {
 type PortalDocumentRow = UploadedDocumentRow & {
   draftJob: DraftJobLinkRow | null;
 };
-
-function formatFileType(value: string): string {
-  return value ? value.toUpperCase() : "—";
-}
 
 function mergeDocumentsWithDraftJobs(
   documents: UploadedDocumentRow[],
@@ -199,7 +196,7 @@ export default function MerchantDocumentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatFileType(document.file_type)}
+                      {formatDocumentFileType(document.file_type)}
                     </td>
                     <td className="px-6 py-4 align-top text-sm text-slate-600">
                       {formatDocumentFileSize(document.file_size)}
