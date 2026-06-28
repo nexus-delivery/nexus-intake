@@ -156,7 +156,7 @@ export default function HubPage() {
         }
 
         const profileRecord = await fetchProfileByUserId(user.id);
-        if (!profileRecord?.onboarding_complete) {
+        if (!profileRecord) {
           router.replace("/onboarding");
           return;
         }

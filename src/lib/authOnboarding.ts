@@ -40,9 +40,11 @@ export function mapAuthError(message: string): string {
 
 export interface Profile {
   id: string;
-  user_id: string;
+  auth_user_id: string;
   company_id: string;
-  onboarding_complete: boolean;
+  full_name?: string | null;
+  email?: string | null;
+  role?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,7 +59,7 @@ export interface Company {
 }
 
 export async function createOrUpdateProfile(params: {
-  userId: string;
+  authUserId: string;
   companyId: string;
 }): Promise<string> {
   if (!supabase) throw new Error("Supabase not configured");
@@ -66,11 +68,10 @@ export async function createOrUpdateProfile(params: {
     .from("profiles")
     .upsert(
       {
-        user_id: params.userId,
+        auth_user_id: params.authUserId,
         company_id: params.companyId,
-        onboarding_complete: false,
       },
-      { onConflict: "user_id" }
+      { onConflict: "auth_user_id" }
     )
     .select("id")
     .single();
@@ -111,36 +112,16 @@ export async function createOrUpdateCompany(params: {
   return data.id;
 }
 
-export async function completeOnboarding(userId: string): Promise<void> {
-  if (!supabase) throw new Error("Supabase not configured");
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({ onboarding_complete: true })
-    .eq("user_id", userId)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    console.error("Failed to mark onboarding complete", { userId, error });
-    throw new Error(`Failed to complete onboarding: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error("Failed to complete onboarding: profile not found");
-  }
-}
-
-export async function fetchProfileByUserId(userId: string): Promise<Profile | null> {
+export async function fetchProfileByUserId(authUserId: string): Promise<Profile | null> {
   if (!supabase) {
     console.error("fetchProfileByUserId called without Supabase client");
     return null;
   }
 
-  const { data, error } = await supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+  const { data, error } = await supabase.from("profiles").select("*").eq("auth_user_id", authUserId).maybeSingle();
 
   if (error) {
-    console.error("Failed to fetch profile", { userId, error });
+    console.error("Failed to fetch profile", { authUserId, error });
     throw new Error(`Failed to fetch profile: ${error.message}`);
   }
 
@@ -163,15 +144,15 @@ export async function fetchCompanyById(companyId: string): Promise<Company | nul
   return data;
 }
 
-export async function resolvePostSignInPath(userId: string): Promise<"/" | "/onboarding"> {
+export async function resolvePostSignInPath(authUserId: string): Promise<"/" | "/onboarding"> {
   try {
-    const profile = await fetchProfileByUserId(userId);
-    if (profile?.onboarding_complete) {
+    const profile = await fetchProfileByUserId(authUserId);
+    if (profile) {
       return "/";
     }
     return "/onboarding";
   } catch (error) {
-    console.error("Failed to resolve post-signin path", { userId, error });
+    console.error("Failed to resolve post-signin path", { authUserId, error });
     return "/onboarding";
   }
 }
