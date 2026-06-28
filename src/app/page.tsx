@@ -162,8 +162,13 @@ export default function HubPage() {
         }
 
         if (profileRecord.company_id) {
-          const company = await fetchCompanyById(profileRecord.company_id);
-          setCompanyName(company?.name ?? null);
+          try {
+            const company = await fetchCompanyById(profileRecord.company_id);
+            setCompanyName(company?.name ?? null);
+          } catch (companyError) {
+            console.error("Failed to load company profile", { companyId: profileRecord.company_id, companyError });
+            setCompanyName(null);
+          }
         }
         setUserEmail(user.email ?? null);
         const profile = await getManageItAccessProfile();

@@ -76,11 +76,20 @@ export async function createOrUpdateCompany(params: {
 export async function completeOnboarding(userId: string): Promise<void> {
   if (!supabase) throw new Error("Supabase not configured");
 
-  const { error } = await supabase.from("profiles").update({ onboarding_complete: true }).eq("user_id", userId);
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({ onboarding_complete: true })
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     console.error("Failed to mark onboarding complete", { userId, error });
     throw new Error(`Failed to complete onboarding: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error("Failed to complete onboarding: profile not found");
   }
 }
 

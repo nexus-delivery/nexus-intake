@@ -113,13 +113,6 @@ export default function OnboardingPage() {
     setSaving(true);
 
     try {
-      console.log("Starting onboarding", {
-        userId,
-        companyId,
-        companyName: companyName.trim(),
-        businessType,
-      });
-
       await createOrUpdateCompany({
         companyId,
         name: companyName.trim(),
