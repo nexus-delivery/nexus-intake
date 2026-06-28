@@ -173,7 +173,7 @@ async function ensureCompanyRecord(companyId: string, companyName: string): Prom
   }
   const { data: existing, error: existingError } = await supabase
     .from("companies")
-    .select("id, company_name")
+    .select("id, name")
     .eq("id", companyId)
     .maybeSingle();
 
@@ -183,10 +183,10 @@ async function ensureCompanyRecord(companyId: string, companyName: string): Prom
   }
 
   if (existing) {
-    if (existing.company_name && existing.company_name !== companyName) {
+    if (existing.name && existing.name !== companyName) {
       console.warn("Company name mismatch for existing company", {
         companyId,
-        existingCompanyName: existing.company_name,
+        name: existing.name,
         attemptedCompanyName: companyName,
       });
     }
@@ -195,7 +195,7 @@ async function ensureCompanyRecord(companyId: string, companyName: string): Prom
 
   const { error } = await supabase.from("companies").insert({
     id: companyId,
-    company_name: companyName,
+    name: companyName,
   });
 
   if (error && error.code !== DUPLICATE_KEY_ERROR_CODE) {
