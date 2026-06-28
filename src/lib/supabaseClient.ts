@@ -51,7 +51,7 @@ function logSupabaseError(table: string, operation: string, error: unknown, deta
   });
 }
 
-async function getAuthenticatedUploadContext(callerProvidedUserId?: string): Promise<
+async function getAuthenticatedUploadContext(expectedUserId?: string): Promise<
   | { success: true; userId: string; companyId: string }
   | { success: false; error: string }
 > {
@@ -75,9 +75,9 @@ async function getAuthenticatedUploadContext(callerProvidedUserId?: string): Pro
     return { success: false, error: SESSION_REQUIRED_ERROR };
   }
 
-  if (callerProvidedUserId && callerProvidedUserId !== sessionUserId) {
+  if (expectedUserId && expectedUserId !== sessionUserId) {
     console.error("Supabase session user mismatch during upload", {
-      callerProvidedUserId,
+      expectedUserId,
       sessionUserId,
     });
     return {
@@ -301,6 +301,11 @@ export async function uploadMultiFormatDocument(
     return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
+  const authContext = await getAuthenticatedUploadContext(userId);
+  if (!authContext.success) {
+    return { success: false, error: authContext.error };
+  }
+
   const fileType = getFileTypeFromMime(file.type);
   if (!fileType) {
     return {
@@ -310,10 +315,6 @@ export async function uploadMultiFormatDocument(
   }
 
   const uploadedAt = new Date().toISOString();
-  const authContext = await getAuthenticatedUploadContext(userId);
-  if (!authContext.success) {
-    return { success: false, error: authContext.error };
-  }
 
   // Step 1: Upload to storage
   const storageResult = await uploadMultiFormatFile(file, authContext.companyId);
