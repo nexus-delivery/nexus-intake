@@ -43,7 +43,15 @@ function getFileTypeFromMime(mimeType: string): string | null {
   return SUPPORTED_MIME_TYPES[mimeType] ?? null;
 }
 
-async function getAuthenticatedUploadContext(expectedUserId?: string): Promise<
+function logSupabaseError(table: string, operation: string, error: unknown, details?: object) {
+  console.error(`Supabase ${operation} failed`, {
+    table,
+    error,
+    ...details,
+  });
+}
+
+async function getAuthenticatedUploadContext(callerProvidedUserId?: string): Promise<
   | { success: true; userId: string; companyId: string }
   | { success: false; error: string }
 > {
@@ -67,9 +75,9 @@ async function getAuthenticatedUploadContext(expectedUserId?: string): Promise<
     return { success: false, error: SESSION_REQUIRED_ERROR };
   }
 
-  if (expectedUserId && expectedUserId !== sessionUserId) {
+  if (callerProvidedUserId && callerProvidedUserId !== sessionUserId) {
     console.error("Supabase session user mismatch during upload", {
-      expectedUserId,
+      callerProvidedUserId,
       sessionUserId,
     });
     return {
@@ -85,11 +93,7 @@ async function getAuthenticatedUploadContext(expectedUserId?: string): Promise<
     .maybeSingle();
 
   if (profileError) {
-    console.error("Supabase select failed", {
-      table: "profiles",
-      authUserId: sessionUserId,
-      error: profileError,
-    });
+    logSupabaseError("profiles", "select", profileError, { authUserId: sessionUserId });
     return { success: false, error: PROFILE_LOOKUP_ERROR };
   }
 
@@ -206,13 +210,13 @@ export async function insertUploadedDocument(params: {
       .single();
 
     if (error) {
-      console.error("Supabase insert failed", { table: "uploaded_documents", error });
+      logSupabaseError("uploaded_documents", "insert", error);
       return { success: false, error: error.message };
     }
 
     return { success: true, documentId: data?.id };
   } catch (err) {
-    console.error("Supabase insert failed", { table: "uploaded_documents", error: err });
+    logSupabaseError("uploaded_documents", "insert", err);
     const message = err instanceof Error ? err.message : "Database insert failed";
     return { success: false, error: message };
   }
@@ -258,13 +262,13 @@ export async function createDraftJob(params: {
       .single();
 
     if (error) {
-      console.error("Supabase insert failed", { table: "draft_jobs", error });
+      logSupabaseError("draft_jobs", "insert", error);
       return { success: false, error: error.message };
     }
 
     return { success: true, jobId: data?.id };
   } catch (err) {
-    console.error("Supabase insert failed", { table: "draft_jobs", error: err });
+    logSupabaseError("draft_jobs", "insert", err);
     const message = err instanceof Error ? err.message : "Failed to create draft job";
     return { success: false, error: message };
   }
