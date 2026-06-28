@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BusinessType,
-  completeOnboarding,
   createOrUpdateCompany,
   createOrUpdateProfile,
   fetchProfileByUserId,
@@ -118,7 +117,6 @@ export default function OnboardingPage() {
         companyId,
       });
 
-      await completeOnboarding(userId);
       router.replace("/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Onboarding failed";

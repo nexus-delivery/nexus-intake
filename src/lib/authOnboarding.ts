@@ -112,12 +112,6 @@ export async function createOrUpdateCompany(params: {
   return data.id;
 }
 
-export async function completeOnboarding(authUserId: string): Promise<void> {
-  // profiles table does not have an onboarding_complete column;
-  // profile existence is used to determine onboarding status.
-  console.debug("Onboarding marked complete for user", { authUserId });
-}
-
 export async function fetchProfileByUserId(authUserId: string): Promise<Profile | null> {
   if (!supabase) {
     console.error("fetchProfileByUserId called without Supabase client");
