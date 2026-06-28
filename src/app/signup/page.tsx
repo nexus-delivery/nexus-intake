@@ -25,6 +25,7 @@ const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
 
 export default function SignUpPage() {
   const router = useRouter();
+  const [companyId] = useState(() => crypto.randomUUID());
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -101,6 +102,7 @@ export default function SignUpPage() {
             contact_name: contactName.trim(),
             contact_phone: contactPhone.trim(),
             business_type: businessType,
+            company_id: companyId,
           },
         },
       });
@@ -132,6 +134,7 @@ export default function SignUpPage() {
           contactName: contactName.trim(),
           contactPhone: contactPhone.trim(),
           businessType,
+          companyId,
         });
         router.replace(destination);
       } catch (resolveErr) {

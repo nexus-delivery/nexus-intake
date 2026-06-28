@@ -2,9 +2,10 @@
 CREATE TABLE IF NOT EXISTS customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  company_id UUID NOT NULL REFERENCES companies(id),
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  -- merchant_id stays nullable for customers who are not linked to a merchant profile.
   merchant_id UUID NULL,
-  customer_type TEXT NOT NULL DEFAULT 'company',
+  customer_type TEXT NOT NULL DEFAULT 'company' CHECK (customer_type IN ('company')),
   customer_name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NOT NULL,

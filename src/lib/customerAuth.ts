@@ -35,11 +35,11 @@ type InitializeCustomerRecordParams = {
 };
 
 export type InitialCustomerSetupData = {
+  companyId: string;
   companyName: string;
   contactName: string;
   contactPhone: string;
   businessType: BusinessType;
-  companyId?: string;
   merchantId?: string | null;
 };
 
@@ -48,7 +48,7 @@ const LOGO_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 // 30 seconds prevents indefinite wait states while still allowing normal uploads.
 const LOGO_UPLOAD_TIMEOUT_MS = 30_000;
 const DUPLICATE_KEY_ERROR_CODE = "23505";
-const UNDEFINED_COLUMN_ERROR_CODE = "42703";
+const DEFAULT_BUSINESS_ADDRESS = "Not provided";
 const LOGO_ALLOWED_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/gif", "image/webp"]);
 const LOGO_EXTENSION_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -141,7 +141,10 @@ function buildInitialCustomerPayload({ userId, email, setup }: InitializeCustome
   const companyName = setup.companyName.trim();
   const contactName = setup.contactName.trim();
   const contactPhone = setup.contactPhone.trim();
-  const companyId = setup.companyId ?? crypto.randomUUID();
+  const companyId = setup.companyId.trim();
+  if (!companyId) {
+    throw new Error("A company ID is required to initialize a customer record.");
+  }
   const merchantId = setup.merchantId ?? null;
 
   return {
@@ -158,7 +161,7 @@ function buildInitialCustomerPayload({ userId, email, setup }: InitializeCustome
     contact_email: normalizedEmail,
     contact_phone: contactPhone,
     business_type: setup.businessType,
-    business_address: "Provided during signup",
+    business_address: DEFAULT_BUSINESS_ADDRESS,
     terms_accepted: false,
     onboarding_complete: false,
   };
@@ -168,51 +171,42 @@ async function ensureCompanyRecord(companyId: string, companyName: string): Prom
   if (!supabase) {
     throw new Error("Supabase is not configured.");
   }
-  const client = supabase;
-
-  const { data: existing, error: existingError } = await client
+  const { data: existing, error: existingError } = await supabase
     .from("companies")
-    .select("id")
+    .select("id, company_name")
     .eq("id", companyId)
     .maybeSingle();
 
   if (existingError) {
-    console.error("Failed to check company record", { companyId, existingError });
+    console.error("Failed to read company record", { companyId, companyName, existingError });
     throw new Error(existingError.message);
   }
 
-  if (existing?.id) {
+  if (existing) {
+    if (existing.company_name && existing.company_name !== companyName) {
+      console.warn("Company name mismatch for existing company", {
+        companyId,
+        existingCompanyName: existing.company_name,
+        attemptedCompanyName: companyName,
+      });
+    }
     return;
   }
 
-  const attemptInsert = async (payload: Record<string, unknown>) => {
-    const { error } = await client.from("companies").insert(payload);
-    if (!error || error.code === DUPLICATE_KEY_ERROR_CODE) {
-      return true;
-    }
-    if (error.code === UNDEFINED_COLUMN_ERROR_CODE) {
-      return false;
-    }
-    console.error("Failed to create company record", { companyId, payload, error });
-    throw new Error(error.message);
-  };
-
-  const insertedWithCompanyName = await attemptInsert({
+  const { error } = await supabase.from("companies").insert({
     id: companyId,
     company_name: companyName,
   });
 
-  if (!insertedWithCompanyName) {
-    const insertedWithName = await attemptInsert({
-      id: companyId,
-      name: companyName,
-    });
-    if (!insertedWithName) {
-      await attemptInsert({
-        id: companyId,
-      });
-    }
+  if (error && error.code !== DUPLICATE_KEY_ERROR_CODE) {
+    console.error("Failed to create company record", { companyId, companyName, error });
+    throw new Error(error.message);
   }
+
+  console.debug("Company record ensured", {
+    id: companyId,
+    companyName,
+  });
 }
 
 export async function initializeCustomerRecord(params: InitializeCustomerRecordParams): Promise<void> {

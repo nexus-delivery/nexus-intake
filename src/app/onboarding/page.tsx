@@ -6,8 +6,8 @@ import Image from "next/image";
 import {
   BusinessType,
   completeCustomerOnboarding,
+  ensureCustomerRecordWithSetup,
   fetchCustomerByUserId,
-  initializeCustomerRecord,
   uploadCompanyLogo,
   validateEmail,
   validateLogoFile,
@@ -33,6 +33,7 @@ export default function OnboardingPage() {
   const [bootstrapRetryKey, setBootstrapRetryKey] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [companyId, setCompanyId] = useState(() => crypto.randomUUID());
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -70,14 +71,18 @@ export default function OnboardingPage() {
 
         if (customer) {
           setCustomerExists(true);
+          setCompanyId(customer.company_id);
           setCompanyName(customer.company_name ?? "");
           setContactName(customer.contact_name ?? "");
           setContactPhone(customer.contact_phone ?? "");
-          setBusinessType(customer.business_type ?? "courier");
+          setBusinessType(customer.business_type);
           setLogoUrl(customer.company_logo_url ?? null);
         } else {
           const metadata = user.user_metadata ?? {};
           setCustomerExists(false);
+          if (typeof metadata.company_id === "string" && metadata.company_id.trim()) {
+            setCompanyId(metadata.company_id);
+          }
           setCompanyName(typeof metadata.company_name === "string" ? metadata.company_name : "");
           setContactName(typeof metadata.contact_name === "string" ? metadata.contact_name : "");
           setContactPhone(typeof metadata.contact_phone === "string" ? metadata.contact_phone : "");
@@ -199,16 +204,16 @@ export default function OnboardingPage() {
       }
 
       if (!customerExists) {
-        await initializeCustomerRecord({
-          userId,
-          email: email.trim(),
-          setup: {
-            companyName: companyName.trim(),
-            contactName: contactName.trim(),
-            contactPhone: contactPhone.trim(),
-            businessType,
-          },
+        const ensured = await ensureCustomerRecordWithSetup(userId, email.trim(), {
+          companyId,
+          companyName: companyName.trim(),
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          businessType,
         });
+        if (!ensured) {
+          throw new Error("Unable to create your customer profile. Please retry.");
+        }
         setCustomerExists(true);
       }
 
