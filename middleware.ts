@@ -13,10 +13,20 @@ export function middleware(request: NextRequest) {
   const canAccessManageIt = request.cookies.get(MANAGE_IT_ACCESS_COOKIE)?.value === "1";
 
   if (!sessionToken) {
+    console.info("[middleware] redirect", {
+      route: pathname,
+      target: "/signin",
+      reason: "missing manage-it session cookie",
+    });
     return NextResponse.redirect(new URL("/signin", request.url));
   }
 
   if (!canAccessManageIt) {
+    console.info("[middleware] redirect", {
+      route: pathname,
+      target: "/",
+      reason: "manage-it access cookie not granted",
+    });
     return NextResponse.redirect(new URL("/", request.url));
   }
 

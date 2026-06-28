@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { mapAuthError, resolvePostSignInPath, validateEmail } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,25 +13,6 @@ export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    async function bootstrap() {
-      try {
-        if (!supabase) return;
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-          const { data: sessionData } = await supabase.auth.getSession();
-          await syncManageItSession(sessionData.session?.access_token ?? null);
-          const destination = await resolvePostSignInPath(data.user.id);
-          router.replace(destination);
-        }
-      } catch (err) {
-        console.error("Signin bootstrap check failed", err);
-      }
-    }
-
-    void bootstrap();
-  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,6 +60,12 @@ export default function SignInPage() {
       // Resolve post-signin path
       try {
         const destination = await resolvePostSignInPath(user.id);
+        console.info("[SignIn] redirect", {
+          route: "/signin",
+          sessionUserId: user.id,
+          reason: "sign-in success",
+          target: destination,
+        });
         router.replace(destination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to load your profile";

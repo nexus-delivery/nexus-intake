@@ -3,6 +3,19 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+export function getSupabaseProjectRefFromUrl(): string | null {
+  if (!supabaseUrl) {
+    return null;
+  }
+
+  try {
+    const host = new URL(supabaseUrl).host;
+    return host.split(".")[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Whether Supabase env vars are present and the client is usable.
  * When false, upload functions return graceful errors and confirmJob uses mock data,
