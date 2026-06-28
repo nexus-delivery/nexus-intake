@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 import DocumentStatusBadge from "@/components/DocumentStatusBadge";
 import { fetchCompanyById } from "@/lib/authOnboarding";
 import {
+  formatDocumentFileSize,
+  formatDocumentTimestamp,
+  resolveDocumentPreviewType,
+  toDocumentStatus,
+} from "@/lib/merchantDocuments";
+import {
   createMerchantDocumentSignedUrl,
   fetchCurrentProfile,
   fetchDraftJobForDocument,
@@ -13,74 +19,6 @@ import {
   type DraftJobLinkRow,
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
-
-type DocumentStatus =
-  | "Uploaded"
-  | "Processing"
-  | "Processed"
-  | "Needs Review"
-  | "Confirmed"
-  | "Failed";
-
-function formatFileSize(bytes: number | null): string {
-  if (bytes == null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatTimestamp(value: string): string {
-  return new Date(value).toLocaleString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function toDocumentStatus(value: string): DocumentStatus {
-  const normalized = value.trim().toLowerCase();
-
-  switch (normalized) {
-    case "uploaded":
-    case "document_uploaded":
-      return "Uploaded";
-    case "processing":
-      return "Processing";
-    case "processed":
-      return "Processed";
-    case "needs_review":
-    case "needs review":
-      return "Needs Review";
-    case "confirmed":
-    case "job_created":
-      return "Confirmed";
-    case "failed":
-      return "Failed";
-    default:
-      return "Uploaded";
-  }
-}
-
-function resolvePreviewType(document: UploadedDocumentRow): "pdf" | "image" | "unsupported" {
-  const value = `${document.file_type} ${document.file_name} ${document.file_path}`.toLowerCase();
-
-  if (value.includes("pdf")) {
-    return "pdf";
-  }
-
-  if (
-    value.includes("png") ||
-    value.includes("jpg") ||
-    value.includes("jpeg") ||
-    value.includes("webp")
-  ) {
-    return "image";
-  }
-
-  return "unsupported";
-}
 
 function MetadataRow({
   label,
@@ -245,7 +183,7 @@ export default function MerchantDocumentViewerPage() {
     );
   }
 
-  const previewType = resolvePreviewType(document);
+  const previewType = resolveDocumentPreviewType(document);
 
   return (
     <div className="space-y-6 pb-8">
@@ -285,9 +223,9 @@ export default function MerchantDocumentViewerPage() {
           </h2>
           <dl className="mt-4">
             <MetadataRow label="Status" value={<DocumentStatusBadge status={toDocumentStatus(document.status)} />} />
-            <MetadataRow label="Uploaded" value={formatTimestamp(document.created_at)} />
+            <MetadataRow label="Uploaded" value={formatDocumentTimestamp(document.created_at)} />
             <MetadataRow label="File type" value={document.file_type.toUpperCase()} />
-            <MetadataRow label="File size" value={formatFileSize(document.file_size)} />
+            <MetadataRow label="File size" value={formatDocumentFileSize(document.file_size)} />
             <MetadataRow label="Company" value={companyName ?? document.company_id} />
             <MetadataRow label="Company ID" value={document.company_id} />
             <MetadataRow label="File path" value={<span className="break-all">{document.file_path}</span>} />
@@ -333,6 +271,7 @@ export default function MerchantDocumentViewerPage() {
 
           {signedUrl && previewType === "image" && (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={signedUrl}
                 alt={document.file_name}

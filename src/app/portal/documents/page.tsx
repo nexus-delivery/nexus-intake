@@ -5,6 +5,11 @@ import { useEffect, useState } from "react";
 import DocumentStatusBadge from "@/components/DocumentStatusBadge";
 import { fetchCompanyById } from "@/lib/authOnboarding";
 import {
+  formatDocumentFileSize,
+  formatDocumentTimestamp,
+  toDocumentStatus,
+} from "@/lib/merchantDocuments";
+import {
   createMerchantDocumentSignedUrl,
   fetchCurrentProfile,
   fetchDraftJobsForDocuments,
@@ -13,71 +18,27 @@ import {
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
 
-type DocumentStatus =
-  | "Uploaded"
-  | "Processing"
-  | "Processed"
-  | "Needs Review"
-  | "Confirmed"
-  | "Failed";
-
 type PortalDocumentRow = UploadedDocumentRow & {
   draftJob: DraftJobLinkRow | null;
 };
 
-function formatFileSize(bytes: number | null): string {
-  if (bytes == null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatTimestamp(value: string): string {
-  return new Date(value).toLocaleString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatFileType(value: string): string {
   return value ? value.toUpperCase() : "—";
-}
-
-function toDocumentStatus(value: string): DocumentStatus {
-  const normalized = value.trim().toLowerCase();
-
-  switch (normalized) {
-    case "uploaded":
-    case "document_uploaded":
-      return "Uploaded";
-    case "processing":
-      return "Processing";
-    case "processed":
-      return "Processed";
-    case "needs_review":
-    case "needs review":
-      return "Needs Review";
-    case "confirmed":
-    case "job_created":
-      return "Confirmed";
-    case "failed":
-      return "Failed";
-    default:
-      return "Uploaded";
-  }
 }
 
 function mergeDocumentsWithDraftJobs(
   documents: UploadedDocumentRow[],
   draftJobs: DraftJobLinkRow[]
 ): PortalDocumentRow[] {
+  const draftJobsByDocumentId = new Map(
+    draftJobs
+      .filter((job) => job.primary_document_id)
+      .map((job) => [job.primary_document_id, job] as const)
+  );
+
   return documents.map((document) => ({
     ...document,
-    draftJob:
-      draftJobs.find((job) => job.primary_document_id === document.id) ?? null,
+    draftJob: draftJobsByDocumentId.get(document.id) ?? null,
   }));
 }
 
@@ -241,13 +202,13 @@ export default function MerchantDocumentsPage() {
                       {formatFileType(document.file_type)}
                     </td>
                     <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatFileSize(document.file_size)}
+                      {formatDocumentFileSize(document.file_size)}
                     </td>
                     <td className="px-6 py-4 align-top">
                       <DocumentStatusBadge status={toDocumentStatus(document.status)} />
                     </td>
                     <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatTimestamp(document.created_at)}
+                      {formatDocumentTimestamp(document.created_at)}
                     </td>
                     <td className="px-6 py-4 align-top">
                       <p className="text-sm text-slate-700">
