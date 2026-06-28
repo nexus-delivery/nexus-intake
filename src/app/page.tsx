@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { fetchCustomerByUserId } from "@/lib/customerAuth";
+import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -155,13 +155,21 @@ export default function HubPage() {
           return;
         }
 
-        const customer = await fetchCustomerByUserId(user.id);
-        if (!customer?.onboarding_complete) {
+        const profileRecord = await fetchProfileByUserId(user.id);
+        if (!profileRecord?.onboarding_complete) {
           router.replace("/onboarding");
           return;
         }
 
-        setCompanyName(customer.company_name);
+        if (profileRecord.company_id) {
+          try {
+            const company = await fetchCompanyById(profileRecord.company_id);
+            setCompanyName(company?.name ?? null);
+          } catch (companyError) {
+            console.error("Failed to load company profile", { companyId: profileRecord.company_id, companyError });
+            setCompanyName(null);
+          }
+        }
         setUserEmail(user.email ?? null);
         const profile = await getManageItAccessProfile();
         setCanAccessManageIt(profile.canAccessManageIt);

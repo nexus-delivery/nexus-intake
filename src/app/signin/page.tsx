@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { mapAuthError, resolvePostSignInPath, validateEmail } from "@/lib/customerAuth";
+import { mapAuthError, validateEmail } from "@/lib/customerAuth";
+import { resolvePostSignInPath } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -22,7 +23,7 @@ export default function SignInPage() {
         if (data.user) {
           const { data: sessionData } = await supabase.auth.getSession();
           await syncManageItSession(sessionData.session?.access_token ?? null);
-          const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
+          const destination = await resolvePostSignInPath(data.user.id);
           router.replace(destination);
         }
       } catch (err) {
@@ -78,7 +79,7 @@ export default function SignInPage() {
 
       // Resolve post-signin path
       try {
-        const destination = await resolvePostSignInPath(user.id, user.email ?? email.trim());
+        const destination = await resolvePostSignInPath(user.id);
         router.replace(destination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to load your profile";

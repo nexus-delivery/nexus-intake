@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ensureCustomerRecord, fetchCustomerByUserId } from "@/lib/customerAuth";
+import { fetchProfileByUserId } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -46,9 +46,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         }
 
         await syncManageItSession(sessionData.session?.access_token ?? null);
-        await ensureCustomerRecord(user.id, user.email ?? null);
-        const customer = await fetchCustomerByUserId(user.id);
-        const onboardingComplete = Boolean(customer?.onboarding_complete);
+        const profile = await fetchProfileByUserId(user.id);
+        const onboardingComplete = Boolean(profile?.onboarding_complete);
 
         if (isAuthEntry || pathname === "/auth/callback") {
           router.replace(onboardingComplete ? "/" : "/onboarding");

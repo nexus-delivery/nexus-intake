@@ -6,11 +6,11 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   BusinessType,
   mapAuthError,
-  resolvePostSignInPath,
   validateEmail,
   validatePassword,
   validatePhone,
 } from "@/lib/customerAuth";
+import { resolvePostSignInPath } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -44,7 +44,7 @@ export default function SignUpPage() {
         if (data.user) {
           const { data: sessionData } = await supabase.auth.getSession();
           await syncManageItSession(sessionData.session?.access_token ?? null);
-          const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? null);
+          const destination = await resolvePostSignInPath(data.user.id);
           router.replace(destination);
         }
       } catch (err) {
@@ -129,13 +129,7 @@ export default function SignUpPage() {
       }
 
       try {
-        const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? email.trim(), {
-          companyName: companyName.trim(),
-          contactName: contactName.trim(),
-          contactPhone: contactPhone.trim(),
-          businessType,
-          companyId,
-        });
+        const destination = await resolvePostSignInPath(data.user.id);
         router.replace(destination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to determine onboarding status";
