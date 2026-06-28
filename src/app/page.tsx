@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AccessSetupIssue from "@/components/AccessSetupIssue";
 import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
-import { getErrorMessage, redirectWithLog } from "@/lib/authRedirect";
+import {
+  type AuthenticatedAccessIssue,
+  buildAuthLookupError,
+  getErrorMessage,
+  redirectWithLog,
+  resolveAuthUser,
+} from "@/lib/authRedirect";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -139,16 +145,18 @@ export default function HubPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [canAccessManageIt, setCanAccessManageIt] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const [accessIssue, setAccessIssue] = useState<{
-    sessionUserId: string | null;
-    error: unknown;
-  } | null>(null);
+  const [accessIssue, setAccessIssue] = useState<AuthenticatedAccessIssue | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function bootstrap() {
+      let cachedSessionUserId: string | null = null;
       try {
+        if (!isMounted) return;
         setAccessIssue(null);
         if (!supabase) {
+          if (!isMounted) return;
           setAuthLoading(false);
           return;
         }
@@ -159,7 +167,8 @@ export default function HubPage() {
         ]);
         const session = sessionData.session;
         const sessionUserId = session?.user?.id ?? null;
-        const user = userData.user ?? session?.user ?? null;
+        cachedSessionUserId = sessionUserId;
+        const user = resolveAuthUser(userData.user, session);
 
         console.info("[hub] bootstrap auth snapshot", {
           route: "/",
@@ -172,14 +181,13 @@ export default function HubPage() {
 
         if (sessionError || userError) {
           if (sessionUserId) {
-            const authLookupError = new Error(
-              `Auth lookup failed. userError=${userError?.message ?? "none"} sessionError=${sessionError?.message ?? "none"}`
-            );
+            const authLookupError = buildAuthLookupError(userError?.message, sessionError?.message);
             console.error("[hub] authenticated auth lookup error", {
               route: "/",
               sessionUserId,
               error: authLookupError.message,
             });
+            if (!isMounted) return;
             setAccessIssue({ sessionUserId, error: authLookupError });
             setAuthLoading(false);
             return;
@@ -208,6 +216,7 @@ export default function HubPage() {
             sessionUserId,
             error: getErrorMessage(profileError),
           });
+          if (!isMounted) return;
           setAccessIssue({ sessionUserId, error: profileError });
           setAuthLoading(false);
           return;
@@ -242,14 +251,16 @@ export default function HubPage() {
             });
             if (!company) {
               const missingCompanyError = new Error(
-                `Company ${profileRecord.company_id} was not found for authenticated profile ${profileRecord.id}`
+                "We could not load your company access yet. Please contact support to complete setup."
               );
               console.error("[hub] company lookup returned no row", {
                 route: "/",
                 sessionUserId,
                 companyId: profileRecord.company_id,
+                profileId: profileRecord.id,
                 error: missingCompanyError.message,
               });
+              if (!isMounted) return;
               setAccessIssue({ sessionUserId, error: missingCompanyError });
               setAuthLoading(false);
               return;
@@ -262,6 +273,7 @@ export default function HubPage() {
               companyId: profileRecord.company_id,
               error: getErrorMessage(companyError),
             });
+            if (!isMounted) return;
             setAccessIssue({ sessionUserId, error: companyError });
             setAuthLoading(false);
             return;
@@ -279,11 +291,13 @@ export default function HubPage() {
             sessionUserId,
             error: getErrorMessage(accessProfileError),
           });
+          if (!isMounted) return;
           setAccessIssue({ sessionUserId, error: accessProfileError });
           setAuthLoading(false);
           return;
         }
 
+        if (!isMounted) return;
         setAuthLoading(false);
       } catch (err) {
         console.error("[hub] bootstrap failed", {
@@ -291,11 +305,14 @@ export default function HubPage() {
           error: getErrorMessage(err),
         });
         let sessionUserId: string | null = null;
-        if (supabase) {
+        if (cachedSessionUserId) {
+          sessionUserId = cachedSessionUserId;
+        } else if (supabase) {
           const { data: sessionData } = await supabase.auth.getSession();
           sessionUserId = sessionData.session?.user?.id ?? null;
         }
         if (sessionUserId) {
+          if (!isMounted) return;
           setAccessIssue({ sessionUserId, error: err });
           setAuthLoading(false);
           return;
@@ -307,11 +324,13 @@ export default function HubPage() {
           sessionUserId,
           extra: { error: getErrorMessage(err) },
         });
-        setAuthLoading(false);
       }
     }
 
     void bootstrap();
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   async function handleSignOut() {
