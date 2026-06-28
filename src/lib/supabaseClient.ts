@@ -33,6 +33,65 @@ function getFileTypeFromMime(mimeType: string): string | null {
   return SUPPORTED_MIME_TYPES[mimeType] ?? null;
 }
 
+type AuthenticatedProfileContext = {
+  authUserId: string;
+  profileId: string;
+  companyId: string;
+};
+
+async function fetchAuthenticatedProfileContext(
+  userId?: string
+): Promise<AuthenticatedProfileContext> {
+  if (!supabase) {
+    throw new Error("Supabase configuration not available in preview");
+  }
+
+  let authUserId = userId;
+
+  if (!authUserId) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error("Failed to get Supabase session for document upload", { error });
+      throw new Error("Unable to verify your session. Please sign in and try again.");
+    }
+
+    authUserId = data.session?.user.id;
+  }
+
+  if (!authUserId) {
+    throw new Error("You must be signed in to upload a document.");
+  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id, company_id")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to fetch upload profile context", { authUserId, error });
+    throw new Error("Unable to load your profile for document upload. Please try again.");
+  }
+
+  if (!profile) {
+    throw new Error(
+      "We couldn't find your profile. Please complete onboarding or contact support before uploading documents."
+    );
+  }
+
+  if (!profile.company_id) {
+    throw new Error(
+      "Your profile is missing a company assignment. Please contact support before uploading documents."
+    );
+  }
+
+  return {
+    authUserId,
+    profileId: profile.id,
+    companyId: profile.company_id,
+  };
+}
+
 /**
  * Generate a random UUID v4 for use as a mock job ID in preview/local dev.
  * Falls back to a manual implementation when crypto.randomUUID is unavailable.
@@ -93,36 +152,27 @@ export async function uploadMultiFormatFile(
  * Insert a record into the uploaded_documents table.
  *
  * Schema: uploaded_documents
- *   id, company_id, uploaded_by_user_id, file_name, file_path,
+ *   id, company_id, created_by_profile_id, file_name, file_path,
  *   file_type, file_size, status, created_at, updated_at
- *
- * TODO: When profiles table exists with company_id + user_id link, enable RLS:
- *   ALTER TABLE uploaded_documents ENABLE ROW LEVEL SECURITY;
- *   CREATE POLICY "Users can view/insert documents from their company"
- *     ON uploaded_documents
- *     USING (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()))
- *     WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()));
  */
 export async function insertUploadedDocument(params: {
   fileName: string;
   filePath: string;
   fileType: string;
   fileSize: number;
-  companyId?: string;
-  uploadedByUserId?: string;
+  userId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
   }
 
-  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
-
   try {
+    const profile = await fetchAuthenticatedProfileContext(params.userId);
     const { data, error } = await supabase
       .from("uploaded_documents")
       .insert({
-        company_id: companyId,
-        uploaded_by_user_id: params.uploadedByUserId ?? null, // TODO: replace with authenticated user_id when available
+        company_id: profile.companyId,
+        created_by_profile_id: profile.profileId,
         file_name: params.fileName,
         file_path: params.filePath,
         file_type: params.fileType,
@@ -133,6 +183,7 @@ export async function insertUploadedDocument(params: {
       .single();
 
     if (error) {
+      console.error("Supabase insert error on uploaded_documents", { error });
       return { success: false, error: error.message };
     }
 
@@ -154,26 +205,24 @@ export async function insertUploadedDocument(params: {
  *   ALTER TABLE draft_jobs ENABLE ROW LEVEL SECURITY;
  *   CREATE POLICY "Users can view/insert jobs from their company"
  *     ON draft_jobs
- *     USING (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()))
- *     WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE user_id = auth.uid()));
+ *     USING (company_id IN (SELECT company_id FROM profiles WHERE auth_user_id = auth.uid()))
+ *     WITH CHECK (company_id IN (SELECT company_id FROM profiles WHERE auth_user_id = auth.uid()));
  */
 export async function createDraftJob(params: {
   primaryDocumentId: string;
-  companyId?: string;
-  createdByUserId?: string;
+  userId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
   }
 
-  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
-
   try {
+    const profile = await fetchAuthenticatedProfileContext(params.userId);
     const { data, error } = await supabase
       .from("draft_jobs")
       .insert({
-        company_id: companyId,
-        created_by_user_id: params.createdByUserId ?? null, // TODO: replace with authenticated user_id when available
+        company_id: profile.companyId,
+        created_by_user_id: profile.profileId,
         primary_document_id: params.primaryDocumentId,
         status: "document_uploaded",
       })
@@ -181,6 +230,7 @@ export async function createDraftJob(params: {
       .single();
 
     if (error) {
+      console.error("Supabase insert error on draft_jobs", { error });
       return { success: false, error: error.message };
     }
 
@@ -211,8 +261,7 @@ export type UploadedDocumentMetadata = {
  * Returns full metadata including document ID, job ID, and file details.
  */
 export async function uploadMultiFormatDocument(
-  file: File,
-  companyId?: string
+  file: File
 ): Promise<{ success: boolean; error?: string; metadata?: UploadedDocumentMetadata }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
@@ -227,10 +276,17 @@ export async function uploadMultiFormatDocument(
   }
 
   const uploadedAt = new Date().toISOString();
-  const effectiveCompanyId = companyId || DEFAULT_COMPANY_ID;
+  let profile: AuthenticatedProfileContext;
+
+  try {
+    profile = await fetchAuthenticatedProfileContext();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unable to prepare your upload";
+    return { success: false, error: message };
+  }
 
   // Step 1: Upload to storage
-  const storageResult = await uploadMultiFormatFile(file, effectiveCompanyId);
+  const storageResult = await uploadMultiFormatFile(file, profile.companyId);
   if (!storageResult.success) {
     return { success: false, error: storageResult.error };
   }
@@ -241,7 +297,7 @@ export async function uploadMultiFormatDocument(
     filePath: storageResult.filePath!,
     fileType,
     fileSize: file.size,
-    companyId: effectiveCompanyId,
+    userId: profile.authUserId,
   });
   if (!docResult.success) {
     return { success: false, error: docResult.error };
@@ -250,7 +306,7 @@ export async function uploadMultiFormatDocument(
   // Step 3: Create draft_jobs record
   const jobResult = await createDraftJob({
     primaryDocumentId: docResult.documentId!,
-    companyId: effectiveCompanyId,
+    userId: profile.authUserId,
   });
   if (!jobResult.success) {
     return { success: false, error: jobResult.error };
