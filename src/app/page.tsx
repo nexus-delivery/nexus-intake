@@ -8,9 +8,9 @@ import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 
-const operationalSpotlights = [
+const manageItModules = [
   {
-    title: "Create IT",
+    title: "Create it.",
     description: "Create delivery requests, bookings and orders.",
     href: "/create-it",
     icon: (
@@ -20,8 +20,60 @@ const operationalSpotlights = [
     ),
   },
   {
-    title: "Route IT",
-    description: "Plan routes, manage consignments and dispatch drivers.",
+    title: "Upload it.",
+    description: "Upload delivery documents, manifests and purchase orders.",
+    href: "/portal/intake",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+    ),
+  },
+  {
+    title: "Document it.",
+    description: "Manage the complete journey from uploaded document to completed delivery.",
+    href: "/manage-it/document-it",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" />
+        <line x1="16" y1="17" x2="8" y2="17" />
+        <polyline points="10 9 9 9 8 9" />
+      </svg>
+    ),
+    requiresManageIt: true,
+  },
+  {
+    title: "Search it.",
+    description: "Locate documents, draft jobs and deliveries with two-match security.",
+    href: "/manage-it/search-it",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    ),
+    requiresManageIt: true,
+  },
+  {
+    title: "Plan it.",
+    description: "Plan routes, schedules and delivery windows in advance.",
+    href: "/route-it",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    title: "Route it.",
+    description: "Dispatch drivers, manage consignments and live routing.",
     href: "/route-it",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
@@ -32,7 +84,7 @@ const operationalSpotlights = [
     ),
   },
   {
-    title: "Track IT",
+    title: "Track it.",
     description: "Real-time tracking, POD status and delivery visibility.",
     href: "/track-it",
     icon: (
@@ -43,19 +95,32 @@ const operationalSpotlights = [
     ),
   },
   {
-    title: "Store IT",
-    description: "Warehouse management, inventory and stock control.",
-    href: "/store-it",
+    title: "POD it.",
+    description: "Proof of delivery capture, signatures and photographic evidence.",
+    href: "/track-it",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
-        <path d="M4 8l8-5 8 5v11H4V8z" />
-        <path d="M12 3v18" />
-        <path d="M8 12h8" />
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
       </svg>
     ),
   },
   {
-    title: "Account IT",
+    title: "Manage it.",
+    description: "Operations control room, documents and platform settings.",
+    href: "/manage-it",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
+        <rect x="3" y="3" width="8" height="8" rx="1.5" />
+        <rect x="13" y="3" width="8" height="8" rx="1.5" />
+        <rect x="3" y="13" width="8" height="8" rx="1.5" />
+        <rect x="13" y="13" width="8" height="8" rx="1.5" />
+      </svg>
+    ),
+    requiresManageIt: true,
+  },
+  {
+    title: "Account it.",
     description: "Manage accounts, companies and customer relationships.",
     href: "/account-it",
     icon: (
@@ -66,21 +131,8 @@ const operationalSpotlights = [
     ),
   },
   {
-    title: "Manage IT",
-    description: "Operations control room, documents and settings.",
-    href: "/manage-it",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
-        <rect x="3" y="3" width="8" height="8" rx="1.5" />
-        <rect x="13" y="3" width="8" height="8" rx="1.5" />
-        <rect x="3" y="13" width="8" height="8" rx="1.5" />
-        <rect x="13" y="13" width="8" height="8" rx="1.5" />
-      </svg>
-    ),
-  },
-  {
-    title: "Report IT",
-    description: "Analytics, performance metrics and daily reports.",
+    title: "Report it.",
+    description: "Analytics, performance metrics and daily operational reports.",
     href: "/report-it",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
@@ -92,23 +144,8 @@ const operationalSpotlights = [
       </svg>
     ),
   },
-];
-
-const platformSpotlights = [
   {
-    title: "Build IT",
-    description: "Development centre — roadmap, sprint board, architecture and integrations.",
-    href: "/build-it",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
-        <path d="M14.5 2.5c0 1.5-1.5 3-3 4.5S8 10 8 11.5a4 4 0 008 0c0-1.5-1.5-3-3-4.5" />
-        <path d="M12 17v4" />
-        <path d="M9 21h6" />
-      </svg>
-    ),
-  },
-  {
-    title: "Improve IT",
+    title: "Improve it.",
     description: "Customer improvement centre — feedback, ideas and future requests.",
     href: "/improve-it",
     icon: (
@@ -118,14 +155,12 @@ const platformSpotlights = [
     ),
   },
   {
-    title: "Need IT",
-    description: "Customer support — help articles, live chat and contact resources.",
-    href: "/need-it",
+    title: "Build it.",
+    description: "Development centre — roadmap, sprint board and integrations.",
+    href: "/build-it",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
-        <path d="M12 17h.01" />
+        <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
       </svg>
     ),
   },
@@ -355,7 +390,7 @@ export default function HubPage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4 text-sm text-slate-300">
-        Loading The Hub...
+        Loading Manage it....
       </div>
     );
   }
@@ -379,11 +414,11 @@ export default function HubPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7C3AED] text-sm font-bold text-white shadow shadow-[#7C3AED]/40">
             N
           </div>
-          <span className="text-sm font-semibold text-white tracking-wide">Nexus IT</span>
+          <span className="text-sm font-semibold text-white tracking-wide">Nexus it.</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">The Hub</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Manage it.</p>
             <p className="text-xs text-slate-300">{companyName ?? userEmail ?? "Customer"}</p>
             {signOutError ? <p className="text-[11px] text-red-300">{signOutError}</p> : null}
           </div>
@@ -403,62 +438,37 @@ export default function HubPage() {
           {/* Headline */}
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#7C3AED] mb-4">
-              The Hub
+              Manage it.
             </p>
             <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-tight">
-              What would you like to IT today?
+              How would you like to Nexus it. today?
             </h1>
-            <p className="mt-4 text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
-              Every capability lives here. Select a Spotlight to begin.
+            <p className="mt-4 text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+              Create it. Upload it. Route it. Track it. Manage it. All from one intelligent transport platform.
             </p>
           </div>
 
-          {/* ── Operational Spotlights ───────────────────────────── */}
-          <section className="mb-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 mb-5">
-              Operational Spotlights
+          {/* ── Manage it. Modules ───────────────────────────── */}
+          <section>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 mb-6">
+              Manage it.
             </p>
-            <div className="hub-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {operationalSpotlights
-                .filter((spotlight) => spotlight.href !== "/manage-it" || canAccessManageIt)
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {manageItModules
+                .filter((mod) => !mod.requiresManageIt || canAccessManageIt)
                 .map((s) => (
                 <Link
-                  key={s.href}
+                  key={`${s.href}-${s.title}`}
                   href={s.href}
-                  className="hub-card group relative flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#7C3AED]/50 hover:bg-white/8 cursor-pointer"
+                  className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/5 p-7 hover:border-[#7C3AED]/50 hover:bg-white/8 cursor-pointer transition-all duration-200"
                 >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="hub-card-icon flex h-12 w-12 items-center justify-center rounded-xl bg-[#7C3AED]/20 text-[#a78bfa]">
+                  <div className="flex items-start justify-between mb-6">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#7C3AED]/20 text-[#a78bfa]">
                       {s.icon}
                     </div>
-                    <span className="hub-card-arrow text-[#7C3AED] text-lg font-light">→</span>
+                    <span className="text-[#7C3AED] text-lg font-light opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                   </div>
-                  <h2 className="text-base font-semibold text-white mb-2">{s.title}</h2>
-                  <p className="text-sm leading-relaxed text-slate-400">{s.description}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          {/* ── Platform Spotlights ──────────────────────────────── */}
-          <section>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 mb-5">
-              Platform Spotlights
-            </p>
-            <div className="hub-grid grid gap-4 sm:grid-cols-3">
-              {platformSpotlights.map((s) => (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className="hub-card group relative flex flex-col rounded-2xl border border-white/10 bg-white/5 p-6 hover:border-[#7C3AED]/50 hover:bg-white/8 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="hub-card-icon flex h-12 w-12 items-center justify-center rounded-xl bg-[#7C3AED]/20 text-[#a78bfa]">
-                      {s.icon}
-                    </div>
-                    <span className="hub-card-arrow text-[#7C3AED] text-lg font-light">→</span>
-                  </div>
-                  <h2 className="text-base font-semibold text-white mb-2">{s.title}</h2>
+                  <h2 className="text-lg font-semibold text-white mb-2">{s.title}</h2>
                   <p className="text-sm leading-relaxed text-slate-400">{s.description}</p>
                 </Link>
               ))}
@@ -470,7 +480,7 @@ export default function HubPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/10 px-6 py-4 text-center">
         <p className="text-xs text-slate-600">
-          Nexus IT · Intelligent Transport by Nexus
+          Nexus it. · Intelligent Transport Platform by Nexus Delivery Solutions
         </p>
       </footer>
     </div>

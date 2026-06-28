@@ -12,44 +12,66 @@ type SidebarProps = {
 };
 
 const navIcons: Record<string, ReactNode> = {
-  "The Hub": (
+  "Manage it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 11.5L12 4l9 7.5" />
       <path d="M4 12v8h6v-5h4v5h6v-8" />
     </svg>
   ),
-  "Create IT": (
+  "Create it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
-  "Route IT": (
+  "Upload it.": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  ),
+  "Document it.": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+    </svg>
+  ),
+  "Search it.": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ),
+  "Plan it.": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  ),
+  "Route it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 12h18" />
       <path d="M8 7l-5 5 5 5" />
       <path d="M16 7l5 5-5 5" />
     </svg>
   ),
-  "Track IT": (
+  "Track it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
       <circle cx="12" cy="9" r="2.5" />
     </svg>
   ),
-  "Store IT": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M4 8l8-5 8 5v11H4V8z" />
-      <path d="M12 3v18" />
-      <path d="M8 12h8" />
-    </svg>
-  ),
-  "Account IT": (
+  "Account it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" />
       <path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1" />
     </svg>
   ),
-  "Manage IT": (
+  "Manage it. (Admin)": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <rect x="3" y="3" width="8" height="8" rx="1.5" />
       <rect x="13" y="3" width="8" height="8" rx="1.5" />
@@ -57,7 +79,7 @@ const navIcons: Record<string, ReactNode> = {
       <rect x="13" y="13" width="8" height="8" rx="1.5" />
     </svg>
   ),
-  "Report IT": (
+  "Report it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 6h16" />
       <path d="M7 6v12" />
@@ -66,24 +88,23 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M4 18h16" />
     </svg>
   ),
-  "Build IT": (
+  "Build it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
     </svg>
   ),
-  "Improve IT": (
+  "Improve it.": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ),
-  "Need IT": (
+  // Legacy icons kept for backward compatibility
+  "The Hub": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
+      <path d="M3 11.5L12 4l9 7.5" />
+      <path d="M4 12v8h6v-5h4v5h6v-8" />
     </svg>
   ),
-  // Legacy icons kept for backward compatibility
   Home: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M3 11.5L12 4l9 7.5" />
@@ -103,15 +124,15 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
               N
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Nexus IT</p>
-              <p className="text-xs text-slate-400">Intelligent Transport by Nexus</p>
+              <p className="text-sm font-semibold text-white">Nexus it.</p>
+              <p className="text-xs text-slate-400">Intelligent Transport Platform</p>
             </div>
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-[#111827] p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20">
-            <p className="font-medium text-slate-100">IT starts here</p>
+            <p className="font-medium text-slate-100">Nexus it. starts here</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Select a Spotlight below to begin. Every capability lives in The Hub.
+              Select a module below to begin. Every capability lives in Manage it.
             </p>
           </div>
         </div>
