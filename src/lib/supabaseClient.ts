@@ -9,6 +9,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  * allowing the merchant journey to work visually in preview/local dev environments.
  */
 export const SUPABASE_AVAILABLE = Boolean(supabaseUrl && supabaseAnonKey);
+const SUPABASE_UNAVAILABLE_ERROR =
+  "Supabase is not configured. Please set the required environment variables and try again.";
 
 // Only create the client when env vars are present – never throw at module load.
 export const supabase: SupabaseClient | null = SUPABASE_AVAILABLE
@@ -46,7 +48,7 @@ async function getAuthenticatedUploadContext(expectedUserId?: string): Promise<
   | { success: false; error: string }
 > {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -128,7 +130,7 @@ export async function uploadMultiFormatFile(
   companyId: string = DEFAULT_COMPANY_ID
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
   const fileType = getFileTypeFromMime(file.type);
@@ -180,12 +182,12 @@ export async function insertUploadedDocument(params: {
   userId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
   const authContext = await getAuthenticatedUploadContext(params.userId);
   if (!authContext.success) {
-    return authContext;
+    return { success: false, error: authContext.error };
   }
 
   try {
@@ -235,12 +237,12 @@ export async function createDraftJob(params: {
   userId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
   const authContext = await getAuthenticatedUploadContext(params.userId);
   if (!authContext.success) {
-    return authContext;
+    return { success: false, error: authContext.error };
   }
 
   try {
@@ -292,7 +294,7 @@ export async function uploadMultiFormatDocument(
   userId?: string
 ): Promise<{ success: boolean; error?: string; metadata?: UploadedDocumentMetadata }> {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return { success: false, error: SUPABASE_UNAVAILABLE_ERROR };
   }
 
   const fileType = getFileTypeFromMime(file.type);
@@ -306,7 +308,7 @@ export async function uploadMultiFormatDocument(
   const uploadedAt = new Date().toISOString();
   const authContext = await getAuthenticatedUploadContext(userId);
   if (!authContext.success) {
-    return authContext;
+    return { success: false, error: authContext.error };
   }
 
   // Step 1: Upload to storage
