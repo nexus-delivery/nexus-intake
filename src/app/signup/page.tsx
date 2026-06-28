@@ -6,11 +6,11 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   BusinessType,
   mapAuthError,
+  resolvePostSignInPath,
   validateEmail,
   validatePassword,
   validatePhone,
-} from "@/lib/customerAuth";
-import { resolvePostSignInPath } from "@/lib/authOnboarding";
+} from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
