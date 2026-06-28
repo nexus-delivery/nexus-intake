@@ -559,6 +559,16 @@ export async function fetchDraftJobForDocument(
   return { success: true, data: draftJob };
 }
 
+/**
+ * Generate a secure signed URL for accessing a document in the merchant-documents bucket.
+ * The signed URL uses the file_path exactly as stored in uploaded_documents.
+ * No path manipulation, prefixing, or encoding is performed.
+ *
+ * @param filePath - The exact file path from uploaded_documents.file_path
+ *   Example: "3fc46433-2dbc-43e1-9fa5-8ed68957d746/uploads/1782662657399-Nook purchase order UKLH 402D.pdf"
+ * @param expiresIn - Expiration time in seconds (default: 1 hour)
+ * @returns Signed URL for secure file access
+ */
 export async function createMerchantDocumentSignedUrl(
   filePath: string,
   expiresIn: number = 60 * 60
@@ -573,59 +583,65 @@ export async function createMerchantDocumentSignedUrl(
   const bucketName = "merchant-documents";
 
   try {
-    // Log input details
-    console.log("[DocumentSignedURL] Starting signed URL generation", {
+    // Validate input
+    if (!filePath || typeof filePath !== "string") {
+      console.error("[DocumentSignedURL] Invalid file path", {
+        filePath,
+        type: typeof filePath,
+      });
+      return {
+        success: false,
+        error: "Invalid file path",
+      };
+    }
+
+    console.log("[DocumentSignedURL] Generating signed URL", {
       bucket: bucketName,
-      filePath: filePath,
-      filePathLength: filePath.length,
+      filePath,
       expiresIn,
     });
 
-    // Attempt to generate signed URL
+    // Generate signed URL using exact file path - no manipulation
     const { data, error } = await supabase.storage
       .from(bucketName)
       .createSignedUrl(filePath, expiresIn);
 
-    // Log results
     if (error) {
-      console.error("[DocumentSignedURL] Supabase error response", {
+      console.error("[DocumentSignedURL] Failed", {
         bucket: bucketName,
         filePath,
         error: error.message,
-        errorName: error.name,
       });
       return {
         success: false,
-        error: error?.message ?? "Failed to generate secure document link",
+        error: `Unable to access document: ${error.message}`,
       };
     }
 
     if (!data?.signedUrl) {
-      console.error("[DocumentSignedURL] No signed URL in response", {
+      console.error("[DocumentSignedURL] No URL in response", {
         bucket: bucketName,
         filePath,
-        dataKeys: data ? Object.keys(data) : "null",
       });
       return {
         success: false,
-        error: "Failed to generate secure document link",
+        error: "Failed to generate document access link",
       };
     }
 
     console.log("[DocumentSignedURL] Success", {
       bucket: bucketName,
       filePath,
-      signedUrlPreview: data.signedUrl.substring(0, 80),
+      signedUrlLength: data.signedUrl.length,
     });
 
     return { success: true, data: { signedUrl: data.signedUrl } };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to generate secure document link";
-    console.error("[DocumentSignedURL] Exception caught", {
+    const message = err instanceof Error ? err.message : "Failed to generate document access link";
+    console.error("[DocumentSignedURL] Exception", {
       bucket: bucketName,
       filePath,
-      message,
-      errorStack: err instanceof Error ? err.stack : "no stack",
+      error: message,
     });
     return { success: false, error: message };
   }
