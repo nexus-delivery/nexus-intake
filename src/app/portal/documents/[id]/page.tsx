@@ -48,6 +48,8 @@ export default function MerchantDocumentViewerPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [debugResult, setDebugResult] = useState<string | null>(null);
+  const [isDebugTesting, setIsDebugTesting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +157,37 @@ export default function MerchantDocumentViewerPage() {
     setIsDownloading(false);
   }
 
+  async function handleDebugTest() {
+    if (!document) {
+      return;
+    }
+
+    setIsDebugTesting(true);
+    setDebugResult(null);
+
+    try {
+      const response = await fetch("/api/debug/signed-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          documentId: document.id,
+          filePath: document.file_path,
+        }),
+      });
+
+      const data = await response.json();
+      setDebugResult(JSON.stringify(data, null, 2));
+    } catch (err) {
+      setDebugResult(
+        JSON.stringify({
+          error: err instanceof Error ? err.message : "Failed to test signed URL",
+        }, null, 2)
+      );
+    } finally {
+      setIsDebugTesting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6 pb-8">
@@ -210,7 +243,7 @@ export default function MerchantDocumentViewerPage() {
           type="button"
           onClick={() => void handleDownload()}
           disabled={isDownloading}
-          className="inline-flex items-center justify-center rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-[var(--nexus-purple)]/40 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isDownloading ? "Preparing download..." : "Download"}
         </button>
@@ -243,6 +276,18 @@ export default function MerchantDocumentViewerPage() {
               }
             />
           </dl>
+
+          {/* TEMPORARY DEBUG BUTTON - REMOVE BEFORE MERGE */}
+          <div className="mt-6 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={() => void handleDebugTest()}
+              disabled={isDebugTesting}
+              className="w-full inline-flex items-center justify-center rounded-lg bg-slate-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDebugTesting ? "Testing..." : "Test Signed URL"}
+            </button>
+          </div>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
@@ -290,6 +335,16 @@ export default function MerchantDocumentViewerPage() {
           {!signedUrl && previewType !== "unsupported" && !previewError && (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-6 py-12 text-sm text-slate-600">
               Preview is being prepared.
+            </div>
+          )}
+
+          {/* TEMPORARY DEBUG OUTPUT - REMOVE BEFORE MERGE */}
+          {debugResult && (
+            <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <p className="mb-2 text-xs font-semibold text-blue-900">Debug Output:</p>
+              <pre className="overflow-x-auto rounded bg-white p-3 text-xs text-slate-700 font-mono whitespace-pre-wrap break-words">
+                {debugResult}
+              </pre>
             </div>
           )}
         </section>
