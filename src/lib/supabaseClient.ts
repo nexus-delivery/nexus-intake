@@ -52,6 +52,8 @@ type AuthenticatedProfileContext = {
   companyId: string;
 };
 
+export type CurrentProfile = AuthenticatedProfileContext;
+
 async function fetchAuthenticatedProfileContext(
   userId?: string
 ): Promise<AuthenticatedProfileContext> {
@@ -103,6 +105,21 @@ async function fetchAuthenticatedProfileContext(
     profileId: profile.id,
     companyId: profile.company_id,
   };
+}
+
+export async function fetchCurrentProfile(
+  userId?: string
+): Promise<
+  | { success: true; data: CurrentProfile }
+  | { success: false; error: string }
+> {
+  try {
+    const profile = await fetchAuthenticatedProfileContext(userId);
+    return { success: true, data: profile };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load your profile";
+    return { success: false, error: message };
+  }
 }
 
 /**
@@ -413,6 +430,14 @@ export type UploadedDocumentRow = {
   file_name: string;
   file_path: string;
   file_type: string;
+  file_size: number | null;
+  status: string;
+  created_at: string;
+};
+
+export type DraftJobLinkRow = {
+  id: string;
+  primary_document_id: string | null;
   status: string;
   created_at: string;
 };
@@ -429,7 +454,7 @@ export async function fetchUploadedDocuments(companyId?: string): Promise<
     let query = supabase
       .from("uploaded_documents")
       .select(
-        "id, company_id, file_name, file_path, file_type, status, created_at"
+        "id, company_id, file_name, file_path, file_type, file_size, status, created_at"
       )
       .order("created_at", { ascending: false });
 
@@ -446,6 +471,120 @@ export async function fetchUploadedDocuments(companyId?: string): Promise<
     return { success: true, data: data ?? [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch documents";
+    return { success: false, error: message };
+  }
+}
+
+export async function fetchUploadedDocumentById(
+  documentId: string,
+  companyId?: string
+): Promise<
+  | { success: true; data: UploadedDocumentRow | null }
+  | { success: false; error: string }
+> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  try {
+    let query = supabase
+      .from("uploaded_documents")
+      .select(
+        "id, company_id, file_name, file_path, file_type, file_size, status, created_at"
+      )
+      .eq("id", documentId);
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data ?? null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch document";
+    return { success: false, error: message };
+  }
+}
+
+export async function fetchDraftJobsForDocuments(
+  documentIds: string[]
+): Promise<
+  | { success: true; data: DraftJobLinkRow[] }
+  | { success: false; error: string }
+> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  if (documentIds.length === 0) {
+    return { success: true, data: [] };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("draft_jobs")
+      .select("id, primary_document_id, status, created_at")
+      .in("primary_document_id", documentIds)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data ?? [] };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch linked draft jobs";
+    return { success: false, error: message };
+  }
+}
+
+export async function fetchDraftJobForDocument(
+  documentId: string
+): Promise<
+  | { success: true; data: DraftJobLinkRow | null }
+  | { success: false; error: string }
+> {
+  const result = await fetchDraftJobsForDocuments([documentId]);
+
+  if (!result.success) {
+    return result;
+  }
+
+  const draftJob = result.data.find((job) => job.primary_document_id === documentId) ?? null;
+  return { success: true, data: draftJob };
+}
+
+export async function createMerchantDocumentSignedUrl(
+  filePath: string,
+  expiresIn: number = 60 * 60
+): Promise<
+  | { success: true; data: { signedUrl: string } }
+  | { success: false; error: string }
+> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  try {
+    const { data, error } = await supabase.storage
+      .from("merchant-documents")
+      .createSignedUrl(filePath, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      return {
+        success: false,
+        error: error?.message ?? "Failed to generate secure document link",
+      };
+    }
+
+    return { success: true, data: { signedUrl: data.signedUrl } };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to generate secure document link";
     return { success: false, error: message };
   }
 }
