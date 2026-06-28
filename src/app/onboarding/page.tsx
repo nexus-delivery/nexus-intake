@@ -2,8 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BusinessType } from "@/lib/customerAuth";
 import {
+  BusinessType,
   completeOnboarding,
   createOrUpdateCompany,
   createOrUpdateProfile,

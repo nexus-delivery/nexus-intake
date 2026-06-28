@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { mapAuthError, validateEmail } from "@/lib/customerAuth";
-import { resolvePostSignInPath } from "@/lib/authOnboarding";
+import { mapAuthError, resolvePostSignInPath, validateEmail } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 

@@ -1,5 +1,43 @@
 import { supabase } from "@/lib/supabaseClient";
 
+export type BusinessType =
+  | "courier"
+  | "fulfilment"
+  | "retailer"
+  | "manufacturer"
+  | "marketplace_seller"
+  | "other";
+
+export function validateEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+export function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Password must be at least 8 characters.";
+  if (!/[A-Z]/.test(password)) return "Password must include an uppercase letter.";
+  if (!/[a-z]/.test(password)) return "Password must include a lowercase letter.";
+  if (!/[0-9]/.test(password)) return "Password must include a number.";
+  return null;
+}
+
+export function validatePhone(phone: string): boolean {
+  return /^[+()\-\s0-9]{7,20}$/.test(phone.trim());
+}
+
+export function mapAuthError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) {
+    return "Invalid email or password.";
+  }
+  if (lower.includes("user already registered")) {
+    return "Email already in use.";
+  }
+  if (lower.includes("password")) {
+    return "Password is too weak. Please use at least 8 characters with upper/lowercase letters and a number.";
+  }
+  return message;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
