@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import AccessSetupIssue from "@/components/AccessSetupIssue";
 import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
+import {
+  type AuthenticatedAccessIssue,
+  buildAuthLookupError,
+  getErrorMessage,
+  redirectWithLog,
+  resolveAuthUser,
+} from "@/lib/authRedirect";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -137,51 +145,192 @@ export default function HubPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [canAccessManageIt, setCanAccessManageIt] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [accessIssue, setAccessIssue] = useState<AuthenticatedAccessIssue | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function bootstrap() {
+      let cachedSessionUserId: string | null = null;
       try {
+        if (!isMounted) return;
+        setAccessIssue(null);
         if (!supabase) {
+          if (!isMounted) return;
           setAuthLoading(false);
           return;
         }
 
-        const { data } = await supabase.auth.getUser();
-        const user = data.user;
+        const [{ data: sessionData, error: sessionError }, { data: userData, error: userError }] = await Promise.all([
+          supabase.auth.getSession(),
+          supabase.auth.getUser(),
+        ]);
+        const session = sessionData.session;
+        const sessionUserId = session?.user?.id ?? null;
+        cachedSessionUserId = sessionUserId;
+        const user = resolveAuthUser(userData.user, session);
 
-        if (!user) {
+        console.info("[hub] bootstrap auth snapshot", {
+          route: "/",
+          sessionUserId,
+          hasSession: Boolean(session),
+          hasUser: Boolean(user),
+          sessionError: sessionError?.message,
+          userError: userError?.message,
+        });
+
+        if (sessionError || userError) {
+          if (sessionUserId) {
+            const authLookupError = buildAuthLookupError(userError?.message, sessionError?.message);
+            console.error("[hub] authenticated auth lookup error", {
+              route: "/",
+              sessionUserId,
+              error: authLookupError.message,
+            });
+            if (!isMounted) return;
+            setAccessIssue({ sessionUserId, error: authLookupError });
+            setAuthLoading(false);
+            return;
+          }
+        }
+
+        if (!user || !session) {
           await syncManageItSession(null);
-          router.replace("/signin");
+          redirectWithLog(router, {
+            route: "/",
+            target: "/signin",
+            reason: "missing-session-or-user",
+            sessionUserId,
+          });
           return;
         }
 
-        const profileRecord = await fetchProfileByUserId(user.id);
+        await syncManageItSession(session.access_token ?? null);
+
+        let profileRecord;
+        try {
+          profileRecord = await fetchProfileByUserId(user.id);
+        } catch (profileError) {
+          console.error("[hub] profile fetch failed", {
+            route: "/",
+            sessionUserId,
+            error: getErrorMessage(profileError),
+          });
+          if (!isMounted) return;
+          setAccessIssue({ sessionUserId, error: profileError });
+          setAuthLoading(false);
+          return;
+        }
+
+        console.info("[hub] profile fetch result", {
+          route: "/",
+          sessionUserId,
+          profileExists: Boolean(profileRecord),
+          profileId: profileRecord?.id ?? null,
+          companyId: profileRecord?.company_id ?? null,
+        });
+
         if (!profileRecord) {
-          router.replace("/onboarding");
+          redirectWithLog(router, {
+            route: "/",
+            target: "/onboarding",
+            reason: "missing-profile",
+            sessionUserId,
+          });
           return;
         }
 
         if (profileRecord.company_id) {
           try {
             const company = await fetchCompanyById(profileRecord.company_id);
+            console.info("[hub] company fetch result", {
+              route: "/",
+              sessionUserId,
+              companyId: profileRecord.company_id,
+              companyName: company?.name ?? null,
+            });
+            if (!company) {
+              const missingCompanyError = new Error(
+                "We could not load your company access yet. Please contact support to complete setup."
+              );
+              console.error("[hub] company lookup returned no row", {
+                route: "/",
+                sessionUserId,
+                companyId: profileRecord.company_id,
+                profileId: profileRecord.id,
+                error: missingCompanyError.message,
+              });
+              if (!isMounted) return;
+              setAccessIssue({ sessionUserId, error: missingCompanyError });
+              setAuthLoading(false);
+              return;
+            }
             setCompanyName(company?.name ?? null);
           } catch (companyError) {
-            console.error("Failed to load company profile", { companyId: profileRecord.company_id, companyError });
-            setCompanyName(null);
+            console.error("[hub] company fetch failed", {
+              route: "/",
+              sessionUserId,
+              companyId: profileRecord.company_id,
+              error: getErrorMessage(companyError),
+            });
+            if (!isMounted) return;
+            setAccessIssue({ sessionUserId, error: companyError });
+            setAuthLoading(false);
+            return;
           }
         }
+
         setUserEmail(user.email ?? null);
-        const profile = await getManageItAccessProfile();
-        setCanAccessManageIt(profile.canAccessManageIt);
+
+        try {
+          const profile = await getManageItAccessProfile();
+          setCanAccessManageIt(profile.canAccessManageIt);
+        } catch (accessProfileError) {
+          console.error("[hub] manage-it access profile fetch failed", {
+            route: "/",
+            sessionUserId,
+            error: getErrorMessage(accessProfileError),
+          });
+          if (!isMounted) return;
+          setAccessIssue({ sessionUserId, error: accessProfileError });
+          setAuthLoading(false);
+          return;
+        }
+
+        if (!isMounted) return;
         setAuthLoading(false);
       } catch (err) {
-        console.error("Hub auth bootstrap failed", err);
-        router.replace("/signin");
-        setAuthLoading(false);
+        console.error("[hub] bootstrap failed", {
+          route: "/",
+          error: getErrorMessage(err),
+        });
+        let sessionUserId: string | null = null;
+        if (cachedSessionUserId) {
+          sessionUserId = cachedSessionUserId;
+        } else if (supabase) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          sessionUserId = sessionData.session?.user?.id ?? null;
+        }
+        if (sessionUserId) {
+          if (!isMounted) return;
+          setAccessIssue({ sessionUserId, error: err });
+          setAuthLoading(false);
+          return;
+        }
+        redirectWithLog(router, {
+          route: "/",
+          target: "/signin",
+          reason: "hub-bootstrap-error-without-session",
+          sessionUserId,
+          extra: { error: getErrorMessage(err) },
+        });
       }
     }
 
     void bootstrap();
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   async function handleSignOut() {
@@ -206,6 +355,10 @@ export default function HubPage() {
         Loading The Hub...
       </div>
     );
+  }
+
+  if (accessIssue) {
+    return <AccessSetupIssue route="/" sessionUserId={accessIssue.sessionUserId} error={accessIssue.error} />;
   }
 
   return (
