@@ -152,7 +152,7 @@ export async function uploadMultiFormatFile(
  * Insert a record into the uploaded_documents table.
  *
  * Schema: uploaded_documents
- *   id, company_id, created_by_profile_id, file_name, file_path,
+ *   id, company_id, created_by_profile_id (FK -> profiles.id), file_name, file_path,
  *   file_type, file_size, status, created_at, updated_at
  */
 export async function insertUploadedDocument(params: {
@@ -198,7 +198,7 @@ export async function insertUploadedDocument(params: {
  * Create a draft_jobs record linked to an uploaded document.
  *
  * Schema: draft_jobs
- *   id, company_id, created_by_user_id, primary_document_id, status,
+ *   id, company_id, created_by_user_id (stores profiles.id), primary_document_id, status,
  *   created_at, updated_at
  *
  * TODO: When profiles table exists with company_id + user_id link, enable RLS:

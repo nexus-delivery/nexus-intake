@@ -74,7 +74,7 @@ The application uses [Supabase](https://supabase.com) for its database. Schema c
 |---|---|---|
 | `id` | `UUID` | Primary key, auto-generated |
 | `company_id` | `UUID` | Required — enables multi-tenancy |
-| `created_by_user_id` | `UUID` | Optional — set to the signed-in profile ID for authenticated uploads |
+| `created_by_user_id` | `UUID` | Optional — set to the signed-in `profiles.id` value for authenticated uploads |
 | `primary_document_id` | `UUID` | FK → `uploaded_documents(id)` |
 | `status` | `TEXT` | `'document_uploaded'` or `'job_created'` |
 | `created_at` | `TIMESTAMPTZ` | Auto-set on insert |
