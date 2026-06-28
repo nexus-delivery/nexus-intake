@@ -82,8 +82,12 @@ export default function SignInPage() {
         router.replace(destination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to load your profile";
-        console.error("Resolve signin path error:", resolveMessage);
-        setError(`Profile lookup failed: ${resolveMessage}`);
+        console.error("Resolve signin path error", {
+          userId: user.id,
+          email: user.email ?? email.trim(),
+          error: resolveErr,
+        });
+        setError(`Unable to access your profile: ${resolveMessage}`);
         return;
       }
     } catch (err) {

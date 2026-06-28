@@ -3,13 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import {
-  ensureCustomerRecord,
-  mapAuthError,
-  resolvePostSignInPath,
-  validateEmail,
-  validatePassword,
-} from "@/lib/customerAuth";
+import { mapAuthError, resolvePostSignInPath, validateEmail, validatePassword } from "@/lib/customerAuth";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -74,16 +68,8 @@ export default function SignUpPage() {
       });
 
       if (signUpError) {
-        console.error("Supabase signup raw error:", signUpError);
-        const fullMessage = [
-          signUpError.message,
-          signUpError.status ? `Status: ${signUpError.status}` : "",
-          signUpError.code ? `Code: ${signUpError.code}` : "",
-          signUpError.name ? `Name: ${signUpError.name}` : "",
-        ]
-          .filter(Boolean)
-          .join(" | ");
-        setError(fullMessage);
+        console.error("Supabase signup failed", { error: signUpError, email: email.trim() });
+        setError(mapAuthError(signUpError.message));
         return;
       }
 
@@ -102,17 +88,18 @@ export default function SignUpPage() {
         return;
       }
 
-      // Ensure customer record exists
       try {
-        await ensureCustomerRecord(data.user.id, data.user.email ?? email.trim());
-      } catch (ensureErr) {
-        const ensureMessage = ensureErr instanceof Error ? ensureErr.message : "Failed to create customer record";
-        console.error("Ensure customer record error:", ensureMessage);
-        setError(`Profile setup failed: ${ensureMessage}`);
-        return;
+        const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? email.trim());
+        router.replace(destination);
+      } catch (resolveErr) {
+        const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to determine onboarding status";
+        console.error("Resolve signup path error", {
+          userId: data.user.id,
+          email: data.user.email ?? email.trim(),
+          error: resolveErr,
+        });
+        setError(`Profile setup failed: ${resolveMessage}`);
       }
-
-      router.replace("/onboarding");
     } catch (err) {
       console.error("Unexpected signup error:", err);
       if (err instanceof Error) {

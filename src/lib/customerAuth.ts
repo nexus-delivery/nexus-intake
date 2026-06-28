@@ -16,10 +16,18 @@ export type CustomerRecord = {
   onboarding_complete: boolean;
 };
 
+type InitializeCustomerRecordParams = {
+  userId: string;
+  email: string | null;
+};
+
 // 10MB aligns with onboarding upload requirements for company branding assets.
 const LOGO_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 // 30 seconds prevents indefinite wait states while still allowing normal uploads.
 const LOGO_UPLOAD_TIMEOUT_MS = 30_000;
+const FALLBACK_CONTACT_EMAIL_DOMAIN = "example.com";
+const DEFAULT_CONTACT_NAME = "New Customer";
+const DUPLICATE_KEY_ERROR_CODE = "23505";
 const LOGO_ALLOWED_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/gif", "image/webp"]);
 const LOGO_EXTENSION_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -83,6 +91,7 @@ export function validateLogoFile(file: File): string | null {
 
 export async function fetchCustomerByUserId(userId: string): Promise<CustomerRecord | null> {
   if (!supabase) {
+    console.error("fetchCustomerByUserId called without Supabase client", { userId });
     return null;
   }
 
@@ -95,40 +104,112 @@ export async function fetchCustomerByUserId(userId: string): Promise<CustomerRec
     .maybeSingle();
 
   if (error) {
+    console.error("Failed to fetch customer by user id", { userId, error });
     throw new Error(error.message);
   }
 
   return data;
 }
 
-export async function ensureCustomerRecord(userId: string, email: string | null): Promise<void> {
+function getDefaultContactName(email: string | null): string {
+  if (!email) {
+    return DEFAULT_CONTACT_NAME;
+  }
+
+  const localPart = email.split("@")[0]?.trim();
+  if (!localPart) {
+    return DEFAULT_CONTACT_NAME;
+  }
+
+  const normalized = localPart
+    .replace(/[._-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) {
+    return DEFAULT_CONTACT_NAME;
+  }
+
+  return normalized
+    .split(" ")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function buildInitialCustomerPayload({ userId, email }: InitializeCustomerRecordParams) {
+  const emailWithFallback = email?.trim() || `${userId}@${FALLBACK_CONTACT_EMAIL_DOMAIN}`;
+  const contactName = getDefaultContactName(email);
+  const companyName = contactName === DEFAULT_CONTACT_NAME ? "Company Pending Setup" : `${contactName} Company`;
+
+  return {
+    user_id: userId,
+    company_name: companyName,
+    company_logo_url: "",
+    contact_name: contactName,
+    contact_email: emailWithFallback,
+    contact_phone: "",
+    business_type: "merchant" as const,
+    business_address: "",
+    terms_accepted: false,
+    onboarding_complete: false,
+  };
+}
+
+export async function initializeCustomerRecord(params: InitializeCustomerRecordParams): Promise<void> {
   if (!supabase) {
+    console.error("initializeCustomerRecord called without Supabase client", { userId: params.userId });
     return;
   }
 
-  const { error } = await supabase.from("customers").upsert(
-    {
-      user_id: userId,
-      contact_email: email,
-      onboarding_complete: false,
-      terms_accepted: false,
-    },
-    { onConflict: "user_id" }
-  );
+  const payload = buildInitialCustomerPayload(params);
+  const { error } = await supabase.from("customers").insert(payload);
 
   if (error) {
+    if (error.code === DUPLICATE_KEY_ERROR_CODE) {
+      return;
+    }
+
+    console.error("Failed to initialize customer record", {
+      userId: params.userId,
+      email: params.email,
+      error,
+    });
     throw new Error(error.message);
   }
 }
 
+export async function ensureCustomerRecord(userId: string, email: string | null): Promise<void> {
+  if (!supabase) {
+    console.error("ensureCustomerRecord called without Supabase client", { userId });
+    return;
+  }
+
+  try {
+    const existing = await fetchCustomerByUserId(userId);
+    if (existing) {
+      return;
+    }
+
+    await initializeCustomerRecord({ userId, email });
+  } catch (error) {
+    console.error("Failed to ensure customer record", { userId, email, error });
+    throw error instanceof Error ? error : new Error("Unable to ensure customer record.");
+  }
+}
+
 export async function resolvePostSignInPath(userId: string, email: string | null): Promise<"/" | "/onboarding"> {
-  await ensureCustomerRecord(userId, email);
-  const customer = await fetchCustomerByUserId(userId);
-  return customer?.onboarding_complete ? "/" : "/onboarding";
+  try {
+    await ensureCustomerRecord(userId, email);
+    const customer = await fetchCustomerByUserId(userId);
+    return customer?.onboarding_complete ? "/" : "/onboarding";
+  } catch (error) {
+    console.error("Failed to resolve post-signin path", { userId, email, error });
+    throw error instanceof Error ? error : new Error("Unable to resolve post-signin destination.");
+  }
 }
 
 export async function uploadCompanyLogo(file: File, userId: string): Promise<string> {
   if (!supabase) {
+    console.error("uploadCompanyLogo called without Supabase client", { userId });
     throw new Error("Supabase is not configured.");
   }
 
@@ -189,6 +270,7 @@ export async function completeCustomerOnboarding(params: {
     .eq("user_id", params.userId);
 
   if (error) {
+    console.error("Failed to complete customer onboarding", { userId: params.userId, error });
     throw new Error(error.message);
   }
 }
