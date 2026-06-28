@@ -52,21 +52,15 @@ export default function OnboardingPage() {
         setUserId(user.id);
         const profile = await fetchProfileByUserId(user.id);
 
-        if (profile?.onboarding_complete) {
+        if (profile) {
           router.replace("/");
           return;
         }
 
-        if (profile?.company_id) {
-          setCompanyId(profile.company_id);
-        } else {
-          const metadata = user.user_metadata ?? {};
-          if (typeof metadata.company_id === "string" && metadata.company_id.trim()) {
-            setCompanyId(metadata.company_id);
-          }
-        }
-
         const metadata = user.user_metadata ?? {};
+        if (typeof metadata.company_id === "string" && metadata.company_id.trim()) {
+          setCompanyId(metadata.company_id);
+        }
         if (typeof metadata.company_name === "string") {
           setCompanyName(metadata.company_name);
         }
@@ -120,7 +114,7 @@ export default function OnboardingPage() {
       });
 
       await createOrUpdateProfile({
-        userId,
+        authUserId: userId,
         companyId,
       });
 

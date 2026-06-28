@@ -47,19 +47,19 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
         await syncManageItSession(sessionData.session?.access_token ?? null);
         const profile = await fetchProfileByUserId(user.id);
-        const onboardingComplete = Boolean(profile?.onboarding_complete);
+        const profileExists = Boolean(profile);
 
         if (isAuthEntry || pathname === "/auth/callback") {
-          router.replace(onboardingComplete ? "/" : "/onboarding");
+          router.replace(profileExists ? "/" : "/onboarding");
           return;
         }
 
-        if (!onboardingComplete && !isOnboarding) {
+        if (!profileExists && !isOnboarding) {
           router.replace("/onboarding");
           return;
         }
 
-        if (onboardingComplete && isOnboarding) {
+        if (profileExists && isOnboarding) {
           router.replace("/");
           return;
         }
