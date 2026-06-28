@@ -150,10 +150,8 @@ export async function uploadMultiFormatFile(
 
 /**
  * Insert a record into the uploaded_documents table.
- *
- * Schema: uploaded_documents
- *   id, company_id, created_by_profile_id (FK -> profiles.id), file_name, file_path,
- *   file_type, file_size, status, created_at, updated_at
+ * Uses the authenticated profile context so RLS receives company_id and
+ * created_by_profile_id from the matching profiles row.
  */
 export async function insertUploadedDocument(params: {
   fileName: string;
@@ -196,10 +194,6 @@ export async function insertUploadedDocument(params: {
 
 /**
  * Create a draft_jobs record linked to an uploaded document.
- *
- * Schema: draft_jobs
- *   id, company_id, created_by_user_id (stores profiles.id), primary_document_id, status,
- *   created_at, updated_at
  *
  * TODO: When profiles table exists with company_id + user_id link, enable RLS:
  *   ALTER TABLE draft_jobs ENABLE ROW LEVEL SECURITY;
