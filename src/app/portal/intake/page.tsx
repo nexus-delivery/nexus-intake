@@ -11,10 +11,12 @@ import {
   type UploadedDocumentMetadata,
   confirmJob,
 } from "@/lib/supabaseClient";
+import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 
 type Step = "select_method" | "upload" | "enter_details" | "review" | "confirmed";
 
 export default function MerchantIntakePage() {
+  const companyId = useRuntimeCompanyId();
   const [step, setStep] = useState<Step>("select_method");
   const [method, setMethod] = useState<BookingMethod | null>(null);
   const [uploadData, setUploadData] = useState<UploadedDocumentMetadata | null>(null);
@@ -119,6 +121,7 @@ export default function MerchantIntakePage() {
       {step === "upload" && (
         <div className="space-y-4">
           <DocumentUploadCard
+            companyId={companyId}
             onUploadSuccess={handleUploadSuccess}
           />
 

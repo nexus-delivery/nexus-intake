@@ -8,6 +8,7 @@ type UploadState = "idle" | "uploading" | "success" | "error";
 const UPLOAD_TIMEOUT_MS = 10_000;
 
 type DocumentUploadCardProps = {
+  companyId: string;
   onUploadComplete?: (fileName: string) => void;
   onUploadError?: (error: string) => void;
   onUploadSuccess?: (metadata: UploadedDocumentMetadata) => void;
@@ -37,6 +38,7 @@ const FILE_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function DocumentUploadCard({
+  companyId,
   onUploadComplete,
   onUploadError,
   onUploadSuccess,
@@ -74,7 +76,7 @@ export default function DocumentUploadCard({
       }
     }, UPLOAD_TIMEOUT_MS);
 
-    const result = await uploadMultiFormatDocument(file);
+    const result = await uploadMultiFormatDocument(file, companyId);
 
     // Clear the timeout now that we have a result.
     if (timeoutRef.current) {

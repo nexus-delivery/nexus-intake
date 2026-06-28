@@ -28,11 +28,7 @@ export const supabase: SupabaseClient | null = SUPABASE_AVAILABLE
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
 
-/**
- * TEMPORARY: Placeholder company ID used for preview/local dev only.
- * TODO: Replace with authenticated company_id when auth is implemented.
- */
-const DEFAULT_COMPANY_ID = "724ef0a7-4371-4350-9e59-ab93a960183f";
+const MERCHANT_DOCUMENTS_BUCKET = "merchant-documents";
 
 // Supported MIME types mapped to their normalised file_type values
 const SUPPORTED_MIME_TYPES: Record<string, string> = {
@@ -122,6 +118,25 @@ export async function fetchCurrentProfile(
   }
 }
 
+function normalizeMerchantDocumentStoragePath(filePath: string): string {
+  const trimmedPath = filePath.trim().replace(/^\/+/, "");
+
+  const storageUrlMatch = trimmedPath.match(
+    /^https?:\/\/[^/]+\/storage\/v1\/(?:object\/(?:sign|public|authenticated)\/)?(.+)$/
+  );
+  const pathWithoutStoragePrefix = storageUrlMatch ? storageUrlMatch[1] : trimmedPath;
+
+  const bucketPrefixMatch = pathWithoutStoragePrefix.match(
+    new RegExp(`(?:^|/)${MERCHANT_DOCUMENTS_BUCKET}/(.+)$`)
+  );
+
+  if (bucketPrefixMatch) {
+    return bucketPrefixMatch[1];
+  }
+
+  return pathWithoutStoragePrefix.replace(new RegExp(`^${MERCHANT_DOCUMENTS_BUCKET}/`), "");
+}
+
 /**
  * Generate a random UUID v4 for use as a mock job ID in preview/local dev.
  * Falls back to a manual implementation when crypto.randomUUID is unavailable.
@@ -145,10 +160,14 @@ export function generateMockJobId(): string {
  */
 export async function uploadMultiFormatFile(
   file: File,
-  companyId: string = DEFAULT_COMPANY_ID
+  companyId: string
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  if (!companyId) {
+    return { success: false, error: "Missing company ID for document upload" };
   }
 
   const fileType = getFileTypeFromMime(file.type);
@@ -164,7 +183,7 @@ export async function uploadMultiFormatFile(
 
   try {
     const { data, error } = await supabase.storage
-      .from("merchant-documents")
+      .from(MERCHANT_DOCUMENTS_BUCKET)
       .upload(filePath, file);
 
     if (error) {
@@ -188,6 +207,7 @@ export async function insertUploadedDocument(params: {
   filePath: string;
   fileType: string;
   fileSize: number;
+  companyId: string;
   userId?: string;
 }): Promise<{ success: boolean; documentId?: string; error?: string }> {
   if (!supabase) {
@@ -196,10 +216,17 @@ export async function insertUploadedDocument(params: {
 
   try {
     const profile = await fetchAuthenticatedProfileContext(params.userId);
+    if (profile.companyId !== params.companyId) {
+      return {
+        success: false,
+        error: "Your profile company does not match the selected company for this upload.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("uploaded_documents")
       .insert({
-        company_id: profile.companyId,
+        company_id: params.companyId,
         created_by_profile_id: profile.profileId,
         file_name: params.fileName,
         file_path: params.filePath,
@@ -234,6 +261,7 @@ export async function insertUploadedDocument(params: {
  */
 export async function createDraftJob(params: {
   primaryDocumentId: string;
+  companyId: string;
   userId?: string;
 }): Promise<{ success: boolean; jobId?: string; error?: string }> {
   if (!supabase) {
@@ -242,10 +270,17 @@ export async function createDraftJob(params: {
 
   try {
     const profile = await fetchAuthenticatedProfileContext(params.userId);
+    if (profile.companyId !== params.companyId) {
+      return {
+        success: false,
+        error: "Your profile company does not match the selected company for this upload.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("draft_jobs")
       .insert({
-        company_id: profile.companyId,
+        company_id: params.companyId,
         created_by_user_id: profile.profileId,
         primary_document_id: params.primaryDocumentId,
         status: "document_uploaded",
@@ -268,6 +303,7 @@ export async function createDraftJob(params: {
 export type UploadedDocumentMetadata = {
   documentId: string;
   jobId: string;
+  companyId: string;
   fileName: string;
   fileType: string;
   fileSize: number;
@@ -285,10 +321,15 @@ export type UploadedDocumentMetadata = {
  * Returns full metadata including document ID, job ID, and file details.
  */
 export async function uploadMultiFormatDocument(
-  file: File
+  file: File,
+  companyId: string
 ): Promise<{ success: boolean; error?: string; metadata?: UploadedDocumentMetadata }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  if (!companyId) {
+    return { success: false, error: "Missing company ID for document upload" };
   }
 
   const fileType = getFileTypeFromMime(file.type);
@@ -309,8 +350,15 @@ export async function uploadMultiFormatDocument(
     return { success: false, error: message };
   }
 
+  if (profile.companyId !== companyId) {
+    return {
+      success: false,
+      error: "Your profile company does not match the selected company for this upload.",
+    };
+  }
+
   // Step 1: Upload to storage
-  const storageResult = await uploadMultiFormatFile(file, profile.companyId);
+  const storageResult = await uploadMultiFormatFile(file, companyId);
   if (!storageResult.success) {
     return { success: false, error: storageResult.error };
   }
@@ -321,6 +369,7 @@ export async function uploadMultiFormatDocument(
     filePath: storageResult.filePath!,
     fileType,
     fileSize: file.size,
+    companyId,
     userId: profile.authUserId,
   });
   if (!docResult.success) {
@@ -330,6 +379,7 @@ export async function uploadMultiFormatDocument(
   // Step 3: Create draft_jobs record
   const jobResult = await createDraftJob({
     primaryDocumentId: docResult.documentId!,
+    companyId,
     userId: profile.authUserId,
   });
   if (!jobResult.success) {
@@ -341,6 +391,7 @@ export async function uploadMultiFormatDocument(
     metadata: {
       documentId: docResult.documentId!,
       jobId: jobResult.jobId!,
+      companyId,
       fileName: file.name,
       fileType,
       fileSize: file.size,
@@ -374,6 +425,7 @@ export function generateJobReference(jobId: string): string {
 export async function confirmJob(params: {
   draftJobId?: string;
   companyId?: string;
+  userId?: string;
 }): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
   // Graceful fallback for preview/local dev without Supabase env vars
   if (!supabase) {
@@ -381,7 +433,19 @@ export async function confirmJob(params: {
     return { success: true, jobId: mockId, jobReference: generateJobReference(mockId) };
   }
 
-  const companyId = params.companyId || DEFAULT_COMPANY_ID; // TODO: replace with authenticated company_id
+  let companyId = params.companyId;
+  let createdByUserId: string | null = null;
+
+  if (!companyId) {
+    try {
+      const profile = await fetchAuthenticatedProfileContext(params.userId);
+      companyId = profile.companyId;
+      createdByUserId = profile.profileId;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unable to prepare your booking";
+      return { success: false, error: message };
+    }
+  }
 
   try {
     let jobId: string;
@@ -403,7 +467,7 @@ export async function confirmJob(params: {
         .from("draft_jobs")
         .insert({
           company_id: companyId,
-          created_by_user_id: null, // TODO: replace with authenticated user_id
+          created_by_user_id: createdByUserId,
           primary_document_id: null,
           status: "job_created",
         })
@@ -571,78 +635,27 @@ export async function fetchDraftJobForDocument(
  */
 export async function createMerchantDocumentSignedUrl(
   filePath: string,
-  expiresIn: number = 60 * 60
-): Promise<
-  | { success: true; data: { signedUrl: string } }
-  | { success: false; error: string }
-> {
+  expiresIn = 60 * 10,
+  options?: { download?: string | boolean }
+): Promise<{ success: true; signedUrl: string } | { success: false; error: string }> {
   if (!supabase) {
     return { success: false, error: "Supabase configuration not available in preview" };
   }
 
-  const bucketName = "merchant-documents";
+  const normalizedPath = normalizeMerchantDocumentStoragePath(filePath);
 
   try {
-    // Validate input
-    if (!filePath || typeof filePath !== "string") {
-      console.error("[DocumentSignedURL] Invalid file path", {
-        filePath,
-        type: typeof filePath,
-      });
-      return {
-        success: false,
-        error: "Invalid file path",
-      };
-    }
-
-    console.log("[DocumentSignedURL] Generating signed URL", {
-      bucket: bucketName,
-      filePath,
-      expiresIn,
-    });
-
-    // Generate signed URL using exact file path - no manipulation
     const { data, error } = await supabase.storage
-      .from(bucketName)
-      .createSignedUrl(filePath, expiresIn);
+      .from(MERCHANT_DOCUMENTS_BUCKET)
+      .createSignedUrl(normalizedPath, expiresIn, options);
 
     if (error) {
-      console.error("[DocumentSignedURL] Failed", {
-        bucket: bucketName,
-        filePath,
-        error: error.message,
-      });
-      return {
-        success: false,
-        error: `Unable to access document: ${error.message}`,
-      };
+      return { success: false, error: error.message };
     }
 
-    if (!data?.signedUrl) {
-      console.error("[DocumentSignedURL] No URL in response", {
-        bucket: bucketName,
-        filePath,
-      });
-      return {
-        success: false,
-        error: "Failed to generate document access link",
-      };
-    }
-
-    console.log("[DocumentSignedURL] Success", {
-      bucket: bucketName,
-      filePath,
-      signedUrlLength: data.signedUrl.length,
-    });
-
-    return { success: true, data: { signedUrl: data.signedUrl } };
+    return { success: true, signedUrl: data.signedUrl };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to generate document access link";
-    console.error("[DocumentSignedURL] Exception", {
-      bucket: bucketName,
-      filePath,
-      error: message,
-    });
+    const message = err instanceof Error ? err.message : "Failed to create signed URL";
     return { success: false, error: message };
   }
 }

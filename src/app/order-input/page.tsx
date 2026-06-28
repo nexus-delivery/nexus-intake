@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import DocumentUploadCard from "@/components/DocumentUploadCard";
+import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 
 const methods = [
   {
@@ -59,8 +60,10 @@ const actions: Record<string, string> = {
 };
 
 export default function OrderInputPage() {
-  const router = useRouter();
+  const companyId = useRuntimeCompanyId();
   const [selected, setSelected] = useState<string | null>(null);
+  const [uploadActive, setUploadActive] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
 
   const selectedMethod = methods.find((method) => method.id === selected);
 
@@ -174,8 +177,9 @@ export default function OrderInputPage() {
                   type="button"
                   className="rounded-2xl bg-[#7C3AED] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
                   onClick={() => {
-                    if (selectedMethod.id === "pdf" || selectedMethod.id === "manual") {
-                      router.push("/portal/intake");
+                    if (selectedMethod.id === "pdf") {
+                      setUploadActive(true);
+                      setUploadComplete(false);
                     }
                   }}
                 >
@@ -244,6 +248,35 @@ export default function OrderInputPage() {
                 </ol>
               </div>
             </aside>
+          </section>
+        )}
+
+        {uploadActive && (
+          <section className="space-y-4 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+            <div className="space-y-3">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Upload PDF</p>
+              <h2 className="text-2xl font-semibold text-slate-950">Upload your delivery document</h2>
+              <p className="text-sm text-slate-600">
+                This links into the Document Centre. When upload succeeds, you'll see the document preview.
+              </p>
+            </div>
+
+            <DocumentUploadCard
+              companyId={companyId}
+              onUploadComplete={() => {
+                setUploadComplete(true);
+                setUploadActive(false);
+              }}
+            />
+
+            {uploadComplete && (
+              <div className="rounded-[24px] border border-[#7C3AED] bg-[#F5F3FF] p-6 text-slate-900">
+                <p className="font-semibold text-[#5B21B6]">Upload complete</p>
+                <p className="mt-2 text-sm text-slate-700">
+                  Your PDF is in the Document Centre now. Document processing coming in v0.3.
+                </p>
+              </div>
+            )}
           </section>
         )}
       </div>

@@ -1,132 +1,144 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import DocumentStatusBadge from "@/components/DocumentStatusBadge";
-import { fetchCompanyById } from "@/lib/authOnboarding";
-import {
-  formatDocumentFileSize,
-  formatDocumentTimestamp,
-  toDocumentStatus,
-} from "@/lib/merchantDocuments";
 import {
   createMerchantDocumentSignedUrl,
-  fetchCurrentProfile,
-  fetchDraftJobsForDocuments,
   fetchUploadedDocuments,
-  type DraftJobLinkRow,
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
+import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 
-type PortalDocumentRow = UploadedDocumentRow & {
-  draftJob: DraftJobLinkRow | null;
-};
-
-function formatFileType(value: string): string {
-  return value ? value.toUpperCase() : "—";
+function formatDateTime(value: string): string {
+  return new Date(value).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-function mergeDocumentsWithDraftJobs(
-  documents: UploadedDocumentRow[],
-  draftJobs: DraftJobLinkRow[]
-): PortalDocumentRow[] {
-  const draftJobsByDocumentId = new Map(
-    draftJobs
-      .filter((job) => job.primary_document_id)
-      .map((job) => [job.primary_document_id, job] as const)
-  );
+function DocumentCard({
+  document,
+  busy,
+  onView,
+  onDownload,
+}: {
+  document: UploadedDocumentRow;
+  busy: boolean;
+  onView: (document: UploadedDocumentRow) => void;
+  onDownload: (document: UploadedDocumentRow) => void;
+}) {
+  return (
+    <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/40 transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-[var(--nexus-graphite)]">
+              {document.file_name}
+            </h2>
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+              {document.file_type.toUpperCase()}
+            </span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              {document.status}
+            </span>
+          </div>
 
-  return documents.map((document) => ({
-    ...document,
-    draftJob: draftJobsByDocumentId.get(document.id) ?? null,
-  }));
+          <div className="grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
+            <p>Company: {document.company_id}</p>
+            <p>Uploaded: {formatDateTime(document.created_at)}</p>
+          </div>
+
+          <p className="break-all rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-500">
+            {document.file_path}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onView(document)}
+            className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            View
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onDownload(document)}
+            className="inline-flex items-center justify-center rounded-lg bg-[var(--nexus-purple)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Download
+          </button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export default function MerchantDocumentsPage() {
-  const [documents, setDocuments] = useState<PortalDocumentRow[]>([]);
-  const [companyName, setCompanyName] = useState<string | null>(null);
+  const companyId = useRuntimeCompanyId();
+  const [documents, setDocuments] = useState<UploadedDocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [busyDocumentId, setBusyDocumentId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadDocuments() {
+    const loadDocuments = async () => {
       setLoading(true);
-      setError(null);
-      try {
-        const profileResult = await fetchCurrentProfile();
-        if (!profileResult.success) {
-          if (!cancelled) {
-            setError(profileResult.error);
-            setLoading(false);
-          }
-          return;
-        }
+      setErrorMessage(null);
 
-        const { companyId } = profileResult.data;
-
-        const [documentsResult, companyResult] = await Promise.all([
-          fetchUploadedDocuments(companyId),
-          fetchCompanyById(companyId),
-        ]);
-
-        if (!documentsResult.success) {
-          if (!cancelled) {
-            setError(documentsResult.error);
-            setLoading(false);
-          }
-          return;
-        }
-
-        const draftJobsResult = await fetchDraftJobsForDocuments(
-          documentsResult.data.map((document) => document.id)
-        );
-
-        if (!draftJobsResult.success) {
-          if (!cancelled) {
-            setError(draftJobsResult.error);
-            setLoading(false);
-          }
-          return;
-        }
-
+      if (!companyId) {
         if (!cancelled) {
-          setCompanyName(companyResult?.name ?? null);
-          setDocuments(
-            mergeDocumentsWithDraftJobs(documentsResult.data, draftJobsResult.data)
-          );
+          setDocuments([]);
+          setErrorMessage("Missing company ID in the current session.");
           setLoading(false);
         }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load documents");
-          setLoading(false);
-        }
+        return;
       }
-    }
+
+      const result = await fetchUploadedDocuments(companyId);
+      if (cancelled) {
+        return;
+      }
+
+      if (result.success) {
+        setDocuments(result.data);
+      } else {
+        setErrorMessage(result.error);
+      }
+
+      setLoading(false);
+    };
 
     void loadDocuments();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [companyId]);
 
-  async function handleDownload(document: PortalDocumentRow) {
-    setDownloadingId(document.id);
+  const openDocument = async (document: UploadedDocumentRow, download: boolean) => {
+    setBusyDocumentId(document.id);
+    setErrorMessage(null);
 
-    const signedUrlResult = await createMerchantDocumentSignedUrl(document.file_path);
+    const result = await createMerchantDocumentSignedUrl(document.file_path, 10 * 60, {
+      download,
+    });
 
-    if (signedUrlResult.success) {
-      window.open(signedUrlResult.data.signedUrl, "_blank", "noopener,noreferrer");
-    } else {
-      setError(signedUrlResult.error);
+    if (!result.success) {
+      setErrorMessage(`Unable to access document: ${result.error}`);
+      setBusyDocumentId(null);
+      return;
     }
 
-    setDownloadingId(null);
-  }
+    window.open(result.signedUrl, "_blank", "noopener,noreferrer");
+    setBusyDocumentId(null);
+  };
 
   return (
     <div className="space-y-6 pb-8">
@@ -137,122 +149,42 @@ export default function MerchantDocumentsPage() {
         <h1 className="text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
           Documents
         </h1>
-        <p className="max-w-3xl text-sm text-slate-600 sm:text-base">
-          View uploaded documents for your company, open secure previews, and
-          download original files.
+        <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
+          View or download merchant documents stored in Supabase Storage.
         </p>
       </header>
 
-      {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {error}
+      {errorMessage && (
+        <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          {errorMessage}
         </div>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="px-6 py-12 text-sm text-slate-500">Loading documents...</div>
-        ) : documents.length === 0 ? (
-          <div className="px-6 py-12 text-sm text-slate-500">
-            Uploaded documents will appear here.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="border-b border-slate-200 bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    File
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Uploaded
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Company
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Draft job
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {documents.map((document) => (
-                  <tr key={document.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 align-top">
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--nexus-graphite)]">
-                          {document.file_name}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">{document.id}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatFileType(document.file_type)}
-                    </td>
-                    <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatDocumentFileSize(document.file_size)}
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      <DocumentStatusBadge status={toDocumentStatus(document.status)} />
-                    </td>
-                    <td className="px-6 py-4 align-top text-sm text-slate-600">
-                      {formatDocumentTimestamp(document.created_at)}
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      <p className="text-sm text-slate-700">
-                        {companyName ?? document.company_id}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">{document.company_id}</p>
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      {document.draftJob ? (
-                        <div className="text-sm text-slate-700">
-                          <p className="font-medium">{document.draftJob.id}</p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {document.draftJob.status}
-                          </p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-slate-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 align-top">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Link
-                          href={`/portal/documents/${document.id}`}
-                          className="text-sm font-medium text-[var(--nexus-purple)] transition hover:text-violet-700"
-                        >
-                          View
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => void handleDownload(document)}
-                          disabled={downloadingId === document.id}
-                          className="text-sm font-medium text-sky-600 transition hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {downloadingId === document.id ? "Preparing..." : "Download"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {loading ? (
+        <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 text-sm text-slate-500 shadow-sm">
+          Loading documents...
+        </div>
+      ) : documents.length > 0 ? (
+        <div className="space-y-4">
+          {documents.map((document) => (
+            <DocumentCard
+              key={document.id}
+              document={document}
+              busy={busyDocumentId === document.id}
+              onView={(selectedDocument) => {
+                void openDocument(selectedDocument, false);
+              }}
+              onDownload={(selectedDocument) => {
+                void openDocument(selectedDocument, true);
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 text-sm text-slate-500 shadow-sm">
+          No documents found for this merchant.
+        </div>
+      )}
     </div>
   );
 }

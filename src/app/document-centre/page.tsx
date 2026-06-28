@@ -1,35 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import DocumentsTable, { DocumentTableRow } from "@/components/DocumentsTable";
+import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 
-const companyId = "724ef0a7-4371-4350-9e59-ab93a960183f";
-
-const mockDocuments: DocumentTableRow[] = [
-  {
-    id: "1",
-    name: "January delivery note.pdf",
-    merchant: "724ef0a7-4371-4350-9e59-ab93a960183f",
-    type: "Delivery Note",
-    status: "Uploaded",
-    uploaded: "Jun 24, 2026, 09:45",
-  },
-  {
-    id: "2",
-    name: "Merchant manifest.pdf",
-    merchant: "724ef0a7-4371-4350-9e59-ab93a960183f",
-    type: "Manifest",
-    status: "Processing",
-    uploaded: "Jun 23, 2026, 14:18",
-  },
-];
+function buildMockDocuments(companyId: string): DocumentTableRow[] {
+  return [
+    {
+      id: "1",
+      name: "January delivery note.pdf",
+      merchant: companyId,
+      type: "Delivery Note",
+      status: "Uploaded",
+      uploaded: "Jun 24, 2026, 09:45",
+    },
+    {
+      id: "2",
+      name: "Merchant manifest.pdf",
+      merchant: companyId,
+      type: "Manifest",
+      status: "Processing",
+      uploaded: "Jun 23, 2026, 14:18",
+    },
+  ];
+}
 
 export default function DocumentCentre() {
-  const [documents, setDocuments] = useState<DocumentTableRow[]>(mockDocuments);
+  const companyId = useRuntimeCompanyId();
+  const [documents, setDocuments] = useState<DocumentTableRow[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setDocuments(buildMockDocuments(companyId));
+  }, [companyId]);
 
   const handleUploadComplete = (fileName: string) => {
     setDocuments((current) => [
@@ -62,7 +68,8 @@ export default function DocumentCentre() {
           </p>
         </div>
 
-        <DocumentUploadCard onUploadComplete={handleUploadComplete} />
+        <DocumentUploadCard companyId={companyId} onUploadComplete={handleUploadComplete} />
+
 
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Recent Documents</h2>
