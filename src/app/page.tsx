@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
+import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
-import { supabase } from "@/lib/supabaseClient";
+import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 
 const operationalSpotlights = [
   {
@@ -130,6 +131,11 @@ const platformSpotlights = [
   },
 ];
 
+type AccessSetupIssue = {
+  title: string;
+  details: string;
+};
+
 export default function HubPage() {
   const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
@@ -137,56 +143,201 @@ export default function HubPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [canAccessManageIt, setCanAccessManageIt] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [accessIssue, setAccessIssue] = useState<AccessSetupIssue | null>(null);
+  const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    function redirectOnce(target: string, reason: string, sessionUserId: string | null) {
+      if (hasRedirectedRef.current || cancelled) {
+        return;
+      }
+      hasRedirectedRef.current = true;
+      console.info("[Hub] redirect", { route: "/", target, reason, sessionUserId });
+      router.replace(target);
+    }
+
     async function bootstrap() {
+      setAuthLoading(true);
+      setAccessIssue(null);
+
       try {
         if (!supabase) {
-          setAuthLoading(false);
+          console.warn("[Hub] Supabase unavailable while loading hub", {
+            route: "/",
+            supabaseProjectRef: getSupabaseProjectRefFromUrl(),
+          });
+          if (!cancelled) {
+            setAuthLoading(false);
+          }
           return;
         }
 
-        const { data } = await supabase.auth.getUser();
-        const user = data.user;
+        const [{ data: userData }, { data: sessionData }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
+        if (userData.user?.id && sessionData.session?.user && userData.user.id !== sessionData.session.user.id) {
+          console.warn("[Hub] auth state mismatch between getUser and getSession", {
+            route: "/",
+            getUserId: userData.user.id,
+            getSessionId: sessionData.session.user.id,
+          });
+        }
+        const user = userData.user ?? sessionData.session?.user ?? null;
+        const accessToken = sessionData.session?.access_token ?? null;
+        const sessionUserId = user?.id ?? null;
+
+        console.info("[Hub] auth bootstrap", {
+          route: "/",
+          sessionUserId,
+          supabaseProjectRef: getSupabaseProjectRefFromUrl(),
+        });
 
         if (!user) {
-          await syncManageItSession(null);
-          router.replace("/signin");
+          try {
+            await syncManageItSession(null);
+          } catch (syncError) {
+            console.error("[Hub] failed to clear server session", {
+              route: "/",
+              error: syncError instanceof Error ? syncError.message : String(syncError),
+            });
+          }
+          redirectOnce("/signin", "no active session", null);
           return;
         }
 
-        const profileRecord = await fetchProfileByUserId(user.id);
+        try {
+          await syncManageItSession(accessToken);
+        } catch (syncError) {
+          const message = syncError instanceof Error ? syncError.message : String(syncError);
+          console.error("[Hub] session sync failed with active user", {
+            route: "/",
+            sessionUserId: user.id,
+            error: message,
+          });
+          if (!cancelled) {
+            setAccessIssue({
+              title: "Access setup issue",
+              details: `Session sync failed: ${message}`,
+            });
+            setAuthLoading(false);
+          }
+          return;
+        }
+
+        let profileRecord;
+        try {
+          profileRecord = await fetchProfileByUserId(user.id);
+          console.info("[Hub] profile fetch result", {
+            route: "/",
+            sessionUserId: user.id,
+            found: Boolean(profileRecord),
+            profileId: profileRecord?.id ?? null,
+            companyId: profileRecord?.company_id ?? null,
+          });
+        } catch (profileError) {
+          const message = profileError instanceof Error ? profileError.message : String(profileError);
+          console.error("[Hub] profile fetch result", {
+            route: "/",
+            sessionUserId: user.id,
+            found: false,
+            error: message,
+          });
+          if (!cancelled) {
+            setAccessIssue({
+              title: "Access setup issue",
+              details: `Profile fetch failed: ${message}`,
+            });
+            setAuthLoading(false);
+          }
+          return;
+        }
+
         if (!profileRecord) {
-          router.replace("/onboarding");
+          redirectOnce("/onboarding", "no profile for active session", user.id);
           return;
         }
 
         if (profileRecord.company_id) {
           try {
             const company = await fetchCompanyById(profileRecord.company_id);
-            setCompanyName(company?.name ?? null);
+            console.info("[Hub] company fetch result", {
+              route: "/",
+              sessionUserId: user.id,
+              companyId: profileRecord.company_id,
+              found: Boolean(company),
+            });
+            if (!cancelled) {
+              setCompanyName(company?.name ?? null);
+            }
           } catch (companyError) {
-            console.error("Failed to load company profile", { companyId: profileRecord.company_id, companyError });
-            setCompanyName(null);
+            const message = companyError instanceof Error ? companyError.message : String(companyError);
+            console.error("[Hub] company fetch result", {
+              route: "/",
+              sessionUserId: user.id,
+              companyId: profileRecord.company_id,
+              found: false,
+              error: message,
+            });
+            if (!cancelled) {
+              setAccessIssue({
+                title: "Access setup issue",
+                details: `Company fetch failed: ${message}`,
+              });
+              setAuthLoading(false);
+            }
+            return;
           }
         }
-        setUserEmail(user.email ?? null);
-        const profile = await getManageItAccessProfile();
-        setCanAccessManageIt(profile.canAccessManageIt);
-        setAuthLoading(false);
+        if (!cancelled) {
+          setUserEmail(user.email ?? null);
+        }
+        try {
+          const profile = await getManageItAccessProfile();
+          if (!cancelled) {
+            setCanAccessManageIt(profile.canAccessManageIt);
+          }
+        } catch (accessError) {
+          console.error("[Hub] Manage IT access profile fetch failed", {
+            route: "/",
+            sessionUserId: user.id,
+            error: accessError instanceof Error ? accessError.message : String(accessError),
+          });
+          if (!cancelled) {
+            setCanAccessManageIt(false);
+          }
+        }
+        if (!cancelled) {
+          setAuthLoading(false);
+        }
       } catch (err) {
-        console.error("Hub auth bootstrap failed", err);
-        router.replace("/signin");
-        setAuthLoading(false);
+        console.error("[Hub] auth bootstrap failed", {
+          route: "/",
+          error: err instanceof Error ? err.message : String(err),
+        });
+        if (!cancelled) {
+          setAccessIssue({
+            title: "Access setup issue",
+            details: err instanceof Error ? err.message : "Unknown bootstrap error",
+          });
+          setAuthLoading(false);
+        }
       }
     }
 
     void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   async function handleSignOut() {
     setSignOutError(null);
     if (!supabase) {
+      console.info("[Hub] redirect", { route: "/", target: "/signin", reason: "supabase unavailable during sign out" });
       router.replace("/signin");
       return;
     }
@@ -197,6 +348,7 @@ export default function HubPage() {
       return;
     }
     await syncManageItSession(null);
+    console.info("[Hub] redirect", { route: "/", target: "/signin", reason: "manual sign out" });
     router.replace("/signin");
   }
 
@@ -205,6 +357,17 @@ export default function HubPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4 text-sm text-slate-300">
         Loading The Hub...
       </div>
+    );
+  }
+
+  if (accessIssue) {
+    return (
+      <AccessSetupIssueView
+        title={accessIssue.title}
+        heading="We found a session, but setup could not be completed."
+        details={accessIssue.details}
+        hint="Try refreshing this page or signing out and signing back in. If the issue continues, share this error with support. Your session remains active and no documents were removed."
+      />
     );
   }
 
