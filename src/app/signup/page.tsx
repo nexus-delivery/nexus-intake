@@ -74,7 +74,16 @@ export default function SignUpPage() {
       });
 
       if (signUpError) {
-        setError(mapAuthError(signUpError.message));
+        console.error("Supabase signup raw error:", signUpError);
+        const fullMessage = [
+          signUpError.message,
+          signUpError.status ? `Status: ${signUpError.status}` : "",
+          signUpError.code ? `Code: ${signUpError.code}` : "",
+          signUpError.name ? `Name: ${signUpError.name}` : "",
+        ]
+          .filter(Boolean)
+          .join(" | ");
+        setError(fullMessage);
         return;
       }
 
@@ -105,9 +114,12 @@ export default function SignUpPage() {
 
       router.replace("/onboarding");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unable to create account right now.";
-      console.error("Signup error:", message);
-      setError(message);
+      console.error("Unexpected signup error:", err);
+      if (err instanceof Error) {
+        setError(`${err.name}: ${err.message}`);
+      } else {
+        setError(JSON.stringify(err));
+      }
     } finally {
       setLoading(false);
     }
