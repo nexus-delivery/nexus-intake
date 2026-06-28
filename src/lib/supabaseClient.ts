@@ -570,21 +570,63 @@ export async function createMerchantDocumentSignedUrl(
     return { success: false, error: "Supabase configuration not available in preview" };
   }
 
+  const bucketName = "merchant-documents";
+
   try {
+    // Log input details
+    console.log("[DocumentSignedURL] Starting signed URL generation", {
+      bucket: bucketName,
+      filePath: filePath,
+      filePathLength: filePath.length,
+      expiresIn,
+    });
+
+    // Attempt to generate signed URL
     const { data, error } = await supabase.storage
-      .from("merchant-documents")
+      .from(bucketName)
       .createSignedUrl(filePath, expiresIn);
 
-    if (error || !data?.signedUrl) {
+    // Log results
+    if (error) {
+      console.error("[DocumentSignedURL] Supabase error response", {
+        bucket: bucketName,
+        filePath,
+        error: error.message,
+        errorName: error.name,
+      });
       return {
         success: false,
         error: error?.message ?? "Failed to generate secure document link",
       };
     }
 
+    if (!data?.signedUrl) {
+      console.error("[DocumentSignedURL] No signed URL in response", {
+        bucket: bucketName,
+        filePath,
+        dataKeys: data ? Object.keys(data) : "null",
+      });
+      return {
+        success: false,
+        error: "Failed to generate secure document link",
+      };
+    }
+
+    console.log("[DocumentSignedURL] Success", {
+      bucket: bucketName,
+      filePath,
+      signedUrlPreview: data.signedUrl.substring(0, 80),
+    });
+
     return { success: true, data: { signedUrl: data.signedUrl } };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to generate secure document link";
+    console.error("[DocumentSignedURL] Exception caught", {
+      bucket: bucketName,
+      filePath,
+      message,
+      errorStack: err instanceof Error ? err.stack : "no stack",
+    });
     return { success: false, error: message };
   }
 }
