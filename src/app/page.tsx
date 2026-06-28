@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
+import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
 import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 
@@ -158,7 +159,6 @@ export default function HubPage() {
     }
 
     async function bootstrap() {
-      hasRedirectedRef.current = false;
       setAuthLoading(true);
       setAccessIssue(null);
 
@@ -178,6 +178,13 @@ export default function HubPage() {
           supabase.auth.getUser(),
           supabase.auth.getSession(),
         ]);
+        if (userData.user?.id && sessionData.session?.user && userData.user.id !== sessionData.session.user.id) {
+          console.warn("[Hub] auth state mismatch between getUser and getSession", {
+            route: "/",
+            getUserId: userData.user.id,
+            getSessionId: sessionData.session.user.id,
+          });
+        }
         const user = userData.user ?? sessionData.session?.user ?? null;
         const accessToken = sessionData.session?.access_token ?? null;
         const sessionUserId = user?.id ?? null;
@@ -355,16 +362,12 @@ export default function HubPage() {
 
   if (accessIssue) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4">
-        <div className="w-full max-w-2xl rounded-2xl border border-amber-300/40 bg-amber-500/10 p-6 text-amber-100">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">{accessIssue.title}</p>
-          <h1 className="mt-2 text-xl font-semibold text-white">We found a session, but setup could not be completed.</h1>
-          <p className="mt-3 text-sm text-amber-100/90">{accessIssue.details}</p>
-          <p className="mt-5 text-xs text-amber-200/90">
-            Share this error with support. Your session remains active and no documents were removed.
-          </p>
-        </div>
-      </div>
+      <AccessSetupIssueView
+        title={accessIssue.title}
+        heading="We found a session, but setup could not be completed."
+        details={accessIssue.details}
+        hint="Try refreshing this page or signing out and signing back in. If the issue continues, share this error with support. Your session remains active and no documents were removed."
+      />
     );
   }
 

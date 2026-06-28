@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchProfileByUserId, resolvePostSignInPath } from "@/lib/authOnboarding";
+import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { syncManageItSession } from "@/lib/manageIt";
 import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 
@@ -16,6 +17,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname() ?? "/";
   const [checking, setChecking] = useState(true);
+  const [guardError, setGuardError] = useState<string | null>(null);
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
@@ -38,8 +40,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
     async function guard() {
       try {
-        hasRedirectedRef.current = false;
         setChecking(true);
+        setGuardError(null);
 
         if (!supabase) {
           console.warn("[AuthGate] Supabase unavailable; skipping auth guard", {
@@ -58,6 +60,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           supabase.auth.getUser(),
           supabase.auth.getSession(),
         ]);
+        if (userData.user?.id && sessionData.session?.user && userData.user.id !== sessionData.session.user.id) {
+          console.warn("[AuthGate] auth state mismatch between getUser and getSession", {
+            route: pathname,
+            getUserId: userData.user.id,
+            getSessionId: sessionData.session.user.id,
+          });
+        }
         const user = userData.user ?? sessionData.session?.user ?? null;
         const accessToken = sessionData.session?.access_token ?? null;
 
@@ -128,25 +137,33 @@ export default function AuthGate({ children }: { children: ReactNode }) {
               return;
             }
           } catch (profileError) {
+            const message = profileError instanceof Error ? profileError.message : String(profileError);
             console.error("[AuthGate] profile fetch result", {
               route: pathname,
               sessionUserId: user.id,
               profileExists: false,
-              error: profileError instanceof Error ? profileError.message : String(profileError),
+              error: message,
             });
             if (pathname !== "/") {
               redirectOnce("/", "profile fetch failed; show access setup issue");
               return;
+            }
+            if (!cancelled) {
+              setGuardError(message);
             }
           }
         }
 
         completeCheck();
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
         console.error("[AuthGate] guard failed; not redirecting due to indeterminate auth state", {
           route: pathname,
-          error: err instanceof Error ? err.message : String(err),
+          error: message,
         });
+        if (!cancelled) {
+          setGuardError(message);
+        }
         completeCheck();
       }
     }
@@ -163,6 +180,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4 text-sm text-slate-300">
         Checking session...
       </div>
+    );
+  }
+
+  if (guardError && !isPublicRoute(pathname)) {
+    return (
+      <AccessSetupIssueView
+        heading="We could not verify your session state."
+        details={guardError}
+      />
     );
   }
 
