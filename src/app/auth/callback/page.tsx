@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { resolvePostSignInPath } from "@/lib/customerAuth";
+import { resolvePostSignInPath } from "@/lib/authOnboarding";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -26,11 +26,8 @@ export default function AuthCallbackPage() {
         }
 
         await syncManageItSession(data.session.access_token ?? null);
-        const destination = await resolvePostSignInPath(
-          data.session.user.id,
-          data.session.user.email ?? null
-        );
-        router.replace(destination);
+        const destination = await resolvePostSignInPath(data.session.user.id);
+        router.push(destination);
       } catch {
         setMessage("Unable to complete sign in. Redirecting...");
         router.replace("/signin");
