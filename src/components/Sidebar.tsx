@@ -103,8 +103,8 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
               N
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">NEXUS Platform</p>
-              <p className="text-xs text-slate-400">The Hub</p>
+              <p className="text-sm font-semibold text-white">Nexus IT</p>
+              <p className="text-xs text-slate-400">Intelligent Transport by Nexus</p>
             </div>
           </div>
 

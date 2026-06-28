@@ -8,7 +8,7 @@ const knowledgeSections = [
       {
         title: "The IT Language",
         summary:
-          "Every capability in the NEXUS Platform must naturally follow the word IT. Create IT, Route IT, Track IT — if a name does not work after IT, do not use it.",
+          "Every capability in Nexus IT must naturally follow the word IT. Create IT, Route IT, Track IT — if a name does not work after IT, do not use it.",
         tag: "Core",
       },
       {
@@ -147,7 +147,7 @@ export default function LearnItPage() {
               </div>
               <h1 className="mt-1 text-3xl font-semibold text-[#111827]">Learn IT</h1>
               <p className="mt-1.5 text-sm text-slate-500 max-w-2xl">
-                The NEXUS Platform knowledge base. Every AI agent reads this before writing code.
+                The Nexus IT knowledge base. Every AI agent reads this before writing code.
                 Every developer references this before making architectural decisions.
               </p>
               <div className="mt-4 flex items-center gap-3">
@@ -175,7 +175,7 @@ export default function LearnItPage() {
             <div>
               <p className="text-sm font-semibold text-blue-900">Agent reading requirement</p>
               <p className="mt-1 text-sm text-blue-700">
-                Every AI agent working on the NEXUS Platform must read this knowledge base before
+                Every AI agent working on Nexus IT must read this knowledge base before
                 writing any code. This ensures consistent architecture, language and design across
                 all work.
               </p>

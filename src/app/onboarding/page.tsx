@@ -6,7 +6,7 @@ import Image from "next/image";
 import {
   BusinessType,
   completeCustomerOnboarding,
-  ensureCustomerRecord,
+  ensureCustomerRecordWithSetup,
   fetchCustomerByUserId,
   uploadCompanyLogo,
   validateEmail,
@@ -16,23 +16,29 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
-  { value: "merchant", label: "Merchant" },
-  { value: "shipper", label: "Shipper" },
-  { value: "logistics_partner", label: "Logistics Partner" },
+  { value: "courier", label: "Courier" },
+  { value: "fulfilment", label: "Fulfilment" },
+  { value: "retailer", label: "Retailer" },
+  { value: "manufacturer", label: "Manufacturer" },
+  { value: "marketplace_seller", label: "Marketplace Seller" },
   { value: "other", label: "Other" },
 ];
+
+function isBusinessType(value: unknown): value is BusinessType {
+  return BUSINESS_TYPES.some((type) => type.value === value);
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [bootstrapRetryKey, setBootstrapRetryKey] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [companyId, setCompanyId] = useState(() => crypto.randomUUID());
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [businessType, setBusinessType] = useState<BusinessType>("merchant");
-  const [businessAddress, setBusinessAddress] = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [businessType, setBusinessType] = useState<BusinessType>("courier");
+  const [customerExists, setCustomerExists] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,8 +62,6 @@ export default function OnboardingPage() {
 
         setUserId(user.id);
         setEmail(user.email ?? "");
-
-        await ensureCustomerRecord(user.id, user.email ?? null);
         const customer = await fetchCustomerByUserId(user.id);
 
         if (customer?.onboarding_complete) {
@@ -65,13 +69,28 @@ export default function OnboardingPage() {
           return;
         }
 
-        setCompanyName(customer?.company_name ?? "");
-        setContactName(customer?.contact_name ?? "");
-        setContactPhone(customer?.contact_phone ?? "");
-        setBusinessType(customer?.business_type ?? "merchant");
-        setBusinessAddress(customer?.business_address ?? "");
-        setLogoUrl(customer?.company_logo_url ?? null);
-        setTermsAccepted(customer?.terms_accepted ?? false);
+        if (customer) {
+          setCustomerExists(true);
+          setCompanyId(customer.company_id);
+          setCompanyName(customer.company_name ?? "");
+          setContactName(customer.contact_name ?? "");
+          setContactPhone(customer.contact_phone ?? "");
+          setBusinessType(customer.business_type);
+          setLogoUrl(customer.company_logo_url ?? null);
+        } else {
+          const metadata = user.user_metadata ?? {};
+          setCustomerExists(false);
+          if (typeof metadata.company_id === "string" && metadata.company_id.trim()) {
+            setCompanyId(metadata.company_id);
+          }
+          setCompanyName(typeof metadata.company_name === "string" ? metadata.company_name : "");
+          setContactName(typeof metadata.contact_name === "string" ? metadata.contact_name : "");
+          setContactPhone(typeof metadata.contact_phone === "string" ? metadata.contact_phone : "");
+          if (isBusinessType(metadata.business_type)) {
+            setBusinessType(metadata.business_type);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load onboarding.");
@@ -151,7 +170,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    if (!companyName.trim() || !contactName.trim() || !contactPhone.trim() || !businessAddress.trim()) {
+    if (!companyName.trim() || !contactName.trim() || !contactPhone.trim()) {
       setError("Please complete all required fields.");
       return;
     }
@@ -163,11 +182,6 @@ export default function OnboardingPage() {
 
     if (!validatePhone(contactPhone)) {
       setError("Please provide a valid contact phone.");
-      return;
-    }
-
-    if (!termsAccepted) {
-      setError("You must accept the terms to continue.");
       return;
     }
 
@@ -189,6 +203,20 @@ export default function OnboardingPage() {
         return;
       }
 
+      if (!customerExists) {
+        const ensured = await ensureCustomerRecordWithSetup(userId, email.trim(), {
+          companyId,
+          companyName: companyName.trim(),
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          businessType,
+        });
+        if (!ensured) {
+          throw new Error("Unable to create your customer profile. Please retry.");
+        }
+        setCustomerExists(true);
+      }
+
       await completeCustomerOnboarding({
         userId,
         companyName: companyName.trim(),
@@ -197,7 +225,6 @@ export default function OnboardingPage() {
         contactEmail: email.trim(),
         contactPhone: contactPhone.trim(),
         businessType,
-        businessAddress: businessAddress.trim(),
       });
 
       router.replace("/");
@@ -220,27 +247,15 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-[#111827] px-4 py-10 sm:px-6 lg:px-10">
       <div className="mx-auto w-full max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl sm:p-8">
         <div className="mb-6 text-center sm:text-left">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Onboarding</p>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Complete Your Profile</h1>
-          <p className="mt-2 text-sm text-slate-400">Finish your company details to enter The Hub.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus IT</p>
+          <h1 className="mt-2 text-2xl font-semibold text-white">Complete your Nexus IT setup</h1>
+          <p className="mt-2 text-sm text-slate-400">Intelligent Transport by Nexus</p>
         </div>
 
         <form className="space-y-5" onSubmit={onSubmit} noValidate>
           <section className="space-y-4 rounded-2xl border border-white/10 p-4">
-            <h2 className="text-sm font-semibold text-white">Company Details</h2>
-            <div>
-              <label htmlFor="companyName" className="mb-1.5 block text-xs font-medium text-slate-300">
-                Company name
-              </label>
-              <input
-                id="companyName"
-                value={companyName}
-                onChange={(event) => setCompanyName(event.target.value)}
-                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                required
-              />
-            </div>
-
+            <h2 className="text-sm font-semibold text-white">Company logo</h2>
+            <p className="text-xs text-slate-400">Upload your logo to finish account setup.</p>
             <div>
               <label htmlFor="logo" className="mb-1.5 block text-xs font-medium text-slate-300">
                 Company logo
@@ -275,29 +290,23 @@ export default function OnboardingPage() {
                 </div>
               ) : null}
             </div>
-
-            <div>
-              <label htmlFor="businessType" className="mb-1.5 block text-xs font-medium text-slate-300">
-                Business type
-              </label>
-              <select
-                id="businessType"
-                value={businessType}
-                onChange={(event) => setBusinessType(event.target.value as BusinessType)}
-                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                required
-              >
-                {BUSINESS_TYPES.map((type) => (
-                  <option key={type.value} value={type.value} className="bg-[#111827]">
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
           </section>
 
           <section className="space-y-4 rounded-2xl border border-white/10 p-4">
-            <h2 className="text-sm font-semibold text-white">Contact Information</h2>
+            <h2 className="text-sm font-semibold text-white">Confirm company details</h2>
+            <p className="text-xs text-slate-400">These details should match your signup information.</p>
+            <div>
+              <label htmlFor="companyName" className="mb-1.5 block text-xs font-medium text-slate-300">
+                Company name
+              </label>
+              <input
+                id="companyName"
+                value={companyName}
+                onChange={(event) => setCompanyName(event.target.value)}
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                required
+              />
+            </div>
             <div>
               <label htmlFor="contactName" className="mb-1.5 block text-xs font-medium text-slate-300">
                 Contact name
@@ -324,8 +333,26 @@ export default function OnboardingPage() {
               />
             </div>
             <div>
+              <label htmlFor="businessType" className="mb-1.5 block text-xs font-medium text-slate-300">
+                Business type
+              </label>
+              <select
+                id="businessType"
+                value={businessType}
+                onChange={(event) => setBusinessType(event.target.value as BusinessType)}
+                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                required
+              >
+                {BUSINESS_TYPES.map((type) => (
+                  <option key={type.value} value={type.value} className="bg-[#111827]">
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label htmlFor="contactPhone" className="mb-1.5 block text-xs font-medium text-slate-300">
-                Contact phone
+                Phone number
               </label>
               <input
                 id="contactPhone"
@@ -336,38 +363,6 @@ export default function OnboardingPage() {
                 required
               />
             </div>
-          </section>
-
-          <section className="space-y-4 rounded-2xl border border-white/10 p-4">
-            <h2 className="text-sm font-semibold text-white">Location</h2>
-            <div>
-              <label htmlFor="businessAddress" className="mb-1.5 block text-xs font-medium text-slate-300">
-                Business address
-              </label>
-              <textarea
-                id="businessAddress"
-                value={businessAddress}
-                onChange={(event) => setBusinessAddress(event.target.value)}
-                rows={3}
-                className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                required
-              />
-            </div>
-          </section>
-
-          <section className="space-y-4 rounded-2xl border border-white/10 p-4">
-            <h2 className="text-sm font-semibold text-white">Legal</h2>
-            <label className="flex items-start gap-2 text-xs text-slate-300">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(event) => setTermsAccepted(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5"
-              />
-              <span>
-                I accept the <a href="/support" className="text-[#A78BFA] hover:underline">terms and conditions</a>.
-              </span>
-            </label>
           </section>
 
           {error ? (
@@ -395,7 +390,7 @@ export default function OnboardingPage() {
             disabled={saving}
             className="flex w-full items-center justify-center rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {saving ? "Saving profile..." : "Save and Enter The Hub"}
+            {saving ? "Saving setup..." : "Save and enter Nexus IT"}
           </button>
         </form>
       </div>

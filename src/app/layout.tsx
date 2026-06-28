@@ -3,8 +3,8 @@ import AuthGate from "@/components/AuthGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NEXUS Platform",
-  description: "NEXUS logistics operating platform",
+  title: "Nexus IT",
+  description: "Intelligent Transport by Nexus",
 };
 
 export default function RootLayout({

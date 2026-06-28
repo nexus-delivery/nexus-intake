@@ -3,12 +3,33 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { mapAuthError, resolvePostSignInPath, validateEmail, validatePassword } from "@/lib/customerAuth";
+import {
+  BusinessType,
+  mapAuthError,
+  resolvePostSignInPath,
+  validateEmail,
+  validatePassword,
+  validatePhone,
+} from "@/lib/customerAuth";
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
+const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
+  { value: "courier", label: "Courier" },
+  { value: "fulfilment", label: "Fulfilment" },
+  { value: "retailer", label: "Retailer" },
+  { value: "manufacturer", label: "Manufacturer" },
+  { value: "marketplace_seller", label: "Marketplace Seller" },
+  { value: "other", label: "Other" },
+];
+
 export default function SignUpPage() {
   const router = useRouter();
+  const [companyId] = useState(() => crypto.randomUUID());
+  const [companyName, setCompanyName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [businessType, setBusinessType] = useState<BusinessType>("courier");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -48,6 +69,16 @@ export default function SignUpPage() {
       return;
     }
 
+    if (!companyName.trim() || !contactName.trim()) {
+      setError("Company and contact names are required.");
+      return;
+    }
+
+    if (!validatePhone(contactPhone)) {
+      setError("Please provide a valid phone number.");
+      return;
+    }
+
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
@@ -65,6 +96,15 @@ export default function SignUpPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          data: {
+            company_name: companyName.trim(),
+            contact_name: contactName.trim(),
+            contact_phone: contactPhone.trim(),
+            business_type: businessType,
+            company_id: companyId,
+          },
+        },
       });
 
       if (signUpError) {
@@ -89,7 +129,13 @@ export default function SignUpPage() {
       }
 
       try {
-        const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? email.trim());
+        const destination = await resolvePostSignInPath(data.user.id, data.user.email ?? email.trim(), {
+          companyName: companyName.trim(),
+          contactName: contactName.trim(),
+          contactPhone: contactPhone.trim(),
+          businessType,
+          companyId,
+        });
         router.replace(destination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to determine onboarding status";
@@ -119,14 +165,78 @@ export default function SignUpPage() {
           N
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">NEXUS Platform</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Join IT</h1>
-          <p className="mt-1 text-sm text-slate-400">Create your account and start onboarding.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus IT</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white">Create your Nexus IT account</h1>
+          <p className="mt-1 text-sm text-slate-400">Intelligent Transport by Nexus</p>
         </div>
       </div>
 
       <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/5 backdrop-blur p-8 shadow-2xl">
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+          <div>
+            <label htmlFor="companyName" className="mb-1.5 block text-xs font-medium text-slate-300">
+              Company Name
+            </label>
+            <input
+              id="companyName"
+              type="text"
+              value={companyName}
+              onChange={(event) => setCompanyName(event.target.value)}
+              placeholder="Nexus Logistics Ltd"
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="contactName" className="mb-1.5 block text-xs font-medium text-slate-300">
+              Contact Name
+            </label>
+            <input
+              id="contactName"
+              type="text"
+              value={contactName}
+              onChange={(event) => setContactName(event.target.value)}
+              placeholder="Jane Smith"
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="contactPhone" className="mb-1.5 block text-xs font-medium text-slate-300">
+              Phone Number
+            </label>
+            <input
+              id="contactPhone"
+              type="tel"
+              value={contactPhone}
+              onChange={(event) => setContactPhone(event.target.value)}
+              placeholder="+44 20 1234 5678"
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="businessType" className="mb-1.5 block text-xs font-medium text-slate-300">
+              Business Type
+            </label>
+            <select
+              id="businessType"
+              value={businessType}
+              onChange={(event) => setBusinessType(event.target.value as BusinessType)}
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+              required
+            >
+              {BUSINESS_TYPES.map((type) => (
+                <option key={type.value} value={type.value} className="bg-[#111827]">
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-slate-300">
               Email
@@ -186,14 +296,14 @@ export default function SignUpPage() {
             disabled={loading}
             className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7C3AED] px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-[#7C3AED]/30 transition hover:bg-[#6D28D9] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Creating account..." : "Sign up"}
+            {loading ? "Creating account..." : "Create account"}
           </button>
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-500">
           Already have an account?{" "}
           <Link href="/signin" className="text-[#A78BFA] hover:underline">
-            Enter IT
+            Sign in
           </Link>
         </p>
       </div>

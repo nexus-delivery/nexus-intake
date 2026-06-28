@@ -208,7 +208,7 @@ export default function HubPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7C3AED] text-sm font-bold text-white shadow shadow-[#7C3AED]/40">
             N
           </div>
-          <span className="text-sm font-semibold text-white tracking-wide">NEXUS Platform</span>
+          <span className="text-sm font-semibold text-white tracking-wide">Nexus IT</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -299,7 +299,7 @@ export default function HubPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/10 px-6 py-4 text-center">
         <p className="text-xs text-slate-600">
-          NEXUS Platform · The Hub · Sprint Zero
+          Nexus IT · Intelligent Transport by Nexus
         </p>
       </footer>
     </div>

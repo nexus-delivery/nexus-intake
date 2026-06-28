@@ -1,16 +1,28 @@
 import { supabase } from "@/lib/supabaseClient";
 
-export type BusinessType = "merchant" | "shipper" | "logistics_partner" | "other";
+export type BusinessType =
+  | "courier"
+  | "fulfilment"
+  | "retailer"
+  | "manufacturer"
+  | "marketplace_seller"
+  | "other";
 
 export type CustomerRecord = {
   id: string;
   user_id: string;
-  company_name: string | null;
+  company_id: string;
+  merchant_id: string | null;
+  customer_type: "company";
+  customer_name: string;
+  email: string;
+  phone: string;
+  company_name: string;
   company_logo_url: string | null;
-  contact_name: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  business_type: BusinessType | null;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  business_type: BusinessType;
   business_address: string | null;
   terms_accepted: boolean;
   onboarding_complete: boolean;
@@ -19,15 +31,24 @@ export type CustomerRecord = {
 type InitializeCustomerRecordParams = {
   userId: string;
   email: string | null;
+  setup: InitialCustomerSetupData;
+};
+
+export type InitialCustomerSetupData = {
+  companyId: string;
+  companyName: string;
+  contactName: string;
+  contactPhone: string;
+  businessType: BusinessType;
+  merchantId?: string | null;
 };
 
 // 10MB aligns with onboarding upload requirements for company branding assets.
 const LOGO_MAX_SIZE_BYTES = 10 * 1024 * 1024;
 // 30 seconds prevents indefinite wait states while still allowing normal uploads.
 const LOGO_UPLOAD_TIMEOUT_MS = 30_000;
-const FALLBACK_CONTACT_EMAIL_DOMAIN = "example.com";
-const DEFAULT_CONTACT_NAME = "New Customer";
 const DUPLICATE_KEY_ERROR_CODE = "23505";
+const DEFAULT_BUSINESS_ADDRESS = "Not provided";
 const LOGO_ALLOWED_TYPES = new Set(["image/png", "image/jpg", "image/jpeg", "image/gif", "image/webp"]);
 const LOGO_EXTENSION_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -98,7 +119,7 @@ export async function fetchCustomerByUserId(userId: string): Promise<CustomerRec
   const { data, error } = await supabase
     .from("customers")
     .select(
-      "id, user_id, company_name, company_logo_url, contact_name, contact_email, contact_phone, business_type, business_address, terms_accepted, onboarding_complete"
+      "id, user_id, company_id, merchant_id, customer_type, customer_name, email, phone, company_name, company_logo_url, contact_name, contact_email, contact_phone, business_type, business_address, terms_accepted, onboarding_complete"
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -111,47 +132,81 @@ export async function fetchCustomerByUserId(userId: string): Promise<CustomerRec
   return data;
 }
 
-function getDefaultContactName(email: string | null): string {
-  if (!email) {
-    return DEFAULT_CONTACT_NAME;
+function buildInitialCustomerPayload({ userId, email, setup }: InitializeCustomerRecordParams) {
+  const normalizedEmail = email?.trim();
+  if (!normalizedEmail) {
+    throw new Error("A valid email is required to initialize a customer record.");
   }
 
-  const localPart = email.split("@")[0]?.trim();
-  if (!localPart) {
-    return DEFAULT_CONTACT_NAME;
+  const companyName = setup.companyName.trim();
+  const contactName = setup.contactName.trim();
+  const contactPhone = setup.contactPhone.trim();
+  const companyId = setup.companyId.trim();
+  if (!companyId) {
+    throw new Error("A company ID is required to initialize a customer record.");
   }
-
-  const normalized = localPart
-    .replace(/[._-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) {
-    return DEFAULT_CONTACT_NAME;
-  }
-
-  return normalized
-    .split(" ")
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
-}
-
-function buildInitialCustomerPayload({ userId, email }: InitializeCustomerRecordParams) {
-  const emailWithFallback = email?.trim() || `${userId}@${FALLBACK_CONTACT_EMAIL_DOMAIN}`;
-  const contactName = getDefaultContactName(email);
-  const companyName = contactName === DEFAULT_CONTACT_NAME ? "Company Pending Setup" : `${contactName} Company`;
+  const merchantId = setup.merchantId ?? null;
 
   return {
     user_id: userId,
+    company_id: companyId,
+    merchant_id: merchantId,
+    customer_type: "company" as const,
+    customer_name: companyName,
+    email: normalizedEmail,
+    phone: contactPhone,
     company_name: companyName,
     company_logo_url: "",
     contact_name: contactName,
-    contact_email: emailWithFallback,
-    contact_phone: "",
-    business_type: "merchant" as const,
-    business_address: "",
+    contact_email: normalizedEmail,
+    contact_phone: contactPhone,
+    business_type: setup.businessType,
+    business_address: DEFAULT_BUSINESS_ADDRESS,
     terms_accepted: false,
     onboarding_complete: false,
   };
+}
+
+async function ensureCompanyRecord(companyId: string, companyName: string): Promise<void> {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+  const { data: existing, error: existingError } = await supabase
+    .from("companies")
+    .select("id, company_name")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("Failed to read company record", { companyId, companyName, existingError });
+    throw new Error(existingError.message);
+  }
+
+  if (existing) {
+    if (existing.company_name && existing.company_name !== companyName) {
+      console.warn("Company name mismatch for existing company", {
+        companyId,
+        existingCompanyName: existing.company_name,
+        attemptedCompanyName: companyName,
+      });
+    }
+    return;
+  }
+
+  const { error } = await supabase.from("companies").insert({
+    id: companyId,
+    company_name: companyName,
+  });
+
+  if (error && error.code !== DUPLICATE_KEY_ERROR_CODE) {
+    console.error("Failed to create company record", { companyId, companyName, error });
+    throw new Error(error.message);
+  }
+
+  console.debug("Company record ensured", {
+    id: companyId,
+    companyName,
+  });
 }
 
 export async function initializeCustomerRecord(params: InitializeCustomerRecordParams): Promise<void> {
@@ -161,6 +216,12 @@ export async function initializeCustomerRecord(params: InitializeCustomerRecordP
   }
 
   const payload = buildInitialCustomerPayload(params);
+  await ensureCompanyRecord(payload.company_id, payload.company_name);
+  console.debug("Initializing customer record", {
+    userId: params.userId,
+    companyId: payload.company_id,
+    customerType: payload.customer_type,
+  });
   const { error } = await supabase.from("customers").insert(payload);
 
   if (error) {
@@ -184,22 +245,56 @@ export async function ensureCustomerRecord(userId: string, email: string | null)
   }
 
   try {
-    const existing = await fetchCustomerByUserId(userId);
-    if (existing) {
-      return;
-    }
-
-    await initializeCustomerRecord({ userId, email });
+    await ensureCustomerRecordWithSetup(userId, email, null);
   } catch (error) {
     console.error("Failed to ensure customer record", { userId, email, error });
     throw error instanceof Error ? error : new Error("Unable to ensure customer record.");
   }
 }
 
-export async function resolvePostSignInPath(userId: string, email: string | null): Promise<"/" | "/onboarding"> {
+export async function ensureCustomerRecordWithSetup(
+  userId: string,
+  email: string | null,
+  setup: InitialCustomerSetupData | null
+): Promise<boolean> {
+  if (!supabase) {
+    console.error("ensureCustomerRecordWithSetup called without Supabase client", { userId });
+    return false;
+  }
+
   try {
-    await ensureCustomerRecord(userId, email);
+    const existing = await fetchCustomerByUserId(userId);
+    if (existing) {
+      console.debug("Customer record already exists", { userId, customerId: existing.id });
+      return true;
+    }
+
+    if (!setup) {
+      console.debug("Customer record missing and setup data unavailable; onboarding required", { userId });
+      return false;
+    }
+
+    await initializeCustomerRecord({ userId, email, setup });
+    return true;
+  } catch (error) {
+    console.error("Failed to ensure customer record with setup", { userId, email, error });
+    throw error instanceof Error ? error : new Error("Unable to ensure customer record.");
+  }
+}
+
+export async function resolvePostSignInPath(
+  userId: string,
+  email: string | null,
+  setup: InitialCustomerSetupData | null = null
+): Promise<"/" | "/onboarding"> {
+  try {
+    await ensureCustomerRecordWithSetup(userId, email, setup);
     const customer = await fetchCustomerByUserId(userId);
+    console.debug("Resolved post-signin path", {
+      userId,
+      hasCustomer: Boolean(customer),
+      onboardingComplete: Boolean(customer?.onboarding_complete),
+    });
     return customer?.onboarding_complete ? "/" : "/onboarding";
   } catch (error) {
     console.error("Failed to resolve post-signin path", { userId, email, error });
@@ -248,7 +343,6 @@ export async function completeCustomerOnboarding(params: {
   contactEmail: string;
   contactPhone: string;
   businessType: BusinessType;
-  businessAddress: string;
 }): Promise<void> {
   if (!supabase) {
     throw new Error("Supabase is not configured.");
@@ -258,12 +352,14 @@ export async function completeCustomerOnboarding(params: {
     .from("customers")
     .update({
       company_name: params.companyName,
+      customer_name: params.companyName,
       company_logo_url: params.logoUrl,
       contact_name: params.contactName,
       contact_email: params.contactEmail,
       contact_phone: params.contactPhone,
+      email: params.contactEmail,
+      phone: params.contactPhone,
       business_type: params.businessType,
-      business_address: params.businessAddress,
       terms_accepted: true,
       onboarding_complete: true,
     })
