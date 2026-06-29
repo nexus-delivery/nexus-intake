@@ -642,18 +642,32 @@ export async function createMerchantDocumentSignedUrl(
     return { success: false, error: "Supabase configuration not available in preview" };
   }
 
-  const normalizedPath = normalizeMerchantDocumentStoragePath(filePath);
-
   try {
+    // Always try the DB value first so view/download matches the exact stored key.
     const { data, error } = await supabase.storage
       .from(MERCHANT_DOCUMENTS_BUCKET)
-      .createSignedUrl(normalizedPath, expiresIn, options);
+      .createSignedUrl(filePath, expiresIn, options);
+
+    if (!error) {
+      return { success: true, signedUrl: data.signedUrl };
+    }
+
+    const normalizedPath = normalizeMerchantDocumentStoragePath(filePath);
+    if (normalizedPath !== filePath) {
+      const { data: normalizedData, error: normalizedError } = await supabase.storage
+        .from(MERCHANT_DOCUMENTS_BUCKET)
+        .createSignedUrl(normalizedPath, expiresIn, options);
+
+      if (!normalizedError) {
+        return { success: true, signedUrl: normalizedData.signedUrl };
+      }
+    }
 
     if (error) {
       return { success: false, error: error.message };
     }
 
-    return { success: true, signedUrl: data.signedUrl };
+    return { success: false, error: "Failed to create signed URL" };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create signed URL";
     return { success: false, error: message };
