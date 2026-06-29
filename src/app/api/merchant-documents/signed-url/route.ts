@@ -100,53 +100,6 @@ export async function POST(request: NextRequest) {
       allProfiles: result.data,
       error: result.error,
     });
-
-    const { data: document, error: documentError } = await dbClient
-      .from("uploaded_documents")
-      .select("id, file_name, file_path, company_id")
-      .eq("id", documentId)
-      .eq("company_id", resolvedCompanyId)
-      .maybeSingle();
-
-    if (documentError) {
-      return NextResponse.json({ error: documentError.message }, { status: 500 });
-    }
-
-    if (!document) {
-      return NextResponse.json({ error: ACCESS_DENIED_ERROR }, { status: 403 });
-    }
-
-    const bucketName = "merchant-documents";
-    const objectKey = document.file_path;
-    const { data: signedData, error: signedError } = await dbClient.storage
-      .from(bucketName)
-      .createSignedUrl(objectKey, 60 * 10, {
-        download: download ? document.file_name : false,
-      });
-
-    if (signedError || !signedData?.signedUrl) {
-      const completeSignedUrlError =
-        signedError == null
-          ? null
-          : {
-              ...signedError,
-              message: signedError.message,
-              status: (signedError as { status?: number }).status ?? null,
-              error: (signedError as { error?: string }).error ?? null,
-              name: (signedError as { name?: string }).name ?? null,
-            };
-
-      return NextResponse.json(
-        {
-          error: signedError?.message ?? "Failed to generate signed URL",
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      signedUrl: signedData.signedUrl,
-    });
   } catch (err) {
     return NextResponse.json(
       {
