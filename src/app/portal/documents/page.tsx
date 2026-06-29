@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   createMerchantDocumentSignedUrl,
   fetchUploadedDocuments,
+  type MerchantSignedUrlDebug,
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
 import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
@@ -11,10 +12,7 @@ import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 type SignedUrlDebugState = {
   action: "view" | "download";
   documentId: string;
-  bucket: string;
-  objectKey: string;
-  uploadedDocumentFilePath: string;
-  supabaseErrorMessage: string | null;
+  debug: MerchantSignedUrlDebug;
 };
 
 function formatDateTime(value: string): string {
@@ -144,10 +142,7 @@ export default function MerchantDocumentsPage() {
     setSignedUrlDebug({
       action: download ? "download" : "view",
       documentId: document.id,
-      bucket: result.debug.bucket,
-      objectKey: result.debug.objectKey,
-      uploadedDocumentFilePath: result.debug.uploadedDocumentFilePath,
-      supabaseErrorMessage: result.debug.supabaseErrorMessage,
+      debug: result.debug,
     });
 
     if (!result.success) {
@@ -185,10 +180,15 @@ export default function MerchantDocumentsPage() {
           <p className="font-semibold">Temporary Signed URL Debug</p>
           <p className="mt-2">Action: {signedUrlDebug.action}</p>
           <p>Document ID: {signedUrlDebug.documentId}</p>
-          <p>Bucket passed to createSignedUrl(): {signedUrlDebug.bucket}</p>
-          <p className="break-all">Object key passed to createSignedUrl(): {signedUrlDebug.objectKey}</p>
-          <p className="break-all">uploaded_documents.file_path: {signedUrlDebug.uploadedDocumentFilePath}</p>
-          <p>Supabase createSignedUrl error: {signedUrlDebug.supabaseErrorMessage ?? "none"}</p>
+          <p className="break-all">Supabase project URL at runtime: {signedUrlDebug.debug.supabaseProjectUrl ?? "null"}</p>
+          <p>Supabase project reference at runtime: {signedUrlDebug.debug.supabaseProjectRef ?? "null"}</p>
+          <p>Bucket passed to createSignedUrl(): {signedUrlDebug.debug.bucket}</p>
+          <p className="break-all">Object key passed to createSignedUrl(): {signedUrlDebug.debug.objectKeyPassedToCreateSignedUrl}</p>
+          <p className="break-all">uploaded_documents.file_path: {signedUrlDebug.debug.uploadedDocumentFilePath}</p>
+          <p>Complete SDK error object returned by createSignedUrl:</p>
+          <pre className="mt-2 overflow-x-auto rounded-xl bg-white p-3 text-xs text-slate-700">
+            {JSON.stringify(signedUrlDebug.debug.sdkError, null, 2)}
+          </pre>
         </div>
       )}
 
