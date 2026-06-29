@@ -116,10 +116,8 @@ export default function MerchantDocumentViewerPage() {
           setDocument(documentResult.data);
           setDraftJob(draftJobResult.data);
           setCompanyName(companyResult?.name ?? null);
-          setSignedUrl(signedUrlResult.success ? signedUrlResult.data.signedUrl : null);
-          setPreviewError(
-            signedUrlResult.success ? null : signedUrlResult.error
-          );
+          setSignedUrl(signedUrlResult.success ? signedUrlResult.signedUrl : null);
+          setPreviewError(signedUrlResult.success ? null : signedUrlResult.error);
           setLoading(false);
         }
       } catch (err) {
@@ -149,7 +147,7 @@ export default function MerchantDocumentViewerPage() {
     const signedUrlResult = await createMerchantDocumentSignedUrl(document.file_path);
 
     if (signedUrlResult.success) {
-      window.open(signedUrlResult.data.signedUrl, "_blank", "noopener,noreferrer");
+      window.open(signedUrlResult.signedUrl, "_blank", "noopener,noreferrer");
     } else {
       setPreviewError(signedUrlResult.error);
     }

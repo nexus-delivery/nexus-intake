@@ -62,6 +62,14 @@ export default function DocumentUploadCard({
   };
 
   const processFile = async (file: File) => {
+    if (!companyId) {
+      setUploadState("error");
+      const error = "Missing company ID for document upload.";
+      setErrorMessage(error);
+      onUploadError?.(error);
+      return;
+    }
+
     cancelledRef.current = false;
     setUploadState("uploading");
     setErrorMessage("");

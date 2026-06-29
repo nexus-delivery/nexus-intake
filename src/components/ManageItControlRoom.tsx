@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import DocumentsTable, { type DocumentTableRow } from "@/components/DocumentsTable";
 import LiveOperationsDashboard from "@/components/LiveOperationsDashboard";
+import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
 import {
   FALLBACK_AUDIT_LOGS,
   getManageItAccessProfile,
@@ -292,6 +293,7 @@ function createLocalId(prefix: string) {
 
 export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: ManageItSectionSlug }) {
   const router = useRouter();
+  const companyId = useRuntimeCompanyId();
   const [loading, setLoading] = useState(true);
   const [accessProfile, setAccessProfile] = useState<ManageItAccessProfile | null>(null);
   const [customers, setCustomers] = useState(initialCustomers);
@@ -706,6 +708,7 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
       </div>
 
       <DocumentUploadCard
+        companyId={companyId}
         onUploadComplete={(fileName) => {
           setDocuments((current) => [
             {
