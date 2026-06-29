@@ -536,15 +536,6 @@ export async function requestMerchantDocumentSignedUrl(
     return { success: false, error: SIGN_IN_ERROR };
   }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return { success: false, error: SIGN_IN_ERROR };
-  }
-
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !sessionData.session?.access_token) {
     return { success: false, error: SIGN_IN_ERROR };

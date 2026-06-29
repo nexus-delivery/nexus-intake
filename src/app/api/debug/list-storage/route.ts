@@ -12,6 +12,10 @@ import { NextRequest, NextResponse } from "next/server";
  * }
  */
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Debug endpoint disabled" }, { status: 404 });
+  }
+
   try {
     const { companyId } = await request.json();
 
