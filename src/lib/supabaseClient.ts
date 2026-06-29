@@ -690,7 +690,11 @@ export async function createMerchantDocumentSignedUrl(
       objectKey: filePath,
     });
 
-    return { success: false, error: "Failed to create signed URL" };
+      if (data?.signedUrl) {
+        return { success: true, signedUrl: data.signedUrl };
+      }
+
+      return { success: false, error: "Signed URL was not returned by Supabase" };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create signed URL";
     console.error("[documents:signed-url] createSignedUrl exception", {
