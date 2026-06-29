@@ -84,6 +84,11 @@ export default function MerchantDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [busyDocumentId, setBusyDocumentId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<{
+    error?: string;
+    details?: string;
+    userId?: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +96,7 @@ export default function MerchantDocumentsPage() {
     const loadDocuments = async () => {
       setLoading(true);
       setErrorMessage(null);
+      setApiError(null);
 
       const profileResult = await fetchCurrentProfile();
       if (!profileResult.success) {
@@ -137,6 +143,7 @@ export default function MerchantDocumentsPage() {
   const openDocument = async (document: UploadedDocumentRow, download: boolean) => {
     setBusyDocumentId(document.id);
     setErrorMessage(null);
+    setApiError(null);
 
     if (!companyId) {
       setErrorMessage("No company is linked to this user");
@@ -155,7 +162,11 @@ export default function MerchantDocumentsPage() {
     });
 
     if (!result.success) {
-      setErrorMessage(`Unable to access document: ${result.error}`);
+      if (result.apiError) {
+        setApiError(result.apiError);
+      } else {
+        setErrorMessage(`Unable to access document: ${result.error}`);
+      }
       setBusyDocumentId(null);
       return;
     }
@@ -178,11 +189,17 @@ export default function MerchantDocumentsPage() {
         </p>
       </header>
 
-      {errorMessage && (
+      {apiError ? (
+        <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6">
+{JSON.stringify(apiError, null, 2)}
+          </pre>
+        </div>
+      ) : errorMessage ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {errorMessage}
         </div>
-      )}
+      ) : null}
 
       {loading ? (
         <div className="rounded-[24px] border border-slate-200 bg-white px-5 py-6 text-sm text-slate-500 shadow-sm">

@@ -530,6 +530,11 @@ export async function requestMerchantDocumentSignedUrl(
   | {
       success: false;
       error: string;
+      apiError?: {
+        error?: string;
+        details?: string;
+        userId?: string;
+      };
     }
 > {
   if (!supabase) {
@@ -554,11 +559,24 @@ export async function requestMerchantDocumentSignedUrl(
       }),
     });
 
-    const payload = (await response.json()) as { signedUrl?: string; error?: string };
+    const payload = (await response.json()) as {
+      signedUrl?: string;
+      error?: string;
+      details?: string;
+      userId?: string;
+    };
     if (!response.ok || !payload.signedUrl) {
       return {
         success: false,
         error: payload.error ?? "Failed to generate a signed URL",
+        apiError:
+          payload.error || payload.details || payload.userId
+            ? {
+                error: payload.error,
+                details: payload.details,
+                userId: payload.userId,
+              }
+            : undefined,
       };
     }
 
