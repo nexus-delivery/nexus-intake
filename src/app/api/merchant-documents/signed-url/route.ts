@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing document ID" }, { status: 400 });
     }
 
-    const dbClient = privilegedClient ?? createAuthenticatedAnonClient(accessToken);
+    const dbClient = privilegedClient;
     if (!dbClient) {
       return NextResponse.json(
         { error: "Supabase env vars not configured" },
