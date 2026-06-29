@@ -120,20 +120,81 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ACCESS_DENIED_ERROR }, { status: 403 });
     }
 
+    const bucketName = "merchant-documents";
+    const objectKey = document.file_path;
+    const separatorIndex = objectKey.lastIndexOf("/");
+    const parentFolder = separatorIndex >= 0 ? objectKey.slice(0, separatorIndex) : "";
+    const fileName = separatorIndex >= 0 ? objectKey.slice(separatorIndex + 1) : objectKey;
+
+    const { data: listData, error: listError } = await dbClient.storage
+      .from(bucketName)
+      .list(parentFolder, { limit: 1000 });
+
+    const listedFileNames = (listData ?? []).map((item) => item.name);
+
+    const diagnosticsBase = {
+      documentId: document.id,
+      uploadedDocumentFilePath: document.file_path,
+      bucketUsed: bucketName,
+      createSignedUrlObjectKey: objectKey,
+      parentFolder,
+      parentFolderFileName: fileName,
+      storageListResult: listData ?? null,
+      storageListError:
+        listError == null
+          ? null
+          : {
+              message: listError.message,
+              status: (listError as { status?: number }).status ?? null,
+              error: (listError as { error?: string }).error ?? null,
+            },
+      storageListFilenames: listedFileNames,
+      storageListContainsFilename: listedFileNames.includes(fileName),
+    };
+
+    console.info("[merchant-documents:signed-url] storage diagnostics", diagnosticsBase);
+
     const { data: signedData, error: signedError } = await dbClient.storage
-      .from("merchant-documents")
-      .createSignedUrl(document.file_path, 60 * 10, {
+      .from(bucketName)
+      .createSignedUrl(objectKey, 60 * 10, {
         download: download ? document.file_name : false,
       });
 
     if (signedError || !signedData?.signedUrl) {
+      const completeSignedUrlError =
+        signedError == null
+          ? null
+          : {
+              ...signedError,
+              message: signedError.message,
+              status: (signedError as { status?: number }).status ?? null,
+              error: (signedError as { error?: string }).error ?? null,
+              name: (signedError as { name?: string }).name ?? null,
+            };
+
+      const diagnostics = {
+        ...diagnosticsBase,
+        createSignedUrlError: completeSignedUrlError,
+      };
+
+      console.error("[merchant-documents:signed-url] createSignedUrl failed", diagnostics);
+
       return NextResponse.json(
-        { error: signedError?.message ?? "Failed to generate signed URL" },
+        {
+          error: signedError?.message ?? "Failed to generate signed URL",
+          diagnostics,
+        },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ signedUrl: signedData.signedUrl });
+    return NextResponse.json({
+      signedUrl: signedData.signedUrl,
+      diagnostics: {
+        ...diagnosticsBase,
+        createSignedUrlError: null,
+      },
+    });
   } catch (err) {
     return NextResponse.json(
       {
