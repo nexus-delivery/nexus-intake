@@ -637,9 +637,39 @@ export async function createMerchantDocumentSignedUrl(
   filePath: string,
   expiresIn = 60 * 10,
   options?: { download?: string | boolean }
-): Promise<{ success: true; signedUrl: string } | { success: false; error: string }> {
+): Promise<
+  | {
+      success: true;
+      signedUrl: string;
+      debug: {
+        bucket: string;
+        objectKey: string;
+        uploadedDocumentFilePath: string;
+        supabaseErrorMessage: null;
+      };
+    }
+  | {
+      success: false;
+      error: string;
+      debug: {
+        bucket: string;
+        objectKey: string;
+        uploadedDocumentFilePath: string;
+        supabaseErrorMessage: string;
+      };
+    }
+> {
   if (!supabase) {
-    return { success: false, error: "Supabase configuration not available in preview" };
+    return {
+      success: false,
+      error: "Supabase configuration not available in preview",
+      debug: {
+        bucket: MERCHANT_DOCUMENTS_BUCKET,
+        objectKey: filePath,
+        uploadedDocumentFilePath: filePath,
+        supabaseErrorMessage: "Supabase configuration not available in preview",
+      },
+    };
   }
 
   try {
@@ -682,7 +712,16 @@ export async function createMerchantDocumentSignedUrl(
         error: error.message,
       });
 
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message,
+        debug: {
+          bucket: MERCHANT_DOCUMENTS_BUCKET,
+          objectKey: filePath,
+          uploadedDocumentFilePath: filePath,
+          supabaseErrorMessage: error.message,
+        },
+      };
     }
 
     console.info("[documents:signed-url] createSignedUrl success", {
@@ -691,10 +730,28 @@ export async function createMerchantDocumentSignedUrl(
     });
 
       if (data?.signedUrl) {
-        return { success: true, signedUrl: data.signedUrl };
+        return {
+          success: true,
+          signedUrl: data.signedUrl,
+          debug: {
+            bucket: MERCHANT_DOCUMENTS_BUCKET,
+            objectKey: filePath,
+            uploadedDocumentFilePath: filePath,
+            supabaseErrorMessage: null,
+          },
+        };
       }
 
-      return { success: false, error: "Signed URL was not returned by Supabase" };
+      return {
+        success: false,
+        error: "Signed URL was not returned by Supabase",
+        debug: {
+          bucket: MERCHANT_DOCUMENTS_BUCKET,
+          objectKey: filePath,
+          uploadedDocumentFilePath: filePath,
+          supabaseErrorMessage: "Signed URL was not returned by Supabase",
+        },
+      };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create signed URL";
     console.error("[documents:signed-url] createSignedUrl exception", {
@@ -702,6 +759,15 @@ export async function createMerchantDocumentSignedUrl(
       objectKey: filePath,
       error: message,
     });
-    return { success: false, error: message };
+    return {
+      success: false,
+      error: message,
+      debug: {
+        bucket: MERCHANT_DOCUMENTS_BUCKET,
+        objectKey: filePath,
+        uploadedDocumentFilePath: filePath,
+        supabaseErrorMessage: message,
+      },
+    };
   }
 }
