@@ -643,33 +643,61 @@ export async function createMerchantDocumentSignedUrl(
   }
 
   try {
-    // Always try the DB value first so view/download matches the exact stored key.
+    console.info("[documents:signed-url] createSignedUrl request", {
+      bucket: MERCHANT_DOCUMENTS_BUCKET,
+      objectKey: filePath,
+      expiresIn,
+      download: options?.download ?? false,
+    });
+
     const { data, error } = await supabase.storage
       .from(MERCHANT_DOCUMENTS_BUCKET)
       .createSignedUrl(filePath, expiresIn, options);
 
-    if (!error) {
-      return { success: true, signedUrl: data.signedUrl };
-    }
-
-    const normalizedPath = normalizeMerchantDocumentStoragePath(filePath);
-    if (normalizedPath !== filePath) {
-      const { data: normalizedData, error: normalizedError } = await supabase.storage
-        .from(MERCHANT_DOCUMENTS_BUCKET)
-        .createSignedUrl(normalizedPath, expiresIn, options);
-
-      if (!normalizedError) {
-        return { success: true, signedUrl: normalizedData.signedUrl };
-      }
-    }
-
     if (error) {
+      const trimmedPath = filePath.trim();
+      const separatorIndex = trimmedPath.lastIndexOf("/");
+      const folderPath = separatorIndex >= 0 ? trimmedPath.slice(0, separatorIndex) : "";
+      const objectName = separatorIndex >= 0 ? trimmedPath.slice(separatorIndex + 1) : trimmedPath;
+
+      const { data: folderObjects, error: listError } = await supabase.storage
+        .from(MERCHANT_DOCUMENTS_BUCKET)
+        .list(folderPath, { limit: 1000 });
+
+      const existingObjectKeys = (folderObjects ?? []).map((item) =>
+        folderPath ? `${folderPath}/${item.name}` : item.name
+      );
+      const objectExists = existingObjectKeys.includes(trimmedPath);
+
+      console.error("[documents:signed-url] createSignedUrl failed", {
+        bucket: MERCHANT_DOCUMENTS_BUCKET,
+        objectKey: filePath,
+        storageComparison: {
+          listFolderPath: folderPath,
+          targetObjectName: objectName,
+          listError: listError?.message ?? null,
+          objectExists,
+          existingObjectKeys,
+        },
+        error: error.message,
+      });
+
       return { success: false, error: error.message };
     }
+
+    console.info("[documents:signed-url] createSignedUrl success", {
+      bucket: MERCHANT_DOCUMENTS_BUCKET,
+      objectKey: filePath,
+    });
 
     return { success: false, error: "Failed to create signed URL" };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create signed URL";
+    console.error("[documents:signed-url] createSignedUrl exception", {
+      bucket: MERCHANT_DOCUMENTS_BUCKET,
+      objectKey: filePath,
+      error: message,
+    });
     return { success: false, error: message };
   }
 }
