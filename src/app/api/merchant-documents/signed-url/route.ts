@@ -154,6 +154,16 @@ export async function POST(request: NextRequest) {
 
     console.info("[merchant-documents:signed-url] storage diagnostics", diagnosticsBase);
 
+    console.info("[merchant-documents:signed-url] createSignedUrl inputs", {
+      bucket: bucketName,
+      objectKey,
+      "uploadedDocument.file_path": document.file_path,
+      parentFolder,
+      filename: fileName,
+      "storage.list(parentFolder)": listData ?? null,
+      "createSignedUrl.objectKey": objectKey,
+    });
+
     const { data: signedData, error: signedError } = await dbClient.storage
       .from(bucketName)
       .createSignedUrl(objectKey, 60 * 10, {
