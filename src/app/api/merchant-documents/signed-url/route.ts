@@ -101,34 +101,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
-    const { data: customer, error: customerError } = await dbClient
-      .from("customers")
-      .select("company_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (customerError) {
-      return NextResponse.json({ error: customerError.message }, { status: 500 });
-    }
-
-    const resolvedCompanyId = profile?.company_id ?? customer?.company_id ?? null;
-
-    console.info("[merchant-documents:signed-url] company resolution", {
-      authUserId: user.id,
-      profileCompanyId: profile?.company_id ?? null,
-      customerCompanyId: customer?.company_id ?? null,
-      resolvedCompanyId,
-    });
+    let resolvedCompanyId = profile?.company_id ?? null;
 
     if (!resolvedCompanyId) {
-      console.info("[merchant-documents:signed-url] NO_COMPANY_ERROR evidence", {
-        userId: user.id,
-        profile,
-        customer,
-        resolvedCompanyId,
-        noCompanyCondition: !resolvedCompanyId,
-      });
+      const { data: customer, error: customerError } = await dbClient
+        .from("customers")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
+      if (customerError) {
+        return NextResponse.json({ error: customerError.message }, { status: 500 });
+      }
+
+      resolvedCompanyId = customer?.company_id ?? null;
+    }
+
+    if (!resolvedCompanyId) {
       return NextResponse.json({ error: NO_COMPANY_ERROR }, { status: 403 });
     }
 
@@ -149,48 +138,6 @@ export async function POST(request: NextRequest) {
 
     const bucketName = "merchant-documents";
     const objectKey = document.file_path;
-    const separatorIndex = objectKey.lastIndexOf("/");
-    const parentFolder = separatorIndex >= 0 ? objectKey.slice(0, separatorIndex) : "";
-    const fileName = separatorIndex >= 0 ? objectKey.slice(separatorIndex + 1) : objectKey;
-
-    const { data: listData, error: listError } = await dbClient.storage
-      .from(bucketName)
-      .list(parentFolder, { limit: 1000 });
-
-    const listedFileNames = (listData ?? []).map((item) => item.name);
-
-    const diagnosticsBase = {
-      documentId: document.id,
-      uploadedDocumentFilePath: document.file_path,
-      bucketUsed: bucketName,
-      createSignedUrlObjectKey: objectKey,
-      parentFolder,
-      parentFolderFileName: fileName,
-      storageListResult: listData ?? null,
-      storageListError:
-        listError == null
-          ? null
-          : {
-              message: listError.message,
-              status: (listError as { status?: number }).status ?? null,
-              error: (listError as { error?: string }).error ?? null,
-            },
-      storageListFilenames: listedFileNames,
-      storageListContainsFilename: listedFileNames.includes(fileName),
-    };
-
-    console.info("[merchant-documents:signed-url] storage diagnostics", diagnosticsBase);
-
-    console.info("[merchant-documents:signed-url] createSignedUrl inputs", {
-      bucket: bucketName,
-      objectKey,
-      "uploadedDocument.file_path": document.file_path,
-      parentFolder,
-      filename: fileName,
-      "storage.list(parentFolder)": listData ?? null,
-      "createSignedUrl.objectKey": objectKey,
-    });
-
     const { data: signedData, error: signedError } = await dbClient.storage
       .from(bucketName)
       .createSignedUrl(objectKey, 60 * 10, {
@@ -209,17 +156,9 @@ export async function POST(request: NextRequest) {
               name: (signedError as { name?: string }).name ?? null,
             };
 
-      const diagnostics = {
-        ...diagnosticsBase,
-        createSignedUrlError: completeSignedUrlError,
-      };
-
-      console.error("[merchant-documents:signed-url] createSignedUrl failed", diagnostics);
-
       return NextResponse.json(
         {
           error: signedError?.message ?? "Failed to generate signed URL",
-          diagnostics,
         },
         { status: 500 }
       );
@@ -227,10 +166,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       signedUrl: signedData.signedUrl,
-      diagnostics: {
-        ...diagnosticsBase,
-        createSignedUrlError: null,
-      },
     });
   } catch (err) {
     return NextResponse.json(
