@@ -91,39 +91,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: profiles, error: profileError } = await dbClient
+    const result = await dbClient
       .from("profiles")
-      .select("company_id")
-      .eq("auth_user_id", user.id)
-      .limit(1);
+      .select("*");
 
-    if (profileError) {
-      return NextResponse.json(
-        {
-          error: "Profile lookup failed",
-          details: profileError.message,
-          userId: user.id,
-        },
-        { status: 500 }
-      );
-    }
-
-    const profile = profiles?.[0] ?? null;
-
-    if (!profile?.company_id) {
-      return NextResponse.json(
-        {
-          error: NO_COMPANY_ERROR,
-          details: "Profile exists but company_id is empty",
-          profile,
-          profiles,
-          userId: user.id,
-        },
-        { status: 403 }
-      );
-    }
-
-    const resolvedCompanyId = profile.company_id;
+    return NextResponse.json({
+      runtimeUserId: user.id,
+      allProfiles: result.data,
+      error: result.error,
+    });
 
     const { data: document, error: documentError } = await dbClient
       .from("uploaded_documents")
