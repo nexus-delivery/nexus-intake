@@ -121,6 +121,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!resolvedCompanyId) {
+      console.info("[merchant-documents:signed-url] NO_COMPANY_ERROR evidence", {
+        userId: user.id,
+        profile,
+        customer,
+        resolvedCompanyId,
+        noCompanyCondition: !resolvedCompanyId,
+      });
+
       return NextResponse.json({ error: NO_COMPANY_ERROR }, { status: 403 });
     }
 
