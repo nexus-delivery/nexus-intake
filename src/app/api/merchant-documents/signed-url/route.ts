@@ -101,7 +101,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: profileError.message }, { status: 500 });
     }
 
-    if (!profile?.company_id) {
+    const { data: customer, error: customerError } = await dbClient
+      .from("customers")
+      .select("company_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (customerError) {
+      return NextResponse.json({ error: customerError.message }, { status: 500 });
+    }
+
+    const resolvedCompanyId = profile?.company_id ?? customer?.company_id ?? null;
+
+    console.info("[merchant-documents:signed-url] company resolution", {
+      authUserId: user.id,
+      profileCompanyId: profile?.company_id ?? null,
+      customerCompanyId: customer?.company_id ?? null,
+      resolvedCompanyId,
+    });
+
+    if (!resolvedCompanyId) {
       return NextResponse.json({ error: NO_COMPANY_ERROR }, { status: 403 });
     }
 
@@ -109,7 +128,7 @@ export async function POST(request: NextRequest) {
       .from("uploaded_documents")
       .select("id, file_name, file_path, company_id")
       .eq("id", documentId)
-      .eq("company_id", profile.company_id)
+      .eq("company_id", resolvedCompanyId)
       .maybeSingle();
 
     if (documentError) {
