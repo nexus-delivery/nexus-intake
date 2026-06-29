@@ -91,11 +91,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: profile, error: profileError } = await dbClient
+    const { data: profiles, error: profileError } = await dbClient
       .from("profiles")
       .select("company_id")
       .eq("auth_user_id", user.id)
-      .single();
+      .limit(1);
 
     if (profileError) {
       return NextResponse.json(
@@ -108,18 +108,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resolvedCompanyId = profile.company_id;
+    const profile = profiles?.[0] ?? null;
 
-    if (!resolvedCompanyId) {
+    if (!profile?.company_id) {
       return NextResponse.json(
         {
           error: NO_COMPANY_ERROR,
           details: "Profile exists but company_id is empty",
           userId: user.id,
+          profiles,
         },
         { status: 403 }
       );
     }
+
+    const resolvedCompanyId = profile.company_id;
 
     const { data: document, error: documentError } = await dbClient
       .from("uploaded_documents")
