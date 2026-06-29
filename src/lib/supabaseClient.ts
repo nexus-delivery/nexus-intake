@@ -2,6 +2,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SIGN_IN_ERROR = "Please sign in to access merchant documents";
+const NO_COMPANY_ERROR = "No company is linked to this user";
+const ACCESS_DENIED_ERROR = "You do not have access to this document";
 
 export function getSupabaseProjectRefFromUrl(): string | null {
   if (!supabaseUrl) {
@@ -60,17 +63,23 @@ async function fetchAuthenticatedProfileContext(
   let authUserId = userId;
 
   if (!authUserId) {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) {
-      console.error("Failed to get Supabase session for document upload", { error });
-      throw new Error("Unable to verify your session. Please sign in and try again.");
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Failed to get authenticated user for merchant documents", {
+        error: userError,
+      });
+      throw new Error(SIGN_IN_ERROR);
     }
 
-    authUserId = data.session?.user.id;
+    authUserId = user?.id;
   }
 
   if (!authUserId) {
-    throw new Error("You must be signed in to upload a document.");
+    throw new Error(SIGN_IN_ERROR);
   }
 
   const { data: profile, error } = await supabase
@@ -85,15 +94,11 @@ async function fetchAuthenticatedProfileContext(
   }
 
   if (!profile) {
-    throw new Error(
-      "We couldn't find your profile. Please complete onboarding or contact support before uploading documents."
-    );
+    throw new Error(NO_COMPANY_ERROR);
   }
 
   if (!profile.company_id) {
-    throw new Error(
-      "Your profile is missing a company assignment. Please contact support before uploading documents."
-    );
+    throw new Error(NO_COMPANY_ERROR);
   }
 
   return {
@@ -219,7 +224,7 @@ export async function insertUploadedDocument(params: {
     if (profile.companyId !== params.companyId) {
       return {
         success: false,
-        error: "Your profile company does not match the selected company for this upload.",
+        error: ACCESS_DENIED_ERROR,
       };
     }
 
@@ -353,7 +358,7 @@ export async function uploadMultiFormatDocument(
   if (profile.companyId !== companyId) {
     return {
       success: false,
-      error: "Your profile company does not match the selected company for this upload.",
+      error: ACCESS_DENIED_ERROR,
     };
   }
 
@@ -516,6 +521,67 @@ export type MerchantSignedUrlDebug = {
   downloadOption: string | boolean | null;
   sdkError: Record<string, unknown> | null;
 };
+
+export async function requestMerchantDocumentSignedUrl(
+  documentId: string,
+  options?: { download?: boolean }
+): Promise<
+  | { success: true; signedUrl: string }
+  | {
+      success: false;
+      error: string;
+    }
+> {
+  if (!supabase) {
+    return { success: false, error: SIGN_IN_ERROR };
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { success: false, error: SIGN_IN_ERROR };
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session?.access_token) {
+    return { success: false, error: SIGN_IN_ERROR };
+  }
+
+  try {
+    const response = await fetch("/api/merchant-documents/signed-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionData.session.access_token}`,
+      },
+      body: JSON.stringify({
+        documentId,
+        download: Boolean(options?.download),
+      }),
+    });
+
+    const payload = (await response.json()) as { signedUrl?: string; error?: string };
+    if (!response.ok || !payload.signedUrl) {
+      return {
+        success: false,
+        error: payload.error ?? "Failed to generate a signed URL",
+      };
+    }
+
+    return {
+      success: true,
+      signedUrl: payload.signedUrl,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Failed to generate a signed URL",
+    };
+  }
+}
 
 function serializeSdkError(error: unknown): Record<string, unknown> {
   if (!error || typeof error !== "object") {

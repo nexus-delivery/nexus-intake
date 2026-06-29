@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { uploadMultiFormatDocument, type UploadedDocumentMetadata } from "@/lib/supabaseClient";
+import {
+  supabase,
+  uploadMultiFormatDocument,
+  type UploadedDocumentMetadata,
+} from "@/lib/supabaseClient";
 
 type UploadState = "idle" | "uploading" | "success" | "error";
 
@@ -62,9 +66,30 @@ export default function DocumentUploadCard({
   };
 
   const processFile = async (file: File) => {
+    if (!supabase) {
+      setUploadState("error");
+      const error = "Please sign in to access merchant documents";
+      setErrorMessage(error);
+      onUploadError?.(error);
+      return;
+    }
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setUploadState("error");
+      const error = "Please sign in to access merchant documents";
+      setErrorMessage(error);
+      onUploadError?.(error);
+      return;
+    }
+
     if (!companyId) {
       setUploadState("error");
-      const error = "Missing company ID for document upload.";
+      const error = "No company is linked to this user";
       setErrorMessage(error);
       onUploadError?.(error);
       return;

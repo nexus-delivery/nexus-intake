@@ -2,18 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
-  createMerchantDocumentSignedUrl,
+  fetchCurrentProfile,
   fetchUploadedDocuments,
-  type MerchantSignedUrlDebug,
+  requestMerchantDocumentSignedUrl,
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
-import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
-
-type SignedUrlDebugState = {
-  action: "view" | "download";
-  documentId: string;
-  debug: MerchantSignedUrlDebug;
-};
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString(undefined, {
@@ -86,12 +79,11 @@ function DocumentCard({
 }
 
 export default function MerchantDocumentsPage() {
-  const companyId = useRuntimeCompanyId();
+  const [companyId, setCompanyId] = useState<string>("");
   const [documents, setDocuments] = useState<UploadedDocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyDocumentId, setBusyDocumentId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [signedUrlDebug, setSignedUrlDebug] = useState<SignedUrlDebugState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,16 +92,28 @@ export default function MerchantDocumentsPage() {
       setLoading(true);
       setErrorMessage(null);
 
-      if (!companyId) {
+      const profileResult = await fetchCurrentProfile();
+      if (!profileResult.success) {
         if (!cancelled) {
           setDocuments([]);
-          setErrorMessage("Missing company ID in the current session.");
+          setErrorMessage(profileResult.error);
           setLoading(false);
         }
         return;
       }
 
-      const result = await fetchUploadedDocuments(companyId);
+      if (!profileResult.data.companyId) {
+        if (!cancelled) {
+          setDocuments([]);
+          setErrorMessage("No company is linked to this user");
+          setLoading(false);
+        }
+        return;
+      }
+
+      setCompanyId(profileResult.data.companyId);
+
+      const result = await fetchUploadedDocuments(profileResult.data.companyId);
       if (cancelled) {
         return;
       }
@@ -128,21 +132,26 @@ export default function MerchantDocumentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [companyId]);
+  }, []);
 
   const openDocument = async (document: UploadedDocumentRow, download: boolean) => {
     setBusyDocumentId(document.id);
     setErrorMessage(null);
-    setSignedUrlDebug(null);
 
-    const result = await createMerchantDocumentSignedUrl(document.file_path, 10 * 60, {
+    if (!companyId) {
+      setErrorMessage("No company is linked to this user");
+      setBusyDocumentId(null);
+      return;
+    }
+
+    if (document.company_id !== companyId) {
+      setErrorMessage("You do not have access to this document");
+      setBusyDocumentId(null);
+      return;
+    }
+
+    const result = await requestMerchantDocumentSignedUrl(document.id, {
       download,
-    });
-
-    setSignedUrlDebug({
-      action: download ? "download" : "view",
-      documentId: document.id,
-      debug: result.debug,
     });
 
     if (!result.success) {
@@ -172,23 +181,6 @@ export default function MerchantDocumentsPage() {
       {errorMessage && (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {errorMessage}
-        </div>
-      )}
-
-      {signedUrlDebug && (
-        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-          <p className="font-semibold">Temporary Signed URL Debug</p>
-          <p className="mt-2">Action: {signedUrlDebug.action}</p>
-          <p>Document ID: {signedUrlDebug.documentId}</p>
-          <p className="break-all">Supabase project URL at runtime: {signedUrlDebug.debug.supabaseProjectUrl ?? "null"}</p>
-          <p>Supabase project reference at runtime: {signedUrlDebug.debug.supabaseProjectRef ?? "null"}</p>
-          <p>Bucket passed to createSignedUrl(): {signedUrlDebug.debug.bucket}</p>
-          <p className="break-all">Object key passed to createSignedUrl(): {signedUrlDebug.debug.objectKeyPassedToCreateSignedUrl}</p>
-          <p className="break-all">uploaded_documents.file_path: {signedUrlDebug.debug.uploadedDocumentFilePath}</p>
-          <p>Complete SDK error object returned by createSignedUrl:</p>
-          <pre className="mt-2 overflow-x-auto rounded-xl bg-white p-3 text-xs text-slate-700">
-            {JSON.stringify(signedUrlDebug.debug.sdkError, null, 2)}
-          </pre>
         </div>
       )}
 

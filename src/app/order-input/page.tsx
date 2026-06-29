@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
+import { supabase } from "@/lib/supabaseClient";
 
 const methods = [
   {
@@ -64,6 +65,29 @@ export default function OrderInputPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [uploadActive, setUploadActive] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setIsAuthenticated(Boolean(user));
+    })();
+
+    const subscription = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session?.user));
+    });
+
+    return () => {
+      subscription.data.subscription.unsubscribe();
+    };
+  }, []);
 
   const selectedMethod = methods.find((method) => method.id === selected);
 
@@ -178,6 +202,18 @@ export default function OrderInputPage() {
                   className="rounded-2xl bg-[#7C3AED] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#6d28d9]"
                   onClick={() => {
                     if (selectedMethod.id === "pdf") {
+                      if (!isAuthenticated) {
+                        setUploadError("Please sign in to access merchant documents");
+                        setUploadActive(false);
+                        return;
+                      }
+                      if (!companyId) {
+                        setUploadError("No company is linked to this user");
+                        setUploadActive(false);
+                        return;
+                      }
+
+                      setUploadError(null);
                       setUploadActive(true);
                       setUploadComplete(false);
                     }
@@ -260,6 +296,12 @@ export default function OrderInputPage() {
                 This links into the Document Centre. When upload succeeds, you'll see the document preview.
               </p>
             </div>
+
+            {uploadError && (
+              <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+                {uploadError}
+              </div>
+            )}
 
             <DocumentUploadCard
               companyId={companyId}

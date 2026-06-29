@@ -10,7 +10,12 @@ import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 const PUBLIC_PATHS = new Set(["/signin", "/signup"]);
 
 function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_PATHS.has(pathname) || pathname.startsWith("/auth/");
+  return (
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/order-input" ||
+    pathname === "/booking-forms"
+  );
 }
 
 export default function AuthGate({ children }: { children: ReactNode }) {
