@@ -530,11 +530,7 @@ export async function requestMerchantDocumentSignedUrl(
   | {
       success: false;
       error: string;
-      apiError?: {
-        error?: string;
-        details?: string;
-        userId?: string;
-      };
+      apiError?: Record<string, unknown>;
     }
 > {
   if (!supabase) {
@@ -559,30 +555,27 @@ export async function requestMerchantDocumentSignedUrl(
       }),
     });
 
-    const payload = (await response.json()) as {
-      signedUrl?: string;
-      error?: string;
-      details?: string;
-      userId?: string;
-    };
-    if (!response.ok || !payload.signedUrl) {
+    const payload = (await response.json()) as unknown;
+    const payloadObject =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    const signedUrl =
+      typeof payloadObject.signedUrl === "string" ? payloadObject.signedUrl : undefined;
+    const payloadError =
+      typeof payloadObject.error === "string" ? payloadObject.error : undefined;
+
+    if (!response.ok || !signedUrl) {
       return {
         success: false,
-        error: payload.error ?? "Failed to generate a signed URL",
-        apiError:
-          payload.error || payload.details || payload.userId
-            ? {
-                error: payload.error,
-                details: payload.details,
-                userId: payload.userId,
-              }
-            : undefined,
+        error: payloadError ?? "Failed to generate a signed URL",
+        apiError: payloadObject,
       };
     }
 
     return {
       success: true,
-      signedUrl: payload.signedUrl,
+      signedUrl,
     };
   } catch (err) {
     return {
