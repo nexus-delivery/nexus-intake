@@ -95,30 +95,30 @@ export async function POST(request: NextRequest) {
       .from("profiles")
       .select("company_id")
       .eq("auth_user_id", user.id)
-      .maybeSingle();
+      .single();
 
     if (profileError) {
-      return NextResponse.json({ error: profileError.message }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Profile lookup failed",
+          details: profileError.message,
+          userId: user.id,
+        },
+        { status: 500 }
+      );
     }
 
-    let resolvedCompanyId = profile?.company_id ?? null;
+    const resolvedCompanyId = profile.company_id;
 
     if (!resolvedCompanyId) {
-      const { data: customer, error: customerError } = await dbClient
-        .from("customers")
-        .select("company_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (customerError) {
-        return NextResponse.json({ error: customerError.message }, { status: 500 });
-      }
-
-      resolvedCompanyId = customer?.company_id ?? null;
-    }
-
-    if (!resolvedCompanyId) {
-      return NextResponse.json({ error: NO_COMPANY_ERROR }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: NO_COMPANY_ERROR,
+          details: "Profile exists but company_id is empty",
+          userId: user.id,
+        },
+        { status: 403 }
+      );
     }
 
     const { data: document, error: documentError } = await dbClient
