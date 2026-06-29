@@ -115,8 +115,9 @@ export async function POST(request: NextRequest) {
         {
           error: NO_COMPANY_ERROR,
           details: "Profile exists but company_id is empty",
-          userId: user.id,
+          profile,
           profiles,
+          userId: user.id,
         },
         { status: 403 }
       );
