@@ -97,7 +97,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       runtimeUserId: user.id,
+      runtimeSupabaseUrl: supabaseUrl ?? null,
       allProfiles: result.data,
+      profileCount: result.data?.length ?? null,
       error: result.error,
     });
   } catch (err) {
