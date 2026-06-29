@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       console.log("[DEBUG:Storage] Test 2: List company folder recursively");
       const { data: companyData, error: companyError } = await supabase.storage
         .from(bucketName)
-        .list(companyId, { limit: 1000, recursive: true });
+        .list(companyId, { limit: 1000 });
 
       diagnostics.tests.companyFolder = {
         path: companyId,
