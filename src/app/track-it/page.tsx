@@ -3,8 +3,8 @@ import { WorkspaceCardGrid, WorkspaceHero, WorkspaceInfoStrip } from "@/componen
 
 const sections = [
   {
-    title: "Live jobs",
-    description: "See jobs progressing now, grouped by SLA risk and current status.",
+    title: "Routed",
+    description: "Jobs accepted by Track-POD and queued against planned route runs.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -15,8 +15,8 @@ const sections = [
     ),
   },
   {
-    title: "Routes",
-    description: "Monitor route adherence, stop completion and reroute decisions.",
+    title: "Driver assigned",
+    description: "Track assignment from planning through driver acknowledgement.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -26,8 +26,8 @@ const sections = [
     ),
   },
   {
-    title: "Drivers",
-    description: "Review driver activity, break windows and assignment load.",
+    title: "Collected",
+    description: "Collection events confirmed in Track-POD and synced into Track it.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -37,8 +37,8 @@ const sections = [
     ),
   },
   {
-    title: "Vehicles",
-    description: "Track vehicle availability, utilisation and route readiness.",
+    title: "In transit",
+    description: "Transit milestones and ETA movement after collection completion.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -48,8 +48,8 @@ const sections = [
     ),
   },
   {
-    title: "Proof of Delivery",
-    description: "Validate signatures, photos and exception notes as jobs complete.",
+    title: "Delivered",
+    description: "Delivery completion and final stop confirmation from Track-POD.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -59,8 +59,8 @@ const sections = [
     ),
   },
   {
-    title: "Exceptions",
-    description: "Surface delays, failed drops and handover issues that need action now.",
+    title: "Failed / exception / POD",
+    description: "Capture failed outcomes, exception reason, and POD asset availability.",
     status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
@@ -79,7 +79,7 @@ export default function TrackItPage() {
         <WorkspaceHero
           kicker="Control centre"
           title="Track it"
-          description="Run operations in real time with routes, drivers, tracking and exception management."
+          description="Starts once Track-POD has accepted the job and returns live execution updates."
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
@@ -90,7 +90,7 @@ export default function TrackItPage() {
 
         <WorkspaceInfoStrip
           title="Operations telemetry active"
-          description="Unified live jobs, route health and service exceptions are now grouped in this workspace."
+          description="Monitoring status lifecycle: routed, driver assigned, collected, in transit, delivered and POD."
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
               <path d="M12 8v4l3 3" />

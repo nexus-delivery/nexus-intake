@@ -7,7 +7,10 @@ type ConfirmJobRequest = {
 };
 
 type TrackPodResult = {
+  collectionOrderId: string;
   deliveryOrderId: string;
+  collectionTrackingUrl: string;
+  deliveryTrackingUrl: string;
   raw: unknown;
 };
 
@@ -179,11 +182,29 @@ async function createTrackPodDeliveryOrder(
     extractFirstString(payload, ["id", "orderId", "deliveryOrderId", "reference"])
     ?? masterReference;
 
+  const collectionOrderId =
+    extractFirstString(payload, ["collectionOrderId", "pickupOrderId", "collectionId", "reference"])
+    ?? masterReference;
+
+  const deliveryTrackingUrl =
+    extractFirstString(payload, ["deliveryTrackingUrl", "trackingUrl", "publicTrackingUrl"])
+    ?? "";
+
+  const collectionTrackingUrl =
+    extractFirstString(payload, ["collectionTrackingUrl", "pickupTrackingUrl", "collectionPublicTrackingUrl"])
+    ?? deliveryTrackingUrl;
+
   if (!deliveryOrderId) {
     throw new Error("Track-POD response did not include a delivery order ID");
   }
 
-  return { deliveryOrderId, raw: payload };
+  return {
+    collectionOrderId,
+    deliveryOrderId,
+    collectionTrackingUrl,
+    deliveryTrackingUrl,
+    raw: payload,
+  };
 }
 
 async function createXeroDraftInvoice(
@@ -310,6 +331,13 @@ export async function POST(request: NextRequest) {
           createdAt: new Date().toISOString(),
         },
       ],
+      routeIt: {
+        state: "sent_to_trackpod",
+        collectionOrderId: trackPodResult.collectionOrderId,
+        deliveryOrderId: trackPodResult.deliveryOrderId,
+        collectionTrackingUrl: trackPodResult.collectionTrackingUrl,
+        deliveryTrackingUrl: trackPodResult.deliveryTrackingUrl,
+      },
       trackpod: trackPodResult.raw,
       xero: xeroResult.raw,
       updatedAt: new Date().toISOString(),
@@ -320,7 +348,10 @@ export async function POST(request: NextRequest) {
       .update({
         status: "job_created",
         job_reference: jobReference,
+        trackpod_collection_order_id: trackPodResult.collectionOrderId,
         trackpod_delivery_order_id: trackPodResult.deliveryOrderId,
+        trackpod_collection_tracking_url: trackPodResult.collectionTrackingUrl,
+        trackpod_delivery_tracking_url: trackPodResult.deliveryTrackingUrl,
         xero_draft_invoice_id: xeroResult.draftInvoiceId,
         integration_metadata: integrationMetadata,
       })
@@ -342,7 +373,10 @@ export async function POST(request: NextRequest) {
           actor_profile_id: profile.id,
           metadata: {
             masterReference,
+            trackPodCollectionOrderId: trackPodResult.collectionOrderId,
             trackPodDeliveryOrderId: trackPodResult.deliveryOrderId,
+            trackPodCollectionTrackingUrl: trackPodResult.collectionTrackingUrl,
+            trackPodDeliveryTrackingUrl: trackPodResult.deliveryTrackingUrl,
             xeroDraftInvoiceId: xeroResult.draftInvoiceId,
           },
         });
@@ -356,7 +390,10 @@ export async function POST(request: NextRequest) {
       success: true,
       jobId: draftJob.id,
       jobReference,
+      trackPodCollectionOrderId: trackPodResult.collectionOrderId,
       trackPodDeliveryOrderId: trackPodResult.deliveryOrderId,
+      trackPodCollectionTrackingUrl: trackPodResult.collectionTrackingUrl,
+      trackPodDeliveryTrackingUrl: trackPodResult.deliveryTrackingUrl,
       xeroDraftInvoiceId: xeroResult.draftInvoiceId,
     });
   } catch (err) {

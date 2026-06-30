@@ -26,7 +26,7 @@ const CHANNELS = [
   },
   {
     label: "Call us",
-    sub: "+44 11 3479 0208",
+    sub: "+44 113 479 0208",
     badge: "Mon–Fri 09:00–17:00",
     badgeColor: "bg-sky-100 text-sky-700",
     icon: (
@@ -157,7 +157,7 @@ export default function TellItPage() {
                 </svg>
                 Chat on WhatsApp
               </a>
-              <p className="mt-2 text-center text-xs text-slate-400">+44 11 3479 0208</p>
+              <p className="mt-2 text-center text-xs text-slate-400">+44 113 479 0208</p>
             </div>
 
             {/* Quick links */}
@@ -179,6 +179,20 @@ export default function TellItPage() {
                     <span className="text-slate-400">→</span>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="nexus-card rounded-[24px] p-5">
+              <p className="mb-2 text-sm font-semibold text-slate-900">Support request</p>
+              <p className="text-sm text-slate-600">
+                Use the form to raise a support request for upload, Route it, Track-POD sync, or invoice workflow issues.
+              </p>
+            </div>
+
+            <div className="nexus-card rounded-[24px] p-5">
+              <p className="mb-2 text-sm font-semibold text-slate-900">Customer / Merchant message area</p>
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-xs text-slate-500">
+                Placeholder for shared customer-merchant conversation thread.
               </div>
             </div>
           </div>

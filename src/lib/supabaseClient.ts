@@ -436,7 +436,10 @@ export async function confirmJob(params: {
   success: boolean;
   jobId?: string;
   jobReference?: string;
+  trackPodCollectionOrderId?: string;
   trackPodDeliveryOrderId?: string;
+  trackPodCollectionTrackingUrl?: string;
+  trackPodDeliveryTrackingUrl?: string;
   xeroDraftInvoiceId?: string;
   error?: string;
 }> {
@@ -493,9 +496,21 @@ export async function confirmJob(params: {
         success: true,
         jobId: typeof payload.jobId === "string" ? payload.jobId : params.draftJobId,
         jobReference: typeof payload.jobReference === "string" ? payload.jobReference : undefined,
+        trackPodCollectionOrderId:
+          typeof payload.trackPodCollectionOrderId === "string"
+            ? payload.trackPodCollectionOrderId
+            : undefined,
         trackPodDeliveryOrderId:
           typeof payload.trackPodDeliveryOrderId === "string"
             ? payload.trackPodDeliveryOrderId
+            : undefined,
+        trackPodCollectionTrackingUrl:
+          typeof payload.trackPodCollectionTrackingUrl === "string"
+            ? payload.trackPodCollectionTrackingUrl
+            : undefined,
+        trackPodDeliveryTrackingUrl:
+          typeof payload.trackPodDeliveryTrackingUrl === "string"
+            ? payload.trackPodDeliveryTrackingUrl
             : undefined,
         xeroDraftInvoiceId:
           typeof payload.xeroDraftInvoiceId === "string"

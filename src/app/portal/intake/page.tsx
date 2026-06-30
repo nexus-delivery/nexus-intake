@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import BookingMethodSelector, {
   type BookingMethod,
 } from "@/components/BookingMethodSelector";
@@ -32,10 +33,37 @@ export default function MerchantIntakePage() {
   const [jobFormData, setJobFormData] = useState<JobFormData | null>(null);
   const [jobReference, setJobReference] = useState<string | null>(null);
   const [confirmedJobId, setConfirmedJobId] = useState<string | null>(null);
+  const [trackPodCollectionOrderId, setTrackPodCollectionOrderId] = useState<string | null>(null);
   const [trackPodOrderId, setTrackPodOrderId] = useState<string | null>(null);
+  const [trackPodCollectionTrackingUrl, setTrackPodCollectionTrackingUrl] = useState<string | null>(null);
+  const [trackPodDeliveryTrackingUrl, setTrackPodDeliveryTrackingUrl] = useState<string | null>(null);
   const [xeroInvoiceId, setXeroInvoiceId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+
+  const copyToClipboard = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Intentionally ignore clipboard failures so the workflow remains usable.
+    }
+  };
+
+  const shareLink = async (value: string) => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Tracking link", url: value });
+        return;
+      }
+      await copyToClipboard(value);
+    } catch {
+      // Ignore share cancellation/errors and keep the page responsive.
+    }
+  };
+
+  const emailLink = (value: string) => {
+    window.location.href = `mailto:?subject=NEXUS Tracking Link&body=${encodeURIComponent(value)}`;
+  };
 
   const handleSelectMethod = (selected: BookingMethod) => {
     setMethod(selected);
@@ -105,7 +133,10 @@ export default function MerchantIntakePage() {
     if (result.success) {
       setJobReference(result.jobReference ?? null);
       setConfirmedJobId(result.jobId ?? null);
+      setTrackPodCollectionOrderId(result.trackPodCollectionOrderId ?? null);
       setTrackPodOrderId(result.trackPodDeliveryOrderId ?? null);
+      setTrackPodCollectionTrackingUrl(result.trackPodCollectionTrackingUrl ?? null);
+      setTrackPodDeliveryTrackingUrl(result.trackPodDeliveryTrackingUrl ?? null);
       setXeroInvoiceId(result.xeroDraftInvoiceId ?? null);
       setStep("confirmed");
     } else {
@@ -125,7 +156,10 @@ export default function MerchantIntakePage() {
     setJobFormData(null);
     setJobReference(null);
     setConfirmedJobId(null);
+    setTrackPodCollectionOrderId(null);
     setTrackPodOrderId(null);
+    setTrackPodCollectionTrackingUrl(null);
+    setTrackPodDeliveryTrackingUrl(null);
     setXeroInvoiceId(null);
     setConfirmError(null);
   };
@@ -247,6 +281,25 @@ export default function MerchantIntakePage() {
       {/* ── Step 4: Confirmed ────────────────────────────────────────── */}
       {step === "confirmed" && (
         <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Workflow Status</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                "Uploaded",
+                "Reviewed",
+                "Job Created",
+                "Ready for Route it",
+                "Sent to Track-POD",
+                "Tracking Available",
+                "Track it",
+              ].map((state) => (
+                <div key={state} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                  {state}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8">
             <div className="flex items-start gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
@@ -288,6 +341,11 @@ export default function MerchantIntakePage() {
               )}
               {(trackPodOrderId || xeroInvoiceId) && (
                 <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                  {trackPodCollectionOrderId && (
+                    <p>
+                      Track-POD Collection Order ID: <span className="font-mono">{trackPodCollectionOrderId}</span>
+                    </p>
+                  )}
                   {trackPodOrderId && (
                     <p>
                       Track-POD Delivery Order ID: <span className="font-mono">{trackPodOrderId}</span>
@@ -301,6 +359,71 @@ export default function MerchantIntakePage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {(trackPodCollectionTrackingUrl || trackPodDeliveryTrackingUrl) && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tracking Links</p>
+              <div className="mt-4 space-y-4">
+                {[
+                  { label: "Collection", value: trackPodCollectionTrackingUrl },
+                  { label: "Delivery", value: trackPodDeliveryTrackingUrl },
+                ]
+                  .filter((item) => Boolean(item.value))
+                  .map((item) => (
+                    <div key={item.label} className="rounded-xl border border-slate-200 p-4">
+                      <p className="text-sm font-semibold text-[var(--nexus-graphite)]">{item.label} Tracking Link</p>
+                      <p className="mt-1 break-all text-xs text-slate-500">{item.value}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <a
+                          href={item.value ?? "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+                        >
+                          View Tracking Link
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => item.value && copyToClipboard(item.value)}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+                        >
+                          Copy Tracking Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => item.value && shareLink(item.value)}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+                        >
+                          Share Tracking Link
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => item.value && emailLink(item.value)}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+                        >
+                          Email Tracking Link
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/route-it"
+              className="rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+            >
+              Send to Track-POD
+            </Link>
+            <Link
+              href="/track-it"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50"
+            >
+              View Job
+            </Link>
           </div>
 
           <button
