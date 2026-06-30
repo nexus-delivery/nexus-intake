@@ -193,56 +193,6 @@ function detectSupportedDocumentType(
   return null;
 }
 
-function isNookUklhPurchaseOrder(fileName: string, text: string): boolean {
-  const source = `${fileName} ${text}`.toLowerCase();
-  return (
-    source.includes("purchase order")
-    && source.includes("nook")
-    && (source.includes("uklh") || /\b402\b/.test(source))
-  );
-}
-
-function buildNookUklhReviewData(text: string): OcrReviewData {
-  const rtcDateRaw = pickFirst(text, [
-    /rtc\s*date\s*[:\-]\s*([^\n]+)/i,
-    /ready\s*to\s*collect\s*date\s*[:\-]\s*([^\n]+)/i,
-  ]);
-  const collectionDate = normalizeDate(rtcDateRaw || "07/08/2026");
-  const deliveryDate = normalizeDate(
-    pickFirst(text, [/delivery\s*date\s*[:\-]\s*([^\n]+)/i]) || "21/08/2026"
-  );
-
-  return {
-    documentType: "purchase_order",
-    orderReference: "402",
-    orderType: "Delivery",
-    collectionDate,
-    collectionDateConfidence: rtcDateRaw ? "high" : "low",
-    deliveryDate,
-    deliveryDateConfidence: "high",
-    merchantShipper: "BLB home Group / T/A Nook Home",
-    customer: "Mary Deely",
-    collectionName: "Aged to Perfection Upholstery Ltd",
-    collectionAddress: "Unit 18 Habergham Mill, Coal Clough Ln, Burnley, BB11 5BS",
-    deliveryAddress: "15 Firecrest Way, Edinburgh, Scotland, EH4 8GP",
-    contactName: "Mary Deely",
-    telephone: "7552975261",
-    email: "mdeely1@gmail.com",
-    goodsDescription: "Malham Medium Bench",
-    packages: "1",
-    quantity: "1",
-    weight: "",
-    volume: "",
-    priority: "Normal",
-    cashOnDelivery: "£0.00",
-    netAmount: "£60.00",
-    vatAmount: "£12.00",
-    grossTotal: "£72.00",
-    vatRate: "20%",
-    notes: "STANDARD 1 MAN DELIVERY",
-  };
-}
-
 function decodeVisibleText(buffer: ArrayBuffer): string {
   const raw = new TextDecoder("latin1").decode(new Uint8Array(buffer));
   return raw
@@ -272,10 +222,6 @@ function buildReviewData(
   text: string,
   docType: SupportedDocumentType
 ): OcrReviewData {
-  if (docType === "purchase_order" && isNookUklhPurchaseOrder(metadata.fileName, text)) {
-    return buildNookUklhReviewData(text);
-  }
-
   const fileInference = inferFromFileName(metadata.fileName);
 
   const orderTypeText = pickFirst(text, [

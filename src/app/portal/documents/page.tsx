@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   fetchCurrentProfile,
+  fetchDraftJobsForDocuments,
   fetchUploadedDocuments,
   requestMerchantDocumentSignedUrl,
+  type DraftJobLinkRow,
   type UploadedDocumentRow,
 } from "@/lib/supabaseClient";
 
@@ -21,15 +23,21 @@ function formatDateTime(value: string): string {
 
 function DocumentCard({
   document,
+  draftJob,
   busy,
   onView,
   onDownload,
 }: {
   document: UploadedDocumentRow;
+  draftJob: DraftJobLinkRow | null;
   busy: boolean;
   onView: (document: UploadedDocumentRow) => void;
   onDownload: (document: UploadedDocumentRow) => void;
 }) {
+  const reviewHref = draftJob
+    ? `/portal/documents/${document.id}/review?draftJobId=${encodeURIComponent(draftJob.id)}`
+    : "";
+
   return (
     <article className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/40 transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -43,6 +51,9 @@ function DocumentCard({
             </span>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
               {document.status}
+            </span>
+            <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">
+              {draftJob ? draftJob.status : "draft_pending"}
             </span>
           </div>
 
@@ -73,12 +84,26 @@ function DocumentCard({
           >
             Download
           </button>
-          <Link
-            href={`/portal/documents/${document.id}/review`}
-            className="inline-flex items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
-          >
-            Review / Extract
-          </Link>
+          {draftJob ? (
+            <Link
+              href={reviewHref}
+              className="inline-flex items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+            >
+              {draftJob.status === "job_created" ? "Continue Processing" : "Review / Extract"}
+            </Link>
+          ) : (
+            <span className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-500">
+              Draft job unavailable
+            </span>
+          )}
+          {draftJob?.status === "job_created" && (
+            <Link
+              href="/process-it"
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+              Create Job Ready
+            </Link>
+          )}
         </div>
       </div>
     </article>
@@ -88,6 +113,7 @@ function DocumentCard({
 export default function MerchantDocumentsPage() {
   const [companyId, setCompanyId] = useState<string>("");
   const [documents, setDocuments] = useState<UploadedDocumentRow[]>([]);
+  const [draftJobByDocumentId, setDraftJobByDocumentId] = useState<Record<string, DraftJobLinkRow>>({});
   const [loading, setLoading] = useState(true);
   const [busyDocumentId, setBusyDocumentId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -133,6 +159,20 @@ export default function MerchantDocumentsPage() {
 
       if (result.success) {
         setDocuments(result.data);
+        const draftJobsResult = await fetchDraftJobsForDocuments(result.data.map((doc) => doc.id));
+        if (!cancelled && draftJobsResult.success) {
+          const links = draftJobsResult.data.reduce<Record<string, DraftJobLinkRow>>((acc, draftJob) => {
+            const documentId = draftJob.primary_document_id;
+            if (!documentId) {
+              return acc;
+            }
+            if (!acc[documentId]) {
+              acc[documentId] = draftJob;
+            }
+            return acc;
+          }, {});
+          setDraftJobByDocumentId(links);
+        }
       } else {
         setErrorMessage(result.error);
       }
@@ -192,8 +232,14 @@ export default function MerchantDocumentsPage() {
           Documents
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-          View or download customer documents stored in Supabase Storage.
+          Upload inbox for review and job creation. Documents remain accessible until you choose to process them.
         </p>
+        <div className="flex flex-wrap gap-2 text-xs font-semibold">
+          <Link href="/create-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Create It</Link>
+          <Link href="/portal/intake" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Upload It</Link>
+          <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
+          <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
+        </div>
       </header>
 
       {apiError ? (
@@ -216,6 +262,7 @@ export default function MerchantDocumentsPage() {
             <DocumentCard
               key={document.id}
               document={document}
+              draftJob={draftJobByDocumentId[document.id] ?? null}
               busy={busyDocumentId === document.id}
               onView={(selectedDocument) => {
                 void openDocument(selectedDocument, false);

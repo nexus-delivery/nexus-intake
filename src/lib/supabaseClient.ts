@@ -582,6 +582,14 @@ export type DraftJobLinkRow = {
   created_at: string;
 };
 
+export type DraftJobIdentityRow = {
+  id: string;
+  company_id: string;
+  primary_document_id: string | null;
+  status: string;
+  created_at: string;
+};
+
 export type MerchantSignedUrlDebug = {
   supabaseProjectUrl: string | null;
   supabaseProjectRef: string | null;
@@ -799,6 +807,40 @@ export async function fetchDraftJobForDocument(
 
   const draftJob = result.data.find((job) => job.primary_document_id === documentId) ?? null;
   return { success: true, data: draftJob };
+}
+
+export async function fetchDraftJobById(
+  draftJobId: string,
+  companyId?: string
+): Promise<
+  | { success: true; data: DraftJobIdentityRow | null }
+  | { success: false; error: string }
+> {
+  if (!supabase) {
+    return { success: false, error: "Supabase configuration not available in preview" };
+  }
+
+  try {
+    let query = supabase
+      .from("draft_jobs")
+      .select("id, company_id, primary_document_id, status, created_at")
+      .eq("id", draftJobId);
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: data ?? null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to fetch draft job";
+    return { success: false, error: message };
+  }
 }
 
 /**

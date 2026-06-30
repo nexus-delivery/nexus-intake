@@ -130,6 +130,10 @@ export default function MerchantIntakePage() {
     if (!uploadData) {
       return;
     }
+    if (!uploadData.jobId || !uploadData.documentId) {
+      setOcrError("Uploaded draft job identity is missing. Please upload again.");
+      return;
+    }
 
     setOcrExtracting(true);
     setOcrError(null);
@@ -170,6 +174,12 @@ export default function MerchantIntakePage() {
 
     if (method === "upload" && !uploadData) {
       setConfirmError("No uploaded document is selected for this review.");
+      setIsConfirming(false);
+      return;
+    }
+
+    if (method === "upload" && (!uploadData?.jobId || !uploadData?.documentId)) {
+      setConfirmError("Draft job identity is missing for this upload. Please upload again.");
       setIsConfirming(false);
       return;
     }
@@ -251,6 +261,12 @@ export default function MerchantIntakePage() {
             Choose how you would like to create a job.
           </p>
         )}
+        <div className="flex flex-wrap gap-2 text-xs font-semibold">
+          <Link href="/create-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Create It</Link>
+          <Link href="/portal/documents" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Documents</Link>
+          <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
+          <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
+        </div>
       </header>
 
       {/* ── Step 1: Method selector ──────────────────────────────────── */}
@@ -321,6 +337,7 @@ export default function MerchantIntakePage() {
       {/* ── Step 3: Review Job ───────────────────────────────────────── */}
       {step === "review" && method === "upload" && ocrReviewData && (
         <UploadOcrReviewScreen
+          key={uploadData?.jobId ?? "upload-review"}
           data={ocrReviewData}
           onChange={setOcrReviewData}
           onBack={handleBack}
@@ -352,13 +369,10 @@ export default function MerchantIntakePage() {
                 "Book it",
                 "Check it",
                 "Process it",
-                "Move it / Route it",
+                "Ready for Process It",
                 "Job Created",
-                "Sent to Track-POD",
-                "Tracking Available",
-                "Track it",
-                "Invoice it",
-                "See it",
+                "Documents Stored",
+                "Continue from Documents",
               ].map((state) => (
                 <div key={state} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
                   {state}
@@ -428,100 +442,6 @@ export default function MerchantIntakePage() {
             </div>
           </div>
 
-          {(trackPodCollectionTrackingUrl || trackPodDeliveryTrackingUrl) && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Tracking Links</p>
-              <div className="mt-4 space-y-4">
-                {[
-                  { label: "Collection", value: trackPodCollectionTrackingUrl },
-                  { label: "Delivery", value: trackPodDeliveryTrackingUrl },
-                ]
-                  .filter((item) => Boolean(item.value))
-                  .map((item) => (
-                    <div key={item.label} className="rounded-xl border border-slate-200 p-4">
-                      <p className="text-sm font-semibold text-[var(--nexus-graphite)]">{item.label} Tracking Link</p>
-                      <p className="mt-1 break-all text-xs text-slate-500">{item.value}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <a
-                          href={item.value ?? "#"}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-                        >
-                          View Tracking Link
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => item.value && copyToClipboard(item.value)}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-                        >
-                          Copy Tracking Link
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => item.value && shareLink(item.value)}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-                        >
-                          Share Tracking Link
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => item.value && emailLink(item.value)}
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-                        >
-                          Email Tracking Link
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">NEXUS Email Actions</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-              <input
-                type="email"
-                value={emailRecipient}
-                onChange={(e) => setEmailRecipient(e.target.value)}
-                placeholder="recipient@example.com"
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-[var(--nexus-graphite)]"
-              />
-              <button
-                type="button"
-                onClick={() => sendNexusEmail("collection")}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-              >
-                Send Collection Tracking
-              </button>
-              <button
-                type="button"
-                onClick={() => sendNexusEmail("delivery")}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-              >
-                Send Delivery Tracking
-              </button>
-              <button
-                type="button"
-                onClick={() => sendNexusEmail("documents")}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-              >
-                Send Document Links
-              </button>
-              <button
-                type="button"
-                onClick={() => sendNexusEmail("pod")}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
-              >
-                Send POD
-              </button>
-            </div>
-            {emailStatus ? (
-              <p className="mt-2 text-xs text-slate-500">{emailStatus}</p>
-            ) : null}
-          </div>
-
           {documentUrl && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Document Link</p>
@@ -531,16 +451,22 @@ export default function MerchantIntakePage() {
 
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/route-it"
+              href="/portal/documents"
               className="rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
             >
-              Send to Track-POD
+              Documents
             </Link>
             <Link
-              href="/track-it"
+              href="/process-it"
               className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50"
             >
-              View Job
+              Process It
+            </Link>
+            <Link
+              href="/"
+              className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50"
+            >
+              Workspace
             </Link>
           </div>
 

@@ -208,6 +208,19 @@ export default function MerchantDocumentViewerPage() {
               {document.file_name}
             </h1>
           </div>
+          <div className="flex flex-wrap gap-2 text-xs font-semibold">
+            {draftJob && (
+              <Link
+                href={`/portal/documents/${document.id}/review?draftJobId=${encodeURIComponent(draftJob.id)}`}
+                className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-violet-700 hover:bg-violet-100"
+              >
+                Review / Continue Processing
+              </Link>
+            )}
+            <Link href="/portal/intake" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Upload It</Link>
+            <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
+            <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
+          </div>
         </div>
 
         <button

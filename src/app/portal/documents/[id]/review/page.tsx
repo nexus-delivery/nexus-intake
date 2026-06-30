@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import UploadOcrReviewScreen from "@/components/UploadOcrReviewScreen";
 import {
   confirmJob,
-  createDraftJob,
+  fetchDraftJobById,
   fetchCurrentProfile,
-  fetchDraftJobForDocument,
   fetchUploadedDocumentById,
   type UploadedDocumentMetadata,
 } from "@/lib/supabaseClient";
@@ -45,9 +44,14 @@ function toMetadata(
 export default function DocumentReviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const documentId = useMemo(
     () => (typeof params.id === "string" ? params.id : ""),
     [params.id]
+  );
+  const draftJobId = useMemo(
+    () => (searchParams.get("draftJobId") ?? "").trim(),
+    [searchParams]
   );
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +68,11 @@ export default function DocumentReviewPage() {
     async function loadReview() {
       if (!documentId) {
         setError("Document ID is missing.");
+        setLoading(false);
+        return;
+      }
+      if (!draftJobId) {
+        setError("Draft job ID is missing. Open this review from the Documents inbox.");
         setLoading(false);
         return;
       }
@@ -94,26 +103,33 @@ export default function DocumentReviewPage() {
         return;
       }
 
-      let draftJobId: string | null = null;
-      const draftJobResult = await fetchDraftJobForDocument(documentId);
-      if (draftJobResult.success && draftJobResult.data?.id) {
-        draftJobId = draftJobResult.data.id;
-      } else {
-        const createResult = await createDraftJob({
-          primaryDocumentId: documentId,
-          companyId: profileResult.data.companyId,
-        });
-        if (!createResult.success || !createResult.jobId) {
-          if (!cancelled) {
-            setError(createResult.error ?? "Unable to link document to a draft job.");
-            setLoading(false);
-          }
-          return;
+      const draftJobResult = await fetchDraftJobById(
+        draftJobId,
+        profileResult.data.companyId
+      );
+      if (!draftJobResult.success) {
+        if (!cancelled) {
+          setError(draftJobResult.error);
+          setLoading(false);
         }
-        draftJobId = createResult.jobId;
+        return;
+      }
+      if (!draftJobResult.data) {
+        if (!cancelled) {
+          setError("Draft job not found for this company.");
+          setLoading(false);
+        }
+        return;
+      }
+      if (draftJobResult.data.primary_document_id !== documentId) {
+        if (!cancelled) {
+          setError("Draft job does not match the selected uploaded document.");
+          setLoading(false);
+        }
+        return;
       }
 
-      const builtMetadata = toMetadata(documentResult.data, draftJobId);
+      const builtMetadata = toMetadata(documentResult.data, draftJobResult.data.id);
       const extraction = await extractUploadToOcrReviewData(builtMetadata);
 
       if (!extraction.success) {
@@ -136,7 +152,7 @@ export default function DocumentReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [documentId, draftJobId]);
 
   async function handleCreateJob() {
     if (!metadata || !reviewData) return;
@@ -203,6 +219,15 @@ export default function DocumentReviewPage() {
         <span aria-hidden="true">←</span>
         Back to documents
       </Link>
+      <div className="flex flex-wrap gap-2 text-xs font-semibold">
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">
+          Draft Job: {metadata?.jobId}
+        </span>
+        <Link href="/portal/intake" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Upload It</Link>
+        <Link href="/portal/documents" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Documents</Link>
+        <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
+        <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
+      </div>
 
       {createdRef && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800">
