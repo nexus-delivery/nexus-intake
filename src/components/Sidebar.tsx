@@ -116,9 +116,9 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20">
-            <p className="font-medium text-slate-100">Products</p>
+            <p className="font-medium text-slate-100">Choose it</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Install only the products your business needs.
+              Get what you want from it!
             </p>
           </div>
         </div>
@@ -166,10 +166,17 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
         </nav>
 
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">More products</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Coming soon</p>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-white">Sell it</p>
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-4 w-4">
+                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 01-8 0" />
+                </svg>
+                <p className="text-sm font-semibold text-white">Sell it</p>
+              </div>
               <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
                 coming soon
               </span>
