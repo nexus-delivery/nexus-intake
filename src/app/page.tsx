@@ -19,6 +19,7 @@ const ALL_NAV_ITEMS = [
   { label: "Account it", href: "/account-it" },
   { label: "Report it", href: "/report-it" },
   { label: "Improve it", href: "/improve-it" },
+  { label: "Tell it", href: "/tell-it" },
 ];
 
 const manageItModules = [
@@ -209,12 +210,40 @@ export default function HubPage() {
   }
 
   const sidebarNavItems = ALL_NAV_ITEMS.filter((item) => item.href !== "/" || canAccessManageIt);
-  const visibleManageModules = manageItModules.filter((mod) => !mod.requiresManageIt || canAccessManageIt);
+  
+  // Filter modules based on user type
+  const moduleAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
+    admin: new Set(manageItModules.map(m => m.title)), // All modules
+    merchant: new Set(["Create it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
+    customer: new Set(["Create it", "Track it", "Improve it"]),
+  };
+  
+  const createAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
+    admin: new Set(createItMethods.map(m => m.title)), // All methods
+    merchant: new Set(["Book it", "Enter it", "Upload it", "Email it", "Connect it", "Import it"]),
+    customer: new Set(["Book it"]),
+  };
+  
+  const visibleManageModules = manageItModules.filter((mod) => {
+    const canAccess = !mod.requiresManageIt || canAccessManageIt;
+    const userCanSee = moduleAccessMap[workspaceRole as keyof typeof moduleAccessMap]?.has(mod.title);
+    return canAccess && userCanSee;
+  });
+  
+  const visibleCreateMethods = createItMethods.filter((method) => {
+    const userCanSee = createAccessMap[workspaceRole as keyof typeof createAccessMap]?.has(method.title);
+    return userCanSee;
+  });
 
   return (
     <div className="flex min-h-screen text-slate-900 nexus-page-enter">
       {/* Left: Product catalogue */}
-      <Sidebar items={sidebarNavItems} activePath="/" />
+      <Sidebar 
+        items={sidebarNavItems} 
+        activePath="/" 
+        userType={workspaceRole as "admin" | "merchant" | "customer"}
+        onUserTypeChange={setWorkspaceRole}
+      />
 
       {/* Centre: Workspace */}
       <div className="flex flex-1 flex-col overflow-auto">
@@ -342,7 +371,7 @@ export default function HubPage() {
                   <button type="button" className="rounded-full px-4 py-1.5 font-semibold text-slate-500 hover:text-slate-900">List</button>
                 </div>
               </div>
-              <WorkspaceCardGrid items={createItMethods} />
+              <WorkspaceCardGrid items={visibleCreateMethods} />
             </div>
           )}
 

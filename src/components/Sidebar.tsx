@@ -9,6 +9,8 @@ type NavItem = {
 type SidebarProps = {
   items: NavItem[];
   activePath: string;
+  userType?: "admin" | "merchant" | "customer";
+  onUserTypeChange?: (type: "admin" | "merchant" | "customer") => void;
 };
 
 const moduleDescriptions: Record<string, string> = {
@@ -19,6 +21,7 @@ const moduleDescriptions: Record<string, string> = {
   "Account it": "Customers, invoicing and payments",
   "Report it": "Dashboards, KPIs and business insights",
   "Improve it": "Feedback, automation and continuous improvement",
+  "Tell it": "Contact us — support and feedback",
   Settings: "Workspace governance and configuration",
 };
 
@@ -30,6 +33,7 @@ const moduleStatus: Record<string, string> = {
   "Account it": "installed",
   "Report it": "installed",
   "Improve it": "available",
+  "Tell it": "installed",
   Settings: "installed",
 };
 
@@ -78,6 +82,11 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M12 2l3.2 6.5 7.2 1-5.2 5 1.2 7.3-6.4-3.4-6.4 3.4 1.2-7.3-5.2-5 7.2-1L12 2z" />
     </svg>
   ),
+  "Tell it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+    </svg>
+  ),
   Settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 8a4 4 0 100 8 4 4 0 000-8z" />
@@ -99,7 +108,7 @@ const navIcons: Record<string, ReactNode> = {
   ),
 };
 
-export default function Sidebar({ items, activePath }: SidebarProps) {
+export default function Sidebar({ items, activePath, userType = "admin", onUserTypeChange }: SidebarProps) {
   // TODO: support collapsible icon-only sidebar in a future design pass.
   return (
     <aside className="bg-[rgba(8,10,20,0.88)] text-slate-100 lg:min-h-screen lg:w-[22rem] lg:border-r lg:border-white/10">
@@ -120,6 +129,25 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
             <p className="mt-2 text-xs leading-5 text-slate-400">
               Get what you want from it!
             </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#7C3AED]/20 to-white/5 p-4 shadow-sm shadow-slate-950/20">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-300">View as</p>
+            <div className="mt-3 space-y-2">
+              {["admin", "merchant", "customer"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => onUserTypeChange?.(type as "admin" | "merchant" | "customer")}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                    userType === type
+                      ? "bg-[#7C3AED]/40 text-white shadow-[0_4px_12px_-3px_rgba(124,58,237,0.4)]"
+                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -185,7 +213,14 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-white">Run it</p>
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-4 w-4">
+                  <path d="M18 8h1a4 4 0 010 8h-1M2 8h16a4 4 0 014 4 4 4 0 01-4 4H2M2 8v8m2-4h12" />
+                  <circle cx="6" cy="16" r="2" />
+                  <circle cx="18" cy="16" r="2" />
+                </svg>
+                <p className="text-sm font-semibold text-white">Run it</p>
+              </div>
               <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
                 coming soon
               </span>
@@ -196,7 +231,7 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
             type="button"
             className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-left text-sm font-medium text-slate-200 transition hover:border-[#7C3AED]/40 hover:text-white"
           >
-            Browse all products
+            Upgrade it
           </button>
         </div>
       </div>
