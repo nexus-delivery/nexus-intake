@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   fetchCurrentProfile,
   fetchUploadedDocuments,
@@ -72,6 +73,12 @@ function DocumentCard({
           >
             Download
           </button>
+          <Link
+            href={`/portal/documents/${document.id}/review`}
+            className="inline-flex items-center justify-center rounded-lg border border-violet-300 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:bg-violet-100"
+          >
+            Review / Extract
+          </Link>
         </div>
       </div>
     </article>
