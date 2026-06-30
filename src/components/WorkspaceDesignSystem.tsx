@@ -75,8 +75,10 @@ export function WorkspaceInfoStrip({ title, description, icon }: WorkspaceInfoSt
 
 export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => {
+        const isInteractive = item.status === "live" || item.status === "available";
+
         const cardBody = (
           <>
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -85,11 +87,11 @@ export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
               </div>
               <StatusPill status={item.status} />
             </div>
-            <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
-            <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{item.description}</p>
-            {item.href && item.status === "live" ? (
-              <div className="mt-4 flex items-center gap-1 text-sm font-medium text-[#a78bfa] opacity-0 transition-opacity group-hover:opacity-100">
-                Open <span className="ml-1">→</span>
+            <h3 className="text-[1.7rem] font-semibold leading-tight text-slate-900">{item.title}</h3>
+            <p className="mt-2 flex-1 text-base leading-7 text-slate-600">{item.description}</p>
+            {item.href && isInteractive ? (
+              <div className="mt-4 flex items-center gap-1 text-sm font-semibold text-[#7C3AED] opacity-0 transition-opacity group-hover:opacity-100">
+                {item.status === "live" ? "Open" : "Install"} <span className="ml-1">→</span>
               </div>
             ) : (
               <p className="mt-4 text-xs font-medium text-slate-500">Install when released</p>
@@ -97,9 +99,9 @@ export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
           </>
         );
 
-        if (!item.href || item.status !== "live") {
+        if (!item.href || !isInteractive) {
           return (
-            <div key={item.title} className="nexus-card group flex h-full flex-col rounded-[28px] p-6">
+            <div key={item.title} className="nexus-card group flex h-full flex-col rounded-[28px] p-7">
               {cardBody}
             </div>
           );
@@ -109,7 +111,7 @@ export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
           <Link
             key={item.title}
             href={item.href}
-            className="nexus-card group flex h-full flex-col rounded-[28px] p-6 transition duration-200 hover:-translate-y-0.5 hover:border-[#7C3AED]/60"
+            className="nexus-card group flex h-full flex-col rounded-[28px] p-7 transition duration-200 hover:-translate-y-0.5 hover:border-[#7C3AED]/60"
           >
             {cardBody}
           </Link>

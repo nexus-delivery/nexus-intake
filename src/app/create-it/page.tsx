@@ -80,7 +80,7 @@ const sections = [
     title: "Embed it",
     description: "Publish booking forms on your own website to capture demand directly.",
     href: "/booking-forms",
-    status: "live",
+    status: "available",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
@@ -129,19 +129,19 @@ const sections = [
 export default function CreateItPage() {
   return (
     <AppShell>
-      <div className="space-y-8">
-        <div className="nexus-card rounded-[30px] p-7">
+      <div className="space-y-9">
+        <div className="nexus-card rounded-[30px] p-6 md:p-7">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-5">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30">
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30 md:h-[4.5rem] md:w-[4.5rem]">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               </div>
               <div>
                 <p className="nexus-kicker">Create it</p>
-                <h1 className="mt-1 text-4xl font-semibold text-slate-900">Choose how you'd like to create work.</h1>
-                <p className="mt-1.5 text-sm text-slate-600">Each method below is an intake path inside the Create it product.</p>
+                <h1 className="mt-1 text-3xl font-semibold leading-tight text-slate-900 md:text-5xl">Choose how you'd like to create work.</h1>
+                <p className="mt-2 text-sm text-slate-600 md:text-base">Each method below is an intake path inside the Create it product.</p>
               </div>
             </div>
             <div className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white p-1 text-sm">
@@ -157,22 +157,25 @@ export default function CreateItPage() {
 
         <WorkspaceCardGrid items={sections} />
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-5 lg:grid-cols-2">
           <div className="nexus-card rounded-[24px] p-5">
             <p className="text-xl font-semibold text-slate-900">Quick actions</p>
             <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               {[
-                "Create new job",
-                "View today's jobs",
-                "Upload document",
-                "Track a job",
+                { label: "Create new job", icon: "+" },
+                { label: "View today's jobs", icon: "◷" },
+                { label: "Upload document", icon: "↑" },
+                { label: "Track a job", icon: "◎" },
               ].map((action) => (
                 <button
-                  key={action}
+                  key={action.label}
                   type="button"
                   className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-600 transition hover:border-[#7C3AED]/40 hover:text-[#7C3AED]"
                 >
-                  {action}
+                  <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 text-base">
+                    {action.icon}
+                  </span>
+                  {action.label}
                 </button>
               ))}
             </div>
