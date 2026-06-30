@@ -179,21 +179,19 @@ export default function MerchantDocumentsPage() {
     <div className="space-y-6 pb-8">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
-          Merchant Portal
+          Workspace access
         </p>
         <h1 className="text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
           Documents
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-          View or download merchant documents stored in Supabase Storage.
+          View or download customer documents stored in Supabase Storage.
         </p>
       </header>
 
       {apiError ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6">
-{JSON.stringify(apiError, null, 2)}
-          </pre>
+          Unable to load documents right now. Please try again or contact support if the issue continues.
         </div>
       ) : errorMessage ? (
         <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">

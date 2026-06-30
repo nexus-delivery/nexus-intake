@@ -10,7 +10,7 @@ export default function MerchantPortalPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
-            NEXUS Booking
+            Nexus it workspace
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-[var(--nexus-graphite)]">
             Dashboard
@@ -25,7 +25,7 @@ export default function MerchantPortalPage() {
             <line x1="12" y1="8" x2="12" y2="16" />
             <line x1="8" y1="12" x2="16" y2="12" />
           </svg>
-          Create Job
+          Create work
         </Link>
       </div>
 

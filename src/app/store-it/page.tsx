@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import { WorkspaceCardGrid, WorkspaceHero } from "@/components/WorkspaceDesignSystem";
 
 const sections = [
   {
@@ -81,68 +82,20 @@ export default function StoreItPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        {/* Hero */}
-        <div className="rounded-[32px] border border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED]/5 to-white p-8 shadow-sm">
-          <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
-                <path d="M4 8l8-5 8 5v11H4V8z" />
-                <path d="M12 3v18" />
-                <path d="M8 12h8" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7C3AED]">
-                Spotlight
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold text-[#111827]">Store IT</h1>
-              <p className="mt-1.5 text-sm text-slate-500">
-                For warehouse management, inventory and stock control.
-              </p>
-            </div>
-          </div>
-        </div>
+        <WorkspaceHero
+          kicker="Storage operations"
+          title="Store it"
+          description="Coordinate warehouse, inventory, documents and media from one storage workspace."
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
+              <path d="M4 8l8-5 8 5v11H4V8z" />
+              <path d="M12 3v18" />
+              <path d="M8 12h8" />
+            </svg>
+          }
+        />
 
-        {/* Sections */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sections.map((section) => (
-            <div key={section.title} className="relative">
-              {section.status === "coming-soon" ? (
-                <div className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 opacity-60 shadow-sm">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
-                      {section.icon}
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-                      Coming Soon
-                    </span>
-                  </div>
-                  <h3 className="text-base font-semibold text-[#111827]">{section.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{section.description}</p>
-                </div>
-              ) : (
-                <Link
-                  href={section.href}
-                  className="group flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#7C3AED]/30 hover:shadow-[0_8px_32px_-8px_rgba(124,58,237,0.2)]"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#7C3AED]/10 text-[#7C3AED] transition group-hover:bg-[#7C3AED] group-hover:text-white">
-                      {section.icon}
-                    </div>
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                      Live
-                    </span>
-                  </div>
-                  <h3 className="text-base font-semibold text-[#111827]">{section.title}</h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-500">{section.description}</p>
-                  <div className="mt-4 flex items-center gap-1 text-sm font-medium text-[#7C3AED] opacity-0 transition-opacity group-hover:opacity-100">
-                    Open <span className="ml-1">→</span>
-                  </div>
-                </Link>
-              )}
-            </div>
-          ))}
-        </div>
+        <WorkspaceCardGrid items={sections} />
       </div>
     </AppShell>
   );

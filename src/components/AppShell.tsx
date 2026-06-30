@@ -8,19 +8,13 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "Manage it.", href: "/" },
-  { label: "Create it.", href: "/create-it" },
-  { label: "Upload it.", href: "/portal/intake" },
-  { label: "Document it.", href: "/manage-it/document-it" },
-  { label: "Search it.", href: "/manage-it/search-it" },
-  { label: "Plan it.", href: "/route-it" },
-  { label: "Route it.", href: "/route-it" },
-  { label: "Track it.", href: "/track-it" },
-  { label: "Account it.", href: "/account-it" },
-  { label: "Manage it. (Admin)", href: "/manage-it" },
-  { label: "Report it.", href: "/report-it" },
-  { label: "Build it.", href: "/build-it" },
-  { label: "Improve it.", href: "/improve-it" },
+  { label: "Manage it", href: "/" },
+  { label: "Create it", href: "/create-it" },
+  { label: "Track it", href: "/track-it" },
+  { label: "Store it", href: "/store-it" },
+  { label: "Account it", href: "/account-it" },
+  { label: "Report it", href: "/report-it" },
+  { label: "Settings", href: "/settings" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -31,7 +25,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     // keep browser title in sync with page title mapping
     if (typeof document !== "undefined") {
-      document.title = `${pageTitle} — NEXUS`;
+      document.title = `${pageTitle} - Nexus it Today`;
     }
   }, [pageTitle]);
 
@@ -58,24 +52,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  const filteredNavItems = navItems.filter(
-    (item) => {
-      const isManageItOnly =
-        item.href === "/manage-it" ||
-        item.href === "/manage-it/document-it" ||
-        item.href === "/manage-it/search-it";
-      return !isManageItOnly || showManageIt;
-    },
-  );
+  const filteredNavItems = navItems.filter((item) => item.href !== "/" || showManageIt);
 
   return (
-    <div className="min-h-screen bg-[var(--nexus-bg)] text-[var(--nexus-graphite)]">
+    <div className="min-h-screen text-[var(--nexus-graphite)] nexus-page-enter">
       <div className="lg:flex lg:min-h-screen">
         <Sidebar items={filteredNavItems} activePath={activePath} />
 
         <div className="flex-1 lg:min-h-screen lg:overflow-hidden">
-          <div className="border-b border-slate-200 bg-white/95 backdrop-blur">
-            <Header title={pageTitle} subtitle="Logistics control room" />
+          <div className="border-b border-white/10 bg-[rgba(9,12,24,0.88)] backdrop-blur">
+            <Header title={pageTitle} subtitle="Nexus Intelligent Transport workspace" />
           </div>
 
           <main className="px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">

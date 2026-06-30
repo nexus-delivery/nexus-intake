@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import MerchantPortalShell from "@/components/MerchantPortalShell";
 
 export const metadata: Metadata = {
-  title: "Merchant Portal — NEXUS",
-  description: "Merchant portal for NEXUS logistics platform",
+  title: "Workspace access - Nexus it Today",
+  description: "Customer workspace for creating, tracking and reviewing transport work.",
 };
 
 export default function MerchantPortalLayout({

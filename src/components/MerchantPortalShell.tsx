@@ -14,7 +14,7 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
 
   useEffect(() => {
     if (typeof document !== "undefined") {
-      document.title = `Merchant Portal — NEXUS`;
+      document.title = "Workspace access - Nexus it Today";
     }
   }, []);
 
@@ -28,7 +28,7 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
             <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
               <div className="space-y-3">
                 <p className="text-xs uppercase tracking-[0.32em] text-slate-500">
-                  Merchant Portal
+                  Workspace access
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">
                   Dashboard

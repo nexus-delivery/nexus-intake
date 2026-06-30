@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchCompanyById, fetchProfileByUserId } from "@/lib/authOnboarding";
 import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { getManageItAccessProfile, syncManageItSession } from "@/lib/manageIt";
-import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabaseClient";
 
 const manageItModules = [
   {
@@ -184,12 +184,11 @@ export default function HubPage() {
   useEffect(() => {
     let cancelled = false;
 
-    function redirectOnce(target: string, reason: string, sessionUserId: string | null) {
+    function redirectOnce(target: string) {
       if (hasRedirectedRef.current || cancelled) {
         return;
       }
       hasRedirectedRef.current = true;
-      console.info("[Hub] redirect", { route: "/", target, reason, sessionUserId });
       router.replace(target);
     }
 
@@ -199,10 +198,6 @@ export default function HubPage() {
 
       try {
         if (!supabase) {
-          console.warn("[Hub] Supabase unavailable while loading hub", {
-            route: "/",
-            supabaseProjectRef: getSupabaseProjectRefFromUrl(),
-          });
           if (!cancelled) {
             setAuthLoading(false);
           }
@@ -213,33 +208,14 @@ export default function HubPage() {
           supabase.auth.getUser(),
           supabase.auth.getSession(),
         ]);
-        if (userData.user?.id && sessionData.session?.user && userData.user.id !== sessionData.session.user.id) {
-          console.warn("[Hub] auth state mismatch between getUser and getSession", {
-            route: "/",
-            getUserId: userData.user.id,
-            getSessionId: sessionData.session.user.id,
-          });
-        }
         const user = userData.user ?? sessionData.session?.user ?? null;
         const accessToken = sessionData.session?.access_token ?? null;
-        const sessionUserId = user?.id ?? null;
-
-        console.info("[Hub] auth bootstrap", {
-          route: "/",
-          sessionUserId,
-          supabaseProjectRef: getSupabaseProjectRefFromUrl(),
-        });
 
         if (!user) {
           try {
             await syncManageItSession(null);
-          } catch (syncError) {
-            console.error("[Hub] failed to clear server session", {
-              route: "/",
-              error: syncError instanceof Error ? syncError.message : String(syncError),
-            });
-          }
-          redirectOnce("/signin", "no active session", null);
+          } catch {}
+          redirectOnce("/signin");
           return;
         }
 
@@ -265,13 +241,6 @@ export default function HubPage() {
         let profileRecord;
         try {
           profileRecord = await fetchProfileByUserId(user.id);
-          console.info("[Hub] profile fetch result", {
-            route: "/",
-            sessionUserId: user.id,
-            found: Boolean(profileRecord),
-            profileId: profileRecord?.id ?? null,
-            companyId: profileRecord?.company_id ?? null,
-          });
         } catch (profileError) {
           const message = profileError instanceof Error ? profileError.message : String(profileError);
           console.error("[Hub] profile fetch result", {
@@ -291,19 +260,13 @@ export default function HubPage() {
         }
 
         if (!profileRecord) {
-          redirectOnce("/onboarding", "no profile for active session", user.id);
+          redirectOnce("/onboarding");
           return;
         }
 
         if (profileRecord.company_id) {
           try {
             const company = await fetchCompanyById(profileRecord.company_id);
-            console.info("[Hub] company fetch result", {
-              route: "/",
-              sessionUserId: user.id,
-              companyId: profileRecord.company_id,
-              found: Boolean(company),
-            });
             if (!cancelled) {
               setCompanyName(company?.name ?? null);
             }
@@ -372,7 +335,6 @@ export default function HubPage() {
   async function handleSignOut() {
     setSignOutError(null);
     if (!supabase) {
-      console.info("[Hub] redirect", { route: "/", target: "/signin", reason: "supabase unavailable during sign out" });
       router.replace("/signin");
       return;
     }
@@ -383,14 +345,13 @@ export default function HubPage() {
       return;
     }
     await syncManageItSession(null);
-    console.info("[Hub] redirect", { route: "/", target: "/signin", reason: "manual sign out" });
     router.replace("/signin");
   }
 
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#111827] px-4 text-sm text-slate-300">
-        Loading Manage it....
+        Loading workspace...
       </div>
     );
   }
@@ -414,7 +375,7 @@ export default function HubPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7C3AED] text-sm font-bold text-white shadow shadow-[#7C3AED]/40">
             N
           </div>
-          <span className="text-sm font-semibold text-white tracking-wide">Nexus it.</span>
+              <p className="text-sm font-semibold text-white">Nexus it</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -427,7 +388,7 @@ export default function HubPage() {
             onClick={handleSignOut}
             className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
           >
-            Logout
+            Sign out
           </button>
         </div>
       </header>
@@ -438,20 +399,20 @@ export default function HubPage() {
           {/* Headline */}
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#7C3AED] mb-4">
-              Manage it.
+              Manage it
             </p>
             <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-tight">
-              How would you like to Nexus it. today?
+              How would you like to run today?
             </h1>
             <p className="mt-4 text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Create it. Upload it. Route it. Track it. Manage it. All from one intelligent transport platform.
+              Create work, dispatch routes, track live movement and manage commercial outcomes from one workspace.
             </p>
           </div>
 
           {/* ── Manage it. Modules ───────────────────────────── */}
           <section>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500 mb-6">
-              Manage it.
+              Workspace actions
             </p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {manageItModules
@@ -480,7 +441,7 @@ export default function HubPage() {
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       <footer className="border-t border-white/10 px-6 py-4 text-center">
         <p className="text-xs text-slate-600">
-          Nexus it. · Intelligent Transport Platform by Nexus Delivery Solutions
+          Nexus it Today · Intelligent Transport workspace
         </p>
       </footer>
     </div>

@@ -6,17 +6,17 @@ export interface NavItem {
 
 export const merchantNavItems: NavItem[] = [
   {
-    label: "Dashboard",
+    label: "Workspace",
     href: "/portal",
     icon: "Home",
   },
   {
-    label: "New Booking",
+    label: "Book it",
     href: "/portal/intake",
     icon: "PlusCircle",
   },
   {
-    label: "Live Deliveries",
+    label: "Track it",
     href: "/portal/live",
     icon: "Truck",
   },

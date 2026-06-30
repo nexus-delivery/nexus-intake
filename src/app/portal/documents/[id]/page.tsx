@@ -202,7 +202,7 @@ export default function MerchantDocumentViewerPage() {
           </Link>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
-              Merchant Portal
+              Workspace access
             </p>
             <h1 className="mt-1 text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
               {document.file_name}

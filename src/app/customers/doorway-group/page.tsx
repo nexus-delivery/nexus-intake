@@ -13,7 +13,7 @@ const customer = {
 const orderMethods = [
   { label: "PDF Upload", value: "Preferred" },
   { label: "Email orders@doorwaygroup.co.uk", value: "Backup" },
-  { label: "Portal requests", value: "Coming soon" },
+  { label: "Workspace requests", value: "Coming soon" },
 ];
 
 // Order intake workflow steps

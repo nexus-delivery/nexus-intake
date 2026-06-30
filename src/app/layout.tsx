@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
+import { Manrope, Sora } from "next/font/google";
 import AuthGate from "@/components/AuthGate";
 import "./globals.css";
 
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  display: "swap",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Nexus IT",
-  description: "Intelligent Transport by Nexus",
+  title: "Nexus it Today",
+  description: "Nexus it is the intelligent transport workspace by Nexus it Today.",
 };
 
 export default function RootLayout({
@@ -13,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${sora.variable} ${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <AuthGate>{children}</AuthGate>
       </body>

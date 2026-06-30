@@ -13,7 +13,7 @@ const customer = {
 const orderMethods = [
   { label: "PDF Upload", value: "Preferred" },
   { label: "Dedicated order email", value: "Active" },
-  { label: "Portal requests", value: "Available" },
+  { label: "Workspace requests", value: "Available" },
 ];
 
 const documents = [

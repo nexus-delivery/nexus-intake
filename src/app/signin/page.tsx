@@ -11,6 +11,7 @@ export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [entryMode, setEntryMode] = useState<"manage" | "create">("manage");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,13 +61,13 @@ export default function SignInPage() {
       // Resolve post-signin path
       try {
         const destination = await resolvePostSignInPath(user.id);
-        console.info("[SignIn] redirect", {
-          route: "/signin",
-          sessionUserId: user.id,
-          reason: "sign-in success",
-          target: destination,
-        });
-        router.replace(destination);
+        const preferredDestination =
+          destination === "/"
+            ? entryMode === "create"
+              ? "/create-it"
+              : "/"
+            : destination;
+        router.replace(preferredDestination);
       } catch (resolveErr) {
         const resolveMessage = resolveErr instanceof Error ? resolveErr.message : "Failed to load your profile";
         console.error("Resolve signin path error", {
@@ -87,19 +88,52 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111827] flex flex-col items-center justify-center px-4 py-16">
-      <div className="mb-8 flex flex-col items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C3AED] text-lg font-bold text-white shadow-lg shadow-[#7C3AED]/40">
-          N
-        </div>
-        <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus IT</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Sign in to Nexus IT</h1>
-          <p className="mt-1 text-sm text-slate-400">Access your Nexus IT workspace</p>
-        </div>
-      </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(130deg,rgba(6,8,16,0.88),rgba(6,8,16,0.55)),url('https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.32),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
 
-      <div className="w-full max-w-sm rounded-[28px] border border-white/10 bg-white/5 backdrop-blur p-8 shadow-2xl">
+      <div className="relative z-10 w-full max-w-md rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] p-8 shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C3AED] text-lg font-bold text-white shadow-lg shadow-[#7C3AED]/40">
+            N
+          </div>
+          <p className="nexus-kicker">Nexus it Today</p>
+          <div>
+            <h1 className="text-3xl font-semibold text-white">Sign in to Nexus it</h1>
+            <p className="mt-2 text-sm text-slate-300">Access your Nexus Intelligent Transport workspace.</p>
+          </div>
+        </div>
+
+        <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setEntryMode("manage")}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                entryMode === "manage"
+                  ? "bg-[var(--nexus-purple)] text-white shadow-[0_10px_20px_-12px_rgba(139,92,246,0.95)]"
+                  : "text-slate-300 hover:bg-white/10"
+              }`}
+            >
+              Manage it
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntryMode("create")}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                entryMode === "create"
+                  ? "bg-[var(--nexus-purple)] text-white shadow-[0_10px_20px_-12px_rgba(139,92,246,0.95)]"
+                  : "text-slate-300 hover:bg-white/10"
+              }`}
+            >
+              Create it
+            </button>
+          </div>
+          <p className="mt-2 px-2 text-xs text-slate-400">
+            Start in {entryMode === "manage" ? "operations and oversight" : "booking and job creation"} after sign in.
+          </p>
+        </div>
+
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
             <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-slate-300">
@@ -153,7 +187,7 @@ export default function SignInPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-slate-400">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-[#A78BFA] hover:underline">
             Create account
