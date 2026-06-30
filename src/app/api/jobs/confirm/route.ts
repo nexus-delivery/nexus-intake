@@ -73,9 +73,25 @@ function extractFirstString(payload: unknown, keys: string[]): string | null {
   return null;
 }
 
-function buildTrackPodPayload(mapping: Record<string, string | null>) {
+function resolveMasterReference(
+  mapping: Record<string, string | null>,
+  draftJobId: string
+): string {
+  const customerReference = cleanString(mapping.order_reference);
+  if (customerReference) {
+    return customerReference;
+  }
+  return generateJobReference(draftJobId);
+}
+
+function buildTrackPodPayload(
+  mapping: Record<string, string | null>,
+  masterReference: string
+) {
   return {
-    reference: cleanString(mapping.order_reference),
+    reference: masterReference,
+    collectionOrderNumber: masterReference,
+    deliveryOrderNumber: masterReference,
     orderType: cleanString(mapping.order_type),
     collectionDate: cleanString(mapping.collection_date),
     deliveryDate: cleanString(mapping.delivery_date),
@@ -129,7 +145,8 @@ function buildXeroDraftInvoicePayload(
 }
 
 async function createTrackPodDeliveryOrder(
-  mapping: Record<string, string | null>
+  mapping: Record<string, string | null>,
+  masterReference: string
 ): Promise<TrackPodResult> {
   if (!trackPodApiBaseUrl || (!trackPodApiKey && !trackPodApiToken)) {
     throw new Error("Track-POD credentials are not configured");
@@ -149,7 +166,7 @@ async function createTrackPodDeliveryOrder(
   const response = await fetch(`${trackPodApiBaseUrl.replace(/\/$/, "")}/orders`, {
     method: "POST",
     headers,
-    body: JSON.stringify(buildTrackPodPayload(mapping)),
+    body: JSON.stringify(buildTrackPodPayload(mapping, masterReference)),
   });
 
   const payload = (await response.json().catch(() => ({}))) as unknown;
@@ -160,7 +177,7 @@ async function createTrackPodDeliveryOrder(
 
   const deliveryOrderId =
     extractFirstString(payload, ["id", "orderId", "deliveryOrderId", "reference"])
-    ?? "";
+    ?? masterReference;
 
   if (!deliveryOrderId) {
     throw new Error("Track-POD response did not include a delivery order ID");
@@ -259,7 +276,7 @@ export async function POST(request: NextRequest) {
 
     const { data: draftJob, error: draftJobError } = await privilegedClient
       .from("draft_jobs")
-      .select("id, company_id, status")
+      .select("id, company_id, status, primary_document_id")
       .eq("id", body.draftJobId)
       .eq("company_id", profile.company_id)
       .maybeSingle();
@@ -277,12 +294,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing Track-POD mapping payload" }, { status: 400 });
     }
 
-    const jobReference = generateJobReference(draftJob.id);
+    const masterReference = resolveMasterReference(mapping, draftJob.id);
+    const jobReference = masterReference;
 
-    const trackPodResult = await createTrackPodDeliveryOrder(mapping);
+    const trackPodResult = await createTrackPodDeliveryOrder(mapping, masterReference);
     const xeroResult = await createXeroDraftInvoice(mapping, jobReference);
 
     const integrationMetadata = {
+      masterReference,
+      events: [
+        {
+          event: "master_reference_assigned",
+          value: masterReference,
+          source: cleanString(mapping.order_reference) ? "customer_order_reference" : "nexus_generated",
+          createdAt: new Date().toISOString(),
+        },
+      ],
       trackpod: trackPodResult.raw,
       xero: xeroResult.raw,
       updatedAt: new Date().toISOString(),
@@ -302,6 +329,27 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    if (draftJob.primary_document_id) {
+      const { error: timelineError } = await privilegedClient
+        .from("document_timeline")
+        .insert({
+          document_id: draftJob.primary_document_id,
+          company_id: profile.company_id,
+          event: "master_reference_applied",
+          actor: user.email ?? user.id,
+          actor_profile_id: profile.id,
+          metadata: {
+            masterReference,
+            trackPodDeliveryOrderId: trackPodResult.deliveryOrderId,
+            xeroDraftInvoiceId: xeroResult.draftInvoiceId,
+          },
+        });
+
+      if (timelineError) {
+        return NextResponse.json({ error: timelineError.message }, { status: 500 });
+      }
     }
 
     return NextResponse.json({
