@@ -182,12 +182,12 @@ export default function RightPanel() {
           ))}
         </div>
 
-        <button
-          type="button"
+        <Link
+          href="/tell-it"
           className="mt-3 flex items-center gap-1 text-xs font-semibold text-[#7C3AED] hover:underline"
         >
           View all support options <span aria-hidden>→</span>
-        </button>
+        </Link>
       </div>
     </aside>
   );

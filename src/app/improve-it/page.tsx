@@ -1,25 +1,23 @@
-import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import { WorkspaceHero, WorkspaceCardGrid } from "@/components/WorkspaceDesignSystem";
 
 const sections = [
   {
-    title: "Suggest IT",
-    description: "Submit a suggestion for a new platform feature or capability improvement.",
+    title: "Suggest it",
+    description: "Submit an idea or suggestion for a new capability or platform improvement.",
     href: "/improve-it/suggest-it",
-    status: "coming-soon",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-        <path d="M12 8v4" />
-        <path d="M12 16h.01" />
+        <path d="M9 18h6M10 22h4M12 2a7 7 0 017 7c0 2.38-1.19 4.47-3 5.74V17H8v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 017-7z" />
       </svg>
     ),
   },
   {
-    title: "Vote IT",
-    description: "Vote on platform feature requests and help prioritise the product roadmap.",
-    href: "/improve-it/vote-it",
-    status: "coming-soon",
+    title: "Consider it",
+    description: "Browse feature requests from across the business and vote for the ones that matter most.",
+    href: "/improve-it/consider-it",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
@@ -28,27 +26,48 @@ const sections = [
     ),
   },
   {
-    title: "Future IT",
-    description: "See what capabilities are planned for future sprints and product phases.",
-    href: "/improve-it/future-it",
-    status: "coming-soon",
+    title: "Dream it",
+    description: "Explore what's on the horizon — planned capabilities and the product roadmap ahead.",
+    href: "/improve-it/dream-it",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
+        <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" />
       </svg>
     ),
   },
   {
-    title: "Report IT",
-    description: "Report a bug, broken feature or unexpected behaviour on the platform.",
-    href: "/improve-it/report-it",
-    status: "coming-soon",
+    title: "Fix it",
+    description: "Report a bug, broken feature or unexpected behaviour so our team can resolve it quickly.",
+    href: "/improve-it/fix-it",
+    status: "live",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
+        <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Tell it",
+    description: "Contact our team directly via WhatsApp, email, live chat or by submitting a request.",
+    href: "/tell-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Build it",
+    description: "Review the development roadmap, sprint board and release notes.",
+    href: "/build-it",
+    status: "available",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+        <line x1="8" y1="21" x2="16" y2="21" />
+        <line x1="12" y1="17" x2="12" y2="21" />
       </svg>
     ),
   },
@@ -58,65 +77,17 @@ export default function ImproveItPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        {/* Hero */}
-        <div className="rounded-[32px] border border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED]/5 to-white p-8 shadow-sm">
-          <div className="flex items-center gap-5">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7C3AED]">
-                Platform Spotlight
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold text-[#111827]">Improve IT</h1>
-              <p className="mt-1.5 text-sm text-slate-500">
-                The customer improvement centre — suggest, vote and shape the future of the platform.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Coming Soon Banner */}
-        <div className="rounded-[28px] border border-amber-200 bg-amber-50 px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-                <path d="M12 8v4l3 3" />
-                <circle cx="12" cy="12" r="9" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-amber-900">Improve IT is coming soon</p>
-              <p className="text-sm text-amber-700">
-                The customer improvement centre is being built. All sections will be live in a future sprint.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Sections */}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sections.map((section) => (
-            <Link
-              href={section.href}
-              key={section.title}
-              className="group flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-6 opacity-65 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#7C3AED]/30 hover:opacity-100 hover:shadow-[0_8px_32px_-8px_rgba(124,58,237,0.2)]"
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 transition group-hover:bg-[#7C3AED]/10 group-hover:text-[#7C3AED]">
-                  {section.icon}
-                </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
-                  Coming Soon
-                </span>
-              </div>
-              <h3 className="text-base font-semibold text-[#111827]">{section.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{section.description}</p>
-            </Link>
-          ))}
-        </div>
+        <WorkspaceHero
+          kicker="Improve it"
+          title="Shape the future of the platform."
+          description="Suggest ideas, vote on features, explore what's coming and report issues — all in one place."
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          }
+        />
+        <WorkspaceCardGrid items={sections} />
       </div>
     </AppShell>
   );

@@ -11,24 +11,40 @@ const sectionContent: Record<
   }
 > = {
   "suggest-it": {
-    title: "Suggest IT",
-    summary: "Collect structured suggestions for improving the platform.",
-    mockItems: ["Suggestion intake queue", "Submitted idea themes", "Owner assignment placeholders"],
+    title: "Suggest it",
+    summary: "Submit an idea or suggestion to help shape the future of the platform.",
+    mockItems: ["Suggestion intake form", "Submitted ideas queue", "Status tracking for your submissions"],
   },
+  "consider-it": {
+    title: "Consider it",
+    summary: "Browse and vote on feature requests from the community and the wider business.",
+    mockItems: ["Top-voted requests", "Vote trend snapshot", "Priority threshold examples"],
+  },
+  "dream-it": {
+    title: "Dream it",
+    summary: "See what capabilities are planned — explore the product roadmap ahead.",
+    mockItems: ["Upcoming feature shortlist", "Sprint planning preview", "Long-range capability direction"],
+  },
+  "fix-it": {
+    title: "Fix it",
+    summary: "Report a bug, broken feature or unexpected behaviour on the platform.",
+    mockItems: ["Bug report intake form", "Issue severity categories", "Resolution status tracker"],
+  },
+  // legacy slugs kept for backward compatibility
   "vote-it": {
-    title: "Vote IT",
-    summary: "Prioritise suggestions with transparent voting.",
-    mockItems: ["Top-voted suggestion list", "Vote trend snapshot", "Priority threshold examples"],
+    title: "Consider it",
+    summary: "Browse and vote on feature requests from the community and the wider business.",
+    mockItems: ["Top-voted requests", "Vote trend snapshot", "Priority threshold examples"],
   },
   "future-it": {
-    title: "Future IT",
-    summary: "Planned future capabilities and directional placeholders.",
-    mockItems: ["Future capability shortlist", "Exploration backlog", "Deferred opportunities"],
+    title: "Dream it",
+    summary: "See what capabilities are planned — explore the product roadmap ahead.",
+    mockItems: ["Upcoming feature shortlist", "Sprint planning preview", "Long-range capability direction"],
   },
   "report-it": {
-    title: "Report IT",
-    summary: "Capture bugs and quality issues from users.",
-    mockItems: ["Issue intake placeholders", "Severity buckets", "Resolution status samples"],
+    title: "Fix it",
+    summary: "Report a bug, broken feature or unexpected behaviour on the platform.",
+    mockItems: ["Bug report intake form", "Issue severity categories", "Resolution status tracker"],
   },
 };
 
@@ -48,7 +64,7 @@ export default async function ImproveItSectionPage({
     <AppShell>
       <div className="space-y-6">
         <div className="rounded-[32px] border border-[#7C3AED]/20 bg-gradient-to-br from-[#7C3AED]/5 to-white p-8 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7C3AED]">Improve IT Section</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#7C3AED]">Improve it</p>
           <h1 className="mt-2 text-3xl font-semibold text-[#111827]">{content.title}</h1>
           <p className="mt-2 text-sm text-slate-600">{content.summary}</p>
         </div>
@@ -63,7 +79,7 @@ export default async function ImproveItSectionPage({
             ))}
           </ul>
           <Link href="/improve-it" className="mt-5 inline-flex text-sm font-medium text-[#7C3AED] hover:underline">
-            Back to Improve IT
+            ← Back to Improve it
           </Link>
         </div>
       </div>
