@@ -91,16 +91,158 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await dbClient
+    const [profilesResult, publicProfilesResult, companiesResult, adminUsersResult] =
+      await Promise.all([
+        dbClient.from("profiles").select("*"),
+        dbClient.schema("public").from("profiles").select("*"),
+        dbClient.from("companies").select("*"),
+        dbClient.auth.admin.listUsers(),
+      ]);
+
+    const runtimeDiagnostics = {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
+      SUPABASE_SERVICE_ROLE_KEY_EXISTS: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      "dbClient.from(\"profiles\").select(\"*\")": {
+        data: profilesResult.data ?? null,
+        error:
+          profilesResult.error == null
+            ? null
+            : {
+                message: profilesResult.error.message,
+                code: profilesResult.error.code ?? null,
+                details: profilesResult.error.details ?? null,
+                hint: profilesResult.error.hint ?? null,
+              },
+      },
+      "dbClient.schema(\"public\").from(\"profiles\").select(\"*\")": {
+        data: publicProfilesResult.data ?? null,
+        error:
+          publicProfilesResult.error == null
+            ? null
+            : {
+                message: publicProfilesResult.error.message,
+                code: publicProfilesResult.error.code ?? null,
+                details: publicProfilesResult.error.details ?? null,
+                hint: publicProfilesResult.error.hint ?? null,
+              },
+      },
+      "dbClient.from(\"companies\").select(\"*\")": {
+        data: companiesResult.data ?? null,
+        error:
+          companiesResult.error == null
+            ? null
+            : {
+                message: companiesResult.error.message,
+                code: companiesResult.error.code ?? null,
+                details: companiesResult.error.details ?? null,
+                hint: companiesResult.error.hint ?? null,
+              },
+      },
+      "dbClient.auth.admin.listUsers()": {
+        data: adminUsersResult.data ?? null,
+        error:
+          adminUsersResult.error == null
+            ? null
+            : {
+                message: adminUsersResult.error.message,
+                status: adminUsersResult.error.status ?? null,
+                name: adminUsersResult.error.name ?? null,
+              },
+      },
+    };
+
+    const { data: profile, error: profileError } = await dbClient
       .from("profiles")
-      .select("*");
+      .select("company_id")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      return NextResponse.json(
+        { error: profileError.message, diagnostics: runtimeDiagnostics },
+        { status: 500 }
+      );
+    }
+
+    let resolvedCompanyId = profile?.company_id ?? null;
+
+    if (!resolvedCompanyId) {
+      const { data: customer, error: customerError } = await dbClient
+        .from("customers")
+        .select("company_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (customerError) {
+        return NextResponse.json(
+          { error: customerError.message, diagnostics: runtimeDiagnostics },
+          { status: 500 }
+        );
+      }
+
+      resolvedCompanyId = customer?.company_id ?? null;
+    }
+
+    if (!resolvedCompanyId) {
+      return NextResponse.json(
+        { error: NO_COMPANY_ERROR, diagnostics: runtimeDiagnostics },
+        { status: 403 }
+      );
+    }
+
+    const { data: document, error: documentError } = await dbClient
+      .from("uploaded_documents")
+      .select("id, file_name, file_path, company_id")
+      .eq("id", documentId)
+      .eq("company_id", resolvedCompanyId)
+      .maybeSingle();
+
+    if (documentError) {
+      return NextResponse.json(
+        { error: documentError.message, diagnostics: runtimeDiagnostics },
+        { status: 500 }
+      );
+    }
+
+    if (!document) {
+      return NextResponse.json(
+        { error: ACCESS_DENIED_ERROR, diagnostics: runtimeDiagnostics },
+        { status: 403 }
+      );
+    }
+
+    const bucketName = "merchant-documents";
+    const objectKey = document.file_path;
+    const { data: signedData, error: signedError } = await dbClient.storage
+      .from(bucketName)
+      .createSignedUrl(objectKey, 60 * 10, {
+        download: download ? document.file_name : false,
+      });
+
+    if (signedError || !signedData?.signedUrl) {
+      const completeSignedUrlError =
+        signedError == null
+          ? null
+          : {
+              ...signedError,
+              message: signedError.message,
+              status: (signedError as { status?: number }).status ?? null,
+              error: (signedError as { error?: string }).error ?? null,
+              name: (signedError as { name?: string }).name ?? null,
+            };
+
+      return NextResponse.json(
+        {
+          error: signedError?.message ?? "Failed to generate signed URL",
+          diagnostics: runtimeDiagnostics,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      runtimeUserId: user.id,
-      runtimeSupabaseUrl: supabaseUrl ?? null,
-      allProfiles: result.data,
-      profileCount: result.data?.length ?? null,
-      error: result.error,
+      signedUrl: signedData.signedUrl,
+      diagnostics: runtimeDiagnostics,
     });
   } catch (err) {
     return NextResponse.json(
