@@ -2,13 +2,19 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
 const workflowStates = [
-  "Uploaded",
-  "Reviewed",
-  "Job Created",
-  "Ready for Route it",
+  "Book it",
+  "Check it",
+  "Process it",
+  "Move it / Route it",
+  "Planning",
+  "Routing",
+  "Driver allocation",
+  "Collection + Delivery execution",
   "Sent to Track-POD",
   "Tracking Available",
   "Track it",
+  "Invoice it",
+  "See it",
 ];
 
 export default function RouteItPage() {
@@ -31,7 +37,7 @@ export default function RouteItPage() {
               </p>
               <h1 className="mt-1 text-3xl font-semibold text-[#111827]">Route IT</h1>
               <p className="mt-1.5 text-sm text-slate-500">
-                Ready for planning, send to Track-POD, and tracking-link availability.
+                Move it / Route it handles planning, routing, driver allocation and movement execution.
               </p>
             </div>
           </div>
@@ -39,6 +45,9 @@ export default function RouteItPage() {
 
         <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operational Flow</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Process it creates Track-POD collection and delivery orders, stores IDs/tracking links, and marks jobs ready for planning.
+          </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {workflowStates.map((state) => (
               <div

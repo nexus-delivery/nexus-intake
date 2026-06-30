@@ -334,13 +334,16 @@ export default function MerchantIntakePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Workflow Status</p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                "Uploaded",
-                "Reviewed",
+                "Book it",
+                "Check it",
+                "Process it",
+                "Move it / Route it",
                 "Job Created",
-                "Ready for Route it",
                 "Sent to Track-POD",
                 "Tracking Available",
                 "Track it",
+                "Invoice it",
+                "See it",
               ].map((state) => (
                 <div key={state} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
                   {state}

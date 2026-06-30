@@ -79,7 +79,7 @@ export default function TrackItPage() {
         <WorkspaceHero
           kicker="Control centre"
           title="Track it"
-          description="Starts once Track-POD has accepted the job and returns live execution updates."
+          description="Track it begins after Move it / Route it and gives customer, merchant and ops visibility."
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
@@ -90,7 +90,7 @@ export default function TrackItPage() {
 
         <WorkspaceInfoStrip
           title="Operations telemetry active"
-          description="Monitoring status lifecycle: routed, driver assigned, collected, in transit, delivered and POD."
+          description="Live progress, tracking links, exceptions, POD and delivery-status visibility after movement begins."
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
               <path d="M12 8v4l3 3" />
