@@ -1,0 +1,1638 @@
+{
+    "name": "2a -CTNI Woocommerce Data Refresh",
+    "flow": [
+        {
+            "id": 1,
+            "module": "woocommerce:WatchOrders",
+            "version": 3,
+            "parameters": {
+                "limit": 100,
+                "status": "processing",
+                "customer": null,
+                "__IMTCONN__": 8190921,
+                "sortingDate": "dateCreated"
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": -453,
+                    "y": 21
+                },
+                "restore": {
+                    "parameters": {
+                        "status": {
+                            "mode": "chose",
+                            "label": "Processing"
+                        },
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "woocommerce2"
+                            },
+                            "label": "CTNI WOOCOMMERCE"
+                        },
+                        "sortingDate": {
+                            "label": "Date Created"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:woocommerce2",
+                        "label": "Connection",
+                        "required": true
+                    },
+                    {
+                        "name": "customer",
+                        "type": "number",
+                        "label": "Customer ID"
+                    },
+                    {
+                        "name": "status",
+                        "type": "select",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "limit",
+                        "type": "number",
+                        "label": "Limit",
+                        "required": true
+                    },
+                    {
+                        "name": "sortingDate",
+                        "type": "select",
+                        "label": "Sort By",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "dateCreated",
+                                "dateModified",
+                                "datePaid",
+                                "dateCompleted"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "id": 3,
+            "module": "airtable:ActionSearchRecords",
+            "version": 3,
+            "parameters": {
+                "__IMTCONN__": 7774187
+            },
+            "mapper": {
+                "base": "appWKD6dpoFTeTLUI",
+                "sort": [
+                    {
+                        "field": "Created Time",
+                        "direction": "desc"
+                    }
+                ],
+                "table": "tbl8AR7buODtDA20F",
+                "formula": "AND(\n  {External Order ID}=\"{{1.id}}\",\n  {Sales Channel}=\"Courier To Northern Ireland\"\n)",
+                "maxRecords": "10",
+                "useColumnId": false
+            },
+            "metadata": {
+                "designer": {
+                    "x": -26,
+                    "y": -38
+                },
+                "restore": {
+                    "expect": {
+                        "base": {
+                            "mode": "chose",
+                            "label": "Nexus Delivery Control Tower"
+                        },
+                        "sort": {
+                            "mode": "chose",
+                            "items": [
+                                {
+                                    "field": {
+                                        "mode": "chose",
+                                        "label": "Created Time"
+                                    },
+                                    "direction": {
+                                        "mode": "chose",
+                                        "label": "Descending"
+                                    }
+                                }
+                            ]
+                        },
+                        "view": {
+                            "mode": "chose"
+                        },
+                        "table": {
+                            "mode": "chose",
+                            "label": "Consignments"
+                        },
+                        "fields": {
+                            "mode": "chose"
+                        },
+                        "useColumnId": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "airtable2"
+                            },
+                            "label": "My Airtable OAuth connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:airtable3,airtable2",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "base",
+                        "type": "select",
+                        "label": "Base",
+                        "required": true
+                    },
+                    {
+                        "name": "useColumnId",
+                        "type": "boolean",
+                        "label": "Use Column ID",
+                        "required": true
+                    },
+                    {
+                        "name": "table",
+                        "type": "select",
+                        "label": "Table",
+                        "required": true
+                    },
+                    {
+                        "name": "formula",
+                        "type": "text",
+                        "label": "Formula"
+                    },
+                    {
+                        "name": "maxRecords",
+                        "type": "integer",
+                        "label": "Limit"
+                    },
+                    {
+                        "name": "sort",
+                        "spec": [
+                            {
+                                "name": "field",
+                                "type": "select",
+                                "label": "Field",
+                                "dynamic": true,
+                                "options": []
+                            },
+                            {
+                                "name": "direction",
+                                "type": "select",
+                                "label": "Direction",
+                                "options": [
+                                    {
+                                        "label": "Descending",
+                                        "value": "desc"
+                                    },
+                                    {
+                                        "label": "Ascending",
+                                        "value": "asc"
+                                    }
+                                ]
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Sort"
+                    },
+                    {
+                        "name": "view",
+                        "type": "select",
+                        "label": "View"
+                    },
+                    {
+                        "name": "fields",
+                        "type": "select",
+                        "label": "Output Fields",
+                        "multiple": true
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "__IMTLENGTH__",
+                        "type": "uinteger",
+                        "label": "Total number of bundles"
+                    },
+                    {
+                        "name": "__IMTINDEX__",
+                        "type": "uinteger",
+                        "label": "Bundle order position"
+                    },
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "label": "ID"
+                    },
+                    {
+                        "name": "createdTime",
+                        "type": "date",
+                        "label": "Created Time"
+                    },
+                    {
+                        "name": "Consignment Ref",
+                        "type": "text",
+                        "label": "Consignment Ref"
+                    },
+                    {
+                        "name": "Source System",
+                        "type": "text",
+                        "label": "Source System"
+                    },
+                    {
+                        "name": "Sales Channel",
+                        "type": "text",
+                        "label": "Sales Channel"
+                    },
+                    {
+                        "name": "External Order ID",
+                        "type": "text",
+                        "label": "External Order ID"
+                    },
+                    {
+                        "name": "Lifecycle Status",
+                        "type": "text",
+                        "label": "Lifecycle Status"
+                    },
+                    {
+                        "name": "Goods Description",
+                        "type": "text",
+                        "label": "Goods Description",
+                        "multiline": true
+                    },
+                    {
+                        "name": "Notes",
+                        "type": "text",
+                        "label": "Notes",
+                        "multiline": true
+                    },
+                    {
+                        "name": "Payment Type",
+                        "type": "text",
+                        "label": "Payment Type"
+                    },
+                    {
+                        "name": "Invoice Required",
+                        "type": "text",
+                        "label": "Invoice Required"
+                    },
+                    {
+                        "name": "Payment Status",
+                        "type": "text",
+                        "label": "Payment Status"
+                    },
+                    {
+                        "name": "Created Time",
+                        "type": "date",
+                        "label": "Created Time"
+                    },
+                    {
+                        "name": "Last Modified",
+                        "type": "date",
+                        "label": "Last Modified"
+                    },
+                    {
+                        "name": "Customer Name",
+                        "spec": {
+                            "label": "Record ID"
+                        },
+                        "type": "array",
+                        "label": "Customer Name"
+                    },
+                    {
+                        "name": "Customer Email",
+                        "type": "text",
+                        "label": "Customer Email"
+                    },
+                    {
+                        "name": "Collection Name",
+                        "type": "text",
+                        "label": "Collection Name"
+                    },
+                    {
+                        "name": "Colllection Email",
+                        "type": "text",
+                        "label": "Colllection Email"
+                    },
+                    {
+                        "name": "Collection Address",
+                        "type": "text",
+                        "label": "Collection Address"
+                    },
+                    {
+                        "name": "Collection Phone",
+                        "type": "text",
+                        "label": "Collection Phone"
+                    },
+                    {
+                        "name": "Collection Required",
+                        "type": "boolean",
+                        "label": "Collection Required"
+                    },
+                    {
+                        "name": "Delivery Name",
+                        "type": "text",
+                        "label": "Delivery Name"
+                    },
+                    {
+                        "name": "Delivery Email",
+                        "type": "text",
+                        "label": "Delivery Email"
+                    },
+                    {
+                        "name": "Delivery Address",
+                        "type": "text",
+                        "label": "Delivery Address"
+                    },
+                    {
+                        "name": "Delivery Phone",
+                        "type": "text",
+                        "label": "Delivery Phone"
+                    },
+                    {
+                        "name": "Shipper",
+                        "spec": {
+                            "label": "Record ID"
+                        },
+                        "type": "array",
+                        "label": "Shipper"
+                    },
+                    {
+                        "name": "Collection Postcode",
+                        "type": "text",
+                        "label": "Collection Postcode"
+                    },
+                    {
+                        "name": "Delivery Postcode",
+                        "type": "text",
+                        "label": "Delivery Postcode"
+                    },
+                    {
+                        "name": "Expected Collection Date",
+                        "time": false,
+                        "type": "date",
+                        "label": "Expected Collection Date"
+                    },
+                    {
+                        "name": "Expected Warehouse Date",
+                        "time": false,
+                        "type": "date",
+                        "label": "Expected Warehouse Date"
+                    },
+                    {
+                        "name": "Requested Delivery Date",
+                        "time": false,
+                        "type": "date",
+                        "label": "Requested Delivery Date"
+                    },
+                    {
+                        "name": "Provisional Route",
+                        "spec": {
+                            "label": "Record ID"
+                        },
+                        "type": "array",
+                        "label": "Provisional Route"
+                    },
+                    {
+                        "name": "Final Route",
+                        "spec": {
+                            "label": "Record ID"
+                        },
+                        "type": "array",
+                        "label": "Final Route"
+                    },
+                    {
+                        "name": "TrackPOD Collection ID",
+                        "type": "text",
+                        "label": "TrackPOD Collection ID"
+                    },
+                    {
+                        "name": "TrackPOD Delivery ID",
+                        "type": "text",
+                        "label": "TrackPOD Delivery ID"
+                    },
+                    {
+                        "name": "Xero Invoice ID",
+                        "type": "text",
+                        "label": "Xero Invoice ID"
+                    },
+                    {
+                        "name": "ORDER VALUE",
+                        "type": "number",
+                        "label": "ORDER VALUE"
+                    },
+                    {
+                        "name": "Amount Due",
+                        "type": "number",
+                        "label": "Amount Due"
+                    },
+                    {
+                        "name": "STRIPE GUID",
+                        "type": "text",
+                        "label": "STRIPE GUID"
+                    },
+                    {
+                        "name": "Stripe Payment ID",
+                        "type": "text",
+                        "label": "Stripe Payment ID"
+                    },
+                    {
+                        "name": "Route Planning Status",
+                        "type": "text",
+                        "label": "Route Planning Status"
+                    },
+                    {
+                        "name": "Delivery Confidence",
+                        "type": "number",
+                        "label": "Delivery Confidence"
+                    },
+                    {
+                        "name": "Invoice Status",
+                        "type": "text",
+                        "label": "Invoice Status"
+                    },
+                    {
+                        "name": "POD Status",
+                        "type": "text",
+                        "label": "POD Status"
+                    },
+                    {
+                        "name": "Warehouse Status",
+                        "type": "text",
+                        "label": "Warehouse Status"
+                    },
+                    {
+                        "name": "Capacity Requirement",
+                        "type": "number",
+                        "label": "Capacity Requirement"
+                    },
+                    {
+                        "name": "Weight",
+                        "type": "number",
+                        "label": "Weight"
+                    },
+                    {
+                        "name": "Consignment Events",
+                        "type": "number",
+                        "label": "Consignment Events"
+                    },
+                    {
+                        "name": "Events",
+                        "spec": {
+                            "label": "Record ID"
+                        },
+                        "type": "array",
+                        "label": "Events"
+                    },
+                    {
+                        "name": "Last Event Timestamp",
+                        "type": "array",
+                        "label": "Last Event Timestamp"
+                    },
+                    {
+                        "name": "First Event Timestamp",
+                        "type": "array",
+                        "label": "First Event Timestamp"
+                    },
+                    {
+                        "name": "Customer Company Name",
+                        "type": "array",
+                        "label": "Customer Company Name"
+                    },
+                    {
+                        "name": "Shipper Contact Email",
+                        "type": "array",
+                        "label": "Shipper Contact Email"
+                    },
+                    {
+                        "name": "Provisional Route Date",
+                        "type": "array",
+                        "label": "Provisional Route Date"
+                    },
+                    {
+                        "name": "Final Route Date",
+                        "type": "array",
+                        "label": "Final Route Date"
+                    },
+                    {
+                        "name": "Remaining Capacity on Final Route",
+                        "type": "array",
+                        "label": "Remaining Capacity on Final Route"
+                    },
+                    {
+                        "name": "Consignment Summary (AI)",
+                        "type": "text",
+                        "label": "Consignment Summary (AI)"
+                    },
+                    {
+                        "name": "Proactive Risk/Delay Alert (AI)",
+                        "type": "text",
+                        "label": "Proactive Risk/Delay Alert (AI)"
+                    },
+                    {
+                        "name": "Payment Verification Method",
+                        "type": "text",
+                        "label": "Payment Verification Method"
+                    },
+                    {
+                        "name": "Goods Quantity",
+                        "type": "number",
+                        "label": "Goods Quantity"
+                    },
+                    {
+                        "name": "Goods Weight",
+                        "type": "number",
+                        "label": "Goods Weight"
+                    },
+                    {
+                        "name": "Special Instructions",
+                        "type": "text",
+                        "label": "Special Instructions",
+                        "multiline": true
+                    },
+                    {
+                        "name": "Consignment Status",
+                        "type": "text",
+                        "label": "Consignment Status"
+                    },
+                    {
+                        "name": "Wodely Collection GUID",
+                        "type": "text",
+                        "label": "Wodely Collection GUID"
+                    },
+                    {
+                        "name": "Wodely Delivery GUID",
+                        "type": "text",
+                        "label": "Wodely Delivery GUID"
+                    },
+                    {
+                        "name": "Shipper Name",
+                        "type": "text",
+                        "label": "Shipper Name"
+                    },
+                    {
+                        "name": "Depot Ship From",
+                        "type": "text",
+                        "label": "Depot Ship From"
+                    },
+                    {
+                        "name": "TrackPOD Goods",
+                        "type": "text",
+                        "label": "TrackPOD Goods"
+                    },
+                    {
+                        "name": "TrackPOD Order Ref",
+                        "type": "text",
+                        "label": "TrackPOD Order Ref"
+                    },
+                    {
+                        "name": "Service Required",
+                        "type": "text",
+                        "label": "Service Required"
+                    },
+                    {
+                        "name": "Vehicle Required",
+                        "type": "text",
+                        "label": "Vehicle Required"
+                    },
+                    {
+                        "name": "Handling Requirement",
+                        "type": "text",
+                        "label": "Handling Requirement"
+                    },
+                    {
+                        "name": "Product Description",
+                        "type": "text",
+                        "label": "Product Description"
+                    },
+                    {
+                        "name": "Additional Items",
+                        "type": "text",
+                        "label": "Additional Items"
+                    },
+                    {
+                        "name": "Number Of Items",
+                        "type": "number",
+                        "label": "Number Of Items"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 4,
+            "module": "builtin:BasicRouter",
+            "version": 1,
+            "mapper": null,
+            "metadata": {
+                "designer": {
+                    "x": 274,
+                    "y": -38
+                }
+            },
+            "routes": [
+                {
+                    "flow": [
+                        {
+                            "id": 5,
+                            "module": "airtable:ActionUpdateRecords",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 7829322
+                            },
+                            "filter": {
+                                "name": "RECORD FOUND",
+                                "conditions": []
+                            },
+                            "mapper": {
+                                "id": "{{3.id}}",
+                                "base": "appWKD6dpoFTeTLUI",
+                                "table": "tbl8AR7buODtDA20F",
+                                "record": {
+                                    "fld5hdGaWa9s55Uun": "PAID",
+                                    "fldDLeMi5ujW4crax": "{{3.`External Order ID`}}",
+                                    "fldHKxQbHejwNuoEW": "{{3.`External Order ID`}}",
+                                    "fldTRhwWr9XULffZd": "{{1.lineItems[].name}}",
+                                    "fldfeEsEahIpD7JFR": "Courier To Northern Ireland",
+                                    "fldhmXx9DovPahJgF": "PREPAID",
+                                    "fldio46Yi9YPkqWgn": "Courier To Northern Ireland",
+                                    "fldjyEDCSWuNIGkmw": "WooCommerce",
+                                    "fldkKYFSk1mv2jcfJ": "{{3.`Collection Name`}}",
+                                    "fldt7MgFBgq3cE8Ri": "READY_FOR_TRACKPOD"
+                                },
+                                "typecast": false,
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 574,
+                                    "y": -188
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "label": "Nexus Delivery Control Tower"
+                                        },
+                                        "table": {
+                                            "label": "Consignments"
+                                        },
+                                        "record": {
+                                            "nested": {
+                                                "fld2BeA6sSKucebZS": {
+                                                    "mode": "edit"
+                                                },
+                                                "fld2nmM131hZ8cYch": {
+                                                    "mode": "edit"
+                                                },
+                                                "fld3WjgVcG3dUhgq6": {
+                                                    "mode": "chose"
+                                                },
+                                                "fld5hdGaWa9s55Uun": {
+                                                    "mode": "chose",
+                                                    "label": "PAID"
+                                                },
+                                                "fld76sklOvx2BPQni": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldDjAqToEDOzrjys": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldEuJgmL119UGsXI": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldGkwgQBiap97tnY": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldHDIwLr7nHuP4lO": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldJEHUkNYivBs7qR": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldKPphM6lnzyQMXv": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldPwBqXhtSsy4Yr1": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldQ5CIjTQdqSPEa0": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldRiPBUx0KPziFpZ": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldcN1B02cmiMXcr2": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldcWJ2W2UiSnKpvk": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldfeEsEahIpD7JFR": {
+                                                    "mode": "chose",
+                                                    "label": "Courier To Northern Ireland"
+                                                },
+                                                "fldhmXx9DovPahJgF": {
+                                                    "mode": "chose",
+                                                    "label": "PREPAID"
+                                                },
+                                                "fldjyEDCSWuNIGkmw": {
+                                                    "mode": "chose",
+                                                    "label": "WooCommerce"
+                                                },
+                                                "fldt7MgFBgq3cE8Ri": {
+                                                    "mode": "chose",
+                                                    "label": "READY_FOR_TRACKPOD"
+                                                }
+                                            }
+                                        },
+                                        "typecast": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable3"
+                                            },
+                                            "label": "Nexus OAuth connection (User ID: usr1IOhSI9VtrD96X)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "typecast",
+                                        "type": "boolean",
+                                        "label": "Smart links",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "Record ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "record",
+                                        "spec": [
+                                            {
+                                                "name": "fldHKxQbHejwNuoEW",
+                                                "type": "text",
+                                                "label": "Consignment Ref"
+                                            },
+                                            {
+                                                "name": "fldDLeMi5ujW4crax",
+                                                "type": "text",
+                                                "label": "External Order ID"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldjyEDCSWuNIGkmw",
+                                                "type": "select",
+                                                "label": "Source System"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldfeEsEahIpD7JFR",
+                                                "type": "select",
+                                                "label": "Sales Channel"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldt7MgFBgq3cE8Ri",
+                                                "type": "select",
+                                                "label": "Lifecycle Status"
+                                            },
+                                            {
+                                                "name": "fldTRhwWr9XULffZd",
+                                                "type": "text",
+                                                "label": "Goods Description"
+                                            },
+                                            {
+                                                "name": "fldoA0iBs0unufAei",
+                                                "type": "text",
+                                                "label": "Notes"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldhmXx9DovPahJgF",
+                                                "type": "select",
+                                                "label": "Payment Type"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldcN1B02cmiMXcr2",
+                                                "type": "select",
+                                                "label": "Invoice Required"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fld5hdGaWa9s55Uun",
+                                                "type": "select",
+                                                "label": "Payment Status"
+                                            },
+                                            {
+                                                "name": "fldHDIwLr7nHuP4lO",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Customer Name"
+                                            },
+                                            {
+                                                "name": "fld4L7kMHJNVHgefK",
+                                                "type": "text",
+                                                "label": "Customer Email"
+                                            },
+                                            {
+                                                "name": "fldrF9m5gZb5XIVy7",
+                                                "type": "text",
+                                                "label": "Collection Name"
+                                            },
+                                            {
+                                                "name": "fldeG3di3uuyZpvde",
+                                                "type": "text",
+                                                "label": "Colllection Email"
+                                            },
+                                            {
+                                                "name": "fldQBiULOUiy8J1C8",
+                                                "type": "text",
+                                                "label": "Collection Address"
+                                            },
+                                            {
+                                                "name": "fldSe1LMbZmiRaoVl",
+                                                "type": "text",
+                                                "label": "Collection Phone"
+                                            },
+                                            {
+                                                "name": "fld3WjgVcG3dUhgq6",
+                                                "type": "boolean",
+                                                "label": "Collection Required"
+                                            },
+                                            {
+                                                "name": "fldkKYFSk1mv2jcfJ",
+                                                "type": "text",
+                                                "label": "Delivery Name"
+                                            },
+                                            {
+                                                "name": "fldIyw7wJlu9ZWBgx",
+                                                "type": "text",
+                                                "label": "Delivery Email"
+                                            },
+                                            {
+                                                "name": "fldH1hLzPuh5fAAji",
+                                                "type": "text",
+                                                "label": "Delivery Address"
+                                            },
+                                            {
+                                                "name": "fldwxzXAHhGQGQr12",
+                                                "type": "text",
+                                                "label": "Delivery Phone"
+                                            },
+                                            {
+                                                "name": "fldQ5CIjTQdqSPEa0",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Shipper"
+                                            },
+                                            {
+                                                "name": "fldjsYDzM5yGscp2o",
+                                                "type": "text",
+                                                "label": "Collection Postcode"
+                                            },
+                                            {
+                                                "name": "fldZC5w53zu23Xzh9",
+                                                "type": "text",
+                                                "label": "Delivery Postcode"
+                                            },
+                                            {
+                                                "name": "fldIJ5pHt7qCQAmof",
+                                                "time": false,
+                                                "type": "date",
+                                                "label": "Expected Collection Date"
+                                            },
+                                            {
+                                                "name": "fldJmVeM3V2tK9bDA",
+                                                "time": false,
+                                                "type": "date",
+                                                "label": "Expected Warehouse Date"
+                                            },
+                                            {
+                                                "name": "fld48twcKqfsO0cTF",
+                                                "time": false,
+                                                "type": "date",
+                                                "label": "Requested Delivery Date"
+                                            },
+                                            {
+                                                "name": "fldPwBqXhtSsy4Yr1",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Provisional Route"
+                                            },
+                                            {
+                                                "name": "fld76sklOvx2BPQni",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Final Route"
+                                            },
+                                            {
+                                                "name": "fldZos9QwXEL0WLZW",
+                                                "type": "text",
+                                                "label": "TrackPOD Collection ID"
+                                            },
+                                            {
+                                                "name": "fldFLwCFNOwaQaFxy",
+                                                "type": "text",
+                                                "label": "TrackPOD Delivery ID"
+                                            },
+                                            {
+                                                "name": "fld8J9ZR5aErsqWug",
+                                                "type": "text",
+                                                "label": "Xero Invoice ID"
+                                            },
+                                            {
+                                                "name": "fldg97G2YvXyjKYsh",
+                                                "type": "number",
+                                                "label": "ORDER VALUE"
+                                            },
+                                            {
+                                                "name": "fldJqfOfgl6OmcfHy",
+                                                "type": "number",
+                                                "label": "Amount Due"
+                                            },
+                                            {
+                                                "name": "fldCdGMjX7gDp3L28",
+                                                "type": "text",
+                                                "label": "STRIPE GUID"
+                                            },
+                                            {
+                                                "name": "fldls4Z4beYLEE4dO",
+                                                "type": "text",
+                                                "label": "Stripe Payment ID"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldKPphM6lnzyQMXv",
+                                                "type": "select",
+                                                "label": "Route Planning Status"
+                                            },
+                                            {
+                                                "name": "fldZxt4383INnJrj2",
+                                                "type": "number",
+                                                "label": "Delivery Confidence"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldcWJ2W2UiSnKpvk",
+                                                "type": "select",
+                                                "label": "Invoice Status"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldEuJgmL119UGsXI",
+                                                "type": "select",
+                                                "label": "POD Status"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldDjAqToEDOzrjys",
+                                                "type": "select",
+                                                "label": "Warehouse Status"
+                                            },
+                                            {
+                                                "name": "fldpsG2nwiFm3GLqo",
+                                                "type": "number",
+                                                "label": "Capacity Requirement"
+                                            },
+                                            {
+                                                "name": "fldBukUfrlwIpzHgh",
+                                                "type": "number",
+                                                "label": "Weight"
+                                            },
+                                            {
+                                                "name": "fldRiPBUx0KPziFpZ",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Events"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldGkwgQBiap97tnY",
+                                                "type": "select",
+                                                "label": "Payment Verification Method"
+                                            },
+                                            {
+                                                "name": "fldnGf0nO3iSk2djO",
+                                                "type": "number",
+                                                "label": "Goods Quantity"
+                                            },
+                                            {
+                                                "name": "fldWH6b9HYEhKXp70",
+                                                "type": "number",
+                                                "label": "Goods Weight"
+                                            },
+                                            {
+                                                "name": "fldXGYqkEKcobcgcE",
+                                                "type": "text",
+                                                "label": "Special Instructions"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fld2nmM131hZ8cYch",
+                                                "type": "select",
+                                                "label": "Consignment Status"
+                                            },
+                                            {
+                                                "name": "fldvpbEd7fk3C8rpP",
+                                                "type": "text",
+                                                "label": "Wodely Collection GUID"
+                                            },
+                                            {
+                                                "name": "fldxPhpkMGJVcdmgF",
+                                                "type": "text",
+                                                "label": "Wodely Delivery GUID"
+                                            },
+                                            {
+                                                "name": "fldio46Yi9YPkqWgn",
+                                                "type": "text",
+                                                "label": "Shipper Name"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldJEHUkNYivBs7qR",
+                                                "type": "select",
+                                                "label": "Depot Ship From"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fld2BeA6sSKucebZS",
+                                                "type": "select",
+                                                "label": "Service Required"
+                                            },
+                                            {
+                                                "name": "fldSJDDBfDt3SBRsM",
+                                                "type": "text",
+                                                "label": "Additional Items"
+                                            },
+                                            {
+                                                "name": "fldPCLNzY1vgXjfHG",
+                                                "type": "number",
+                                                "label": "Number Of Items"
+                                            },
+                                            {
+                                                "name": "fldt5M9OFnopsrXpL",
+                                                "type": "text",
+                                                "label": "TrackPOD Route Assigned"
+                                            },
+                                            {
+                                                "name": "fldiO2q07QKMioACb",
+                                                "type": "text",
+                                                "label": "Wodely Photo URL"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Record"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Consignment Ref",
+                                        "type": "text",
+                                        "label": "Consignment Ref"
+                                    },
+                                    {
+                                        "name": "External Order ID",
+                                        "type": "text",
+                                        "label": "External Order ID"
+                                    },
+                                    {
+                                        "name": "TrackPOD Order Ref",
+                                        "type": "text",
+                                        "label": "TrackPOD Order Ref"
+                                    },
+                                    {
+                                        "name": "Source System",
+                                        "type": "text",
+                                        "label": "Source System"
+                                    },
+                                    {
+                                        "name": "Sales Channel",
+                                        "type": "text",
+                                        "label": "Sales Channel"
+                                    },
+                                    {
+                                        "name": "Lifecycle Status",
+                                        "type": "text",
+                                        "label": "Lifecycle Status"
+                                    },
+                                    {
+                                        "name": "Goods Description",
+                                        "type": "text",
+                                        "label": "Goods Description",
+                                        "multiline": true
+                                    },
+                                    {
+                                        "name": "TrackPOD Goods",
+                                        "type": "text",
+                                        "label": "TrackPOD Goods"
+                                    },
+                                    {
+                                        "name": "Notes",
+                                        "type": "text",
+                                        "label": "Notes",
+                                        "multiline": true
+                                    },
+                                    {
+                                        "name": "Payment Type",
+                                        "type": "text",
+                                        "label": "Payment Type"
+                                    },
+                                    {
+                                        "name": "Invoice Required",
+                                        "type": "text",
+                                        "label": "Invoice Required"
+                                    },
+                                    {
+                                        "name": "Payment Status",
+                                        "type": "text",
+                                        "label": "Payment Status"
+                                    },
+                                    {
+                                        "name": "Created Time",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Last Modified",
+                                        "type": "date",
+                                        "label": "Last Modified"
+                                    },
+                                    {
+                                        "name": "Customer Name",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Customer Name"
+                                    },
+                                    {
+                                        "name": "Customer Email",
+                                        "type": "text",
+                                        "label": "Customer Email"
+                                    },
+                                    {
+                                        "name": "Collection Name",
+                                        "type": "text",
+                                        "label": "Collection Name"
+                                    },
+                                    {
+                                        "name": "Colllection Email",
+                                        "type": "text",
+                                        "label": "Colllection Email"
+                                    },
+                                    {
+                                        "name": "Collection Address",
+                                        "type": "text",
+                                        "label": "Collection Address"
+                                    },
+                                    {
+                                        "name": "Collection Phone",
+                                        "type": "text",
+                                        "label": "Collection Phone"
+                                    },
+                                    {
+                                        "name": "Collection Required",
+                                        "type": "boolean",
+                                        "label": "Collection Required"
+                                    },
+                                    {
+                                        "name": "Delivery Name",
+                                        "type": "text",
+                                        "label": "Delivery Name"
+                                    },
+                                    {
+                                        "name": "Delivery Email",
+                                        "type": "text",
+                                        "label": "Delivery Email"
+                                    },
+                                    {
+                                        "name": "Delivery Address",
+                                        "type": "text",
+                                        "label": "Delivery Address"
+                                    },
+                                    {
+                                        "name": "Delivery Phone",
+                                        "type": "text",
+                                        "label": "Delivery Phone"
+                                    },
+                                    {
+                                        "name": "Shipper",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Shipper"
+                                    },
+                                    {
+                                        "name": "Collection Postcode",
+                                        "type": "text",
+                                        "label": "Collection Postcode"
+                                    },
+                                    {
+                                        "name": "Delivery Postcode",
+                                        "type": "text",
+                                        "label": "Delivery Postcode"
+                                    },
+                                    {
+                                        "name": "Expected Collection Date",
+                                        "time": false,
+                                        "type": "date",
+                                        "label": "Expected Collection Date"
+                                    },
+                                    {
+                                        "name": "Expected Warehouse Date",
+                                        "time": false,
+                                        "type": "date",
+                                        "label": "Expected Warehouse Date"
+                                    },
+                                    {
+                                        "name": "Requested Delivery Date",
+                                        "time": false,
+                                        "type": "date",
+                                        "label": "Requested Delivery Date"
+                                    },
+                                    {
+                                        "name": "Provisional Route",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Provisional Route"
+                                    },
+                                    {
+                                        "name": "Final Route",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Final Route"
+                                    },
+                                    {
+                                        "name": "TrackPOD Collection ID",
+                                        "type": "text",
+                                        "label": "TrackPOD Collection ID"
+                                    },
+                                    {
+                                        "name": "TrackPOD Delivery ID",
+                                        "type": "text",
+                                        "label": "TrackPOD Delivery ID"
+                                    },
+                                    {
+                                        "name": "Xero Invoice ID",
+                                        "type": "text",
+                                        "label": "Xero Invoice ID"
+                                    },
+                                    {
+                                        "name": "ORDER VALUE",
+                                        "type": "number",
+                                        "label": "ORDER VALUE"
+                                    },
+                                    {
+                                        "name": "Amount Due",
+                                        "type": "number",
+                                        "label": "Amount Due"
+                                    },
+                                    {
+                                        "name": "STRIPE GUID",
+                                        "type": "text",
+                                        "label": "STRIPE GUID"
+                                    },
+                                    {
+                                        "name": "Stripe Payment ID",
+                                        "type": "text",
+                                        "label": "Stripe Payment ID"
+                                    },
+                                    {
+                                        "name": "Route Planning Status",
+                                        "type": "text",
+                                        "label": "Route Planning Status"
+                                    },
+                                    {
+                                        "name": "Delivery Confidence",
+                                        "type": "number",
+                                        "label": "Delivery Confidence"
+                                    },
+                                    {
+                                        "name": "Invoice Status",
+                                        "type": "text",
+                                        "label": "Invoice Status"
+                                    },
+                                    {
+                                        "name": "POD Status",
+                                        "type": "text",
+                                        "label": "POD Status"
+                                    },
+                                    {
+                                        "name": "Warehouse Status",
+                                        "type": "text",
+                                        "label": "Warehouse Status"
+                                    },
+                                    {
+                                        "name": "Capacity Requirement",
+                                        "type": "number",
+                                        "label": "Capacity Requirement"
+                                    },
+                                    {
+                                        "name": "Weight",
+                                        "type": "number",
+                                        "label": "Weight"
+                                    },
+                                    {
+                                        "name": "Consignment Events",
+                                        "type": "number",
+                                        "label": "Consignment Events"
+                                    },
+                                    {
+                                        "name": "Events",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Events"
+                                    },
+                                    {
+                                        "name": "Last Event Timestamp",
+                                        "type": "array",
+                                        "label": "Last Event Timestamp"
+                                    },
+                                    {
+                                        "name": "First Event Timestamp",
+                                        "type": "array",
+                                        "label": "First Event Timestamp"
+                                    },
+                                    {
+                                        "name": "Customer Company Name",
+                                        "type": "array",
+                                        "label": "Customer Company Name"
+                                    },
+                                    {
+                                        "name": "Shipper Contact Email",
+                                        "type": "array",
+                                        "label": "Shipper Contact Email"
+                                    },
+                                    {
+                                        "name": "Provisional Route Date",
+                                        "type": "array",
+                                        "label": "Provisional Route Date"
+                                    },
+                                    {
+                                        "name": "Final Route Date",
+                                        "type": "array",
+                                        "label": "Final Route Date"
+                                    },
+                                    {
+                                        "name": "Remaining Capacity on Final Route",
+                                        "type": "array",
+                                        "label": "Remaining Capacity on Final Route"
+                                    },
+                                    {
+                                        "name": "Consignment Summary (AI)",
+                                        "type": "text",
+                                        "label": "Consignment Summary (AI)"
+                                    },
+                                    {
+                                        "name": "Proactive Risk/Delay Alert (AI)",
+                                        "type": "text",
+                                        "label": "Proactive Risk/Delay Alert (AI)"
+                                    },
+                                    {
+                                        "name": "Payment Verification Method",
+                                        "type": "text",
+                                        "label": "Payment Verification Method"
+                                    },
+                                    {
+                                        "name": "Goods Quantity",
+                                        "type": "number",
+                                        "label": "Goods Quantity"
+                                    },
+                                    {
+                                        "name": "Goods Weight",
+                                        "type": "number",
+                                        "label": "Goods Weight"
+                                    },
+                                    {
+                                        "name": "Special Instructions",
+                                        "type": "text",
+                                        "label": "Special Instructions",
+                                        "multiline": true
+                                    },
+                                    {
+                                        "name": "Consignment Status",
+                                        "type": "text",
+                                        "label": "Consignment Status"
+                                    },
+                                    {
+                                        "name": "Wodely Collection GUID",
+                                        "type": "text",
+                                        "label": "Wodely Collection GUID"
+                                    },
+                                    {
+                                        "name": "Wodely Delivery GUID",
+                                        "type": "text",
+                                        "label": "Wodely Delivery GUID"
+                                    },
+                                    {
+                                        "name": "Shipper Name",
+                                        "type": "text",
+                                        "label": "Shipper Name"
+                                    },
+                                    {
+                                        "name": "Depot Ship From",
+                                        "type": "text",
+                                        "label": "Depot Ship From"
+                                    },
+                                    {
+                                        "name": "Service Required",
+                                        "type": "text",
+                                        "label": "Service Required"
+                                    },
+                                    {
+                                        "name": "Vehicle Required",
+                                        "type": "text",
+                                        "label": "Vehicle Required"
+                                    },
+                                    {
+                                        "name": "Handling Requirement",
+                                        "type": "text",
+                                        "label": "Handling Requirement"
+                                    },
+                                    {
+                                        "name": "Product Description",
+                                        "type": "text",
+                                        "label": "Product Description"
+                                    },
+                                    {
+                                        "name": "Additional Items",
+                                        "type": "text",
+                                        "label": "Additional Items"
+                                    },
+                                    {
+                                        "name": "Number Of Items",
+                                        "type": "number",
+                                        "label": "Number Of Items"
+                                    },
+                                    {
+                                        "name": "Merchant Order Number",
+                                        "type": "text",
+                                        "label": "Merchant Order Number"
+                                    },
+                                    {
+                                        "name": "TrackPOD Route Assigned",
+                                        "type": "text",
+                                        "label": "TrackPOD Route Assigned"
+                                    },
+                                    {
+                                        "name": "TRACKPOD DATE FIELD FOR SEARCH MODULE",
+                                        "type": "text",
+                                        "label": "TRACKPOD DATE FIELD FOR SEARCH MODULE"
+                                    },
+                                    {
+                                        "name": "TRACKPOD EXPECTED COLLECTION DATE",
+                                        "type": "text",
+                                        "label": "TRACKPOD EXPECTED COLLECTION DATE"
+                                    },
+                                    {
+                                        "name": "TRACKPOD DATE",
+                                        "type": "text",
+                                        "label": "TRACKPOD DATE"
+                                    },
+                                    {
+                                        "name": "TRACKPOD COLLECTION DATE",
+                                        "type": "text",
+                                        "label": "TRACKPOD COLLECTION DATE"
+                                    },
+                                    {
+                                        "name": "Wodely Photo URL",
+                                        "type": "text",
+                                        "label": "Wodely Photo URL"
+                                    },
+                                    {
+                                        "name": "TRACKPOD PHOTO & NOTE",
+                                        "type": "text",
+                                        "label": "TRACKPOD PHOTO & NOTE"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 6,
+                            "module": "placeholder:Placeholder",
+                            "filter": {
+                                "name": "RECORD NOT FOUND",
+                                "conditions": []
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 574,
+                                    "y": 112
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "instant": false,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu1.make.com",
+        "notes": []
+    }
+}

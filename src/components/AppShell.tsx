@@ -9,6 +9,7 @@ import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
   { label: "Create it", href: "/create-it" },
+  { label: "Process it", href: "/process-it" },
   { label: "Track it", href: "/track-it" },
   { label: "Store it", href: "/store-it" },
   { label: "Account it", href: "/account-it" },

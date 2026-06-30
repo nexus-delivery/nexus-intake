@@ -1,0 +1,1708 @@
+{
+    "name": "8 - NEXUS - TRACKPOD - XERO FACTORED INVOICES",
+    "flow": [
+        {
+            "id": 1,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 3248426,
+                "maxResults": 30
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "TrackPOD Delivered"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "Metadata",
+                        "spec": [
+                            {
+                                "name": "Event",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Date",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection"
+                    },
+                    {
+                        "name": "Data",
+                        "spec": [
+                            {
+                                "name": "Number",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Id",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Date",
+                                "type": "text"
+                            },
+                            {
+                                "name": "RouteNumber",
+                                "type": "text"
+                            },
+                            {
+                                "name": "DriverLogin",
+                                "type": "text"
+                            },
+                            {
+                                "name": "DriverName",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ShipperId",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Shipper",
+                                "type": "text"
+                            },
+                            {
+                                "name": "DepotId",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Depot",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Weight",
+                                "type": "number"
+                            },
+                            {
+                                "name": "Volume",
+                                "type": "number"
+                            },
+                            {
+                                "name": "Pallets",
+                                "type": "number"
+                            },
+                            {
+                                "name": "GoodsList",
+                                "spec": {
+                                    "spec": [
+                                        {
+                                            "name": "GoodsId",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "GoodsName",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "GoodsUnit",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "Quantity",
+                                            "type": "number"
+                                        },
+                                        {
+                                            "name": "Cost",
+                                            "type": "number"
+                                        },
+                                        {
+                                            "name": "GoodsBarcode",
+                                            "type": "text"
+                                        }
+                                    ],
+                                    "type": "collection"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "name": "Pin",
+                                "type": "text"
+                            },
+                            {
+                                "name": "CreateDateUtc",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Feedback",
+                                "type": "text"
+                            },
+                            {
+                                "name": "RouteDate",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Type",
+                                "type": "number"
+                            },
+                            {
+                                "name": "ClientId",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Client",
+                                "type": "text"
+                            },
+                            {
+                                "name": "AddressId",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Address",
+                                "type": "text"
+                            },
+                            {
+                                "name": "AddressLat",
+                                "type": "number"
+                            },
+                            {
+                                "name": "AddressLon",
+                                "type": "number"
+                            },
+                            {
+                                "name": "AddressZone",
+                                "type": "text"
+                            },
+                            {
+                                "name": "TimeSlotFrom",
+                                "type": "text"
+                            },
+                            {
+                                "name": "TimeSlotTo",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ServiceTime",
+                                "type": "number"
+                            },
+                            {
+                                "name": "Note",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ContactName",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Phone",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Email",
+                                "type": "text"
+                            },
+                            {
+                                "name": "COD",
+                                "type": "number"
+                            },
+                            {
+                                "name": "CODActual",
+                                "type": "text"
+                            },
+                            {
+                                "name": "StatusId",
+                                "type": "number"
+                            },
+                            {
+                                "name": "Status",
+                                "type": "text"
+                            },
+                            {
+                                "name": "StatusLat",
+                                "type": "number"
+                            },
+                            {
+                                "name": "StatusLon",
+                                "type": "number"
+                            },
+                            {
+                                "name": "DriverComment",
+                                "type": "text"
+                            },
+                            {
+                                "name": "SignatureName",
+                                "type": "text"
+                            },
+                            {
+                                "name": "HasSignaturePhoto",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "SignaturePhotos",
+                                "spec": {
+                                    "type": "text"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "name": "HasPhoto",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "StatusDate",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ArrivedDate",
+                                "type": "text"
+                            },
+                            {
+                                "name": "DepartedDate",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ReportUrl",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Barcode",
+                                "type": "text"
+                            },
+                            {
+                                "name": "Scanned",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "FeedbackRating",
+                                "type": "number"
+                            },
+                            {
+                                "name": "TrackKey",
+                                "type": "text"
+                            },
+                            {
+                                "name": "TrackId",
+                                "type": "text"
+                            },
+                            {
+                                "name": "TrackLink",
+                                "type": "text"
+                            },
+                            {
+                                "name": "ChangeDate",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection"
+                    }
+                ],
+                "advanced": true
+            }
+        },
+        {
+            "id": 4,
+            "module": "xero:SearchInvoice",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 8080196
+            },
+            "filter": {
+                "name": "Delivered Orders Only",
+                "conditions": [
+                    [
+                        {
+                            "a": "{{1.Data.Status}}",
+                            "b": "Delivered",
+                            "o": "text:equal"
+                        }
+                    ]
+                ]
+            },
+            "mapper": {
+                "limit": "30",
+                "tenantId": "7455859d-ac24-4466-9cd3-ed24b1b32d68",
+                "summaryOnly": false,
+                "ModifiedAfter": "2026-06-14T23:00:00.000Z",
+                "InvoiceNumbers": "{{1.Data.Number}}",
+                "createdByMyApp": false
+            },
+            "metadata": {
+                "designer": {
+                    "x": 537,
+                    "y": 11
+                },
+                "restore": {
+                    "expect": {
+                        "type": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "tenantId": {
+                            "mode": "chose",
+                            "label": "Nexus Delivery Team LTD"
+                        },
+                        "summaryOnly": {
+                            "mode": "chose"
+                        },
+                        "createdByMyApp": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "xero3"
+                            },
+                            "label": "My Xero connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:xero3",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "tenantId",
+                        "type": "select",
+                        "label": "Organization"
+                    },
+                    {
+                        "name": "order",
+                        "type": "text",
+                        "label": "Order By"
+                    },
+                    {
+                        "name": "limit",
+                        "type": "uinteger",
+                        "label": "Limit",
+                        "required": true
+                    },
+                    {
+                        "name": "IDs",
+                        "type": "text",
+                        "label": "Invoices IDs"
+                    },
+                    {
+                        "name": "InvoiceNumbers",
+                        "type": "text",
+                        "label": "Invoice Numbers"
+                    },
+                    {
+                        "name": "ContactIDs",
+                        "type": "text",
+                        "label": "Contact IDs"
+                    },
+                    {
+                        "name": "Statuses",
+                        "type": "text"
+                    },
+                    {
+                        "name": "ModifiedAfter",
+                        "type": "date",
+                        "label": "Modified After"
+                    },
+                    {
+                        "name": "createdByMyApp",
+                        "type": "boolean",
+                        "label": "Created By My App",
+                        "required": true
+                    },
+                    {
+                        "name": "summaryOnly",
+                        "type": "boolean",
+                        "label": "Summary Only",
+                        "required": true
+                    },
+                    {
+                        "name": "type",
+                        "type": "select",
+                        "label": "Search By",
+                        "validate": {
+                            "enum": [
+                                "field",
+                                "query"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "id": 3,
+            "module": "xero:UpdateInvoice",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 8080196
+            },
+            "filter": {
+                "name": "DRAFT INVOICE FOUND ONLY",
+                "conditions": [
+                    [
+                        {
+                            "a": "{{4.InvoiceID}}",
+                            "o": "exist"
+                        },
+                        {
+                            "a": "{{4.Status}}",
+                            "b": "DRAFT",
+                            "o": "text:equal"
+                        }
+                    ]
+                ]
+            },
+            "mapper": {
+                "Date": "{{1.Data.StatusDate}}",
+                "Status": "AUTHORISED",
+                "DueDate": "{{addDays(1.Data.StatusDate; 28)}}",
+                "tenantId": "7455859d-ac24-4466-9cd3-ed24b1b32d68",
+                "InvoiceID": "{{4.InvoiceID}}",
+                "SentToContact": true
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1009,
+                    "y": 6
+                },
+                "restore": {
+                    "expect": {
+                        "Type": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "Status": {
+                            "mode": "chose",
+                            "label": "Authorized"
+                        },
+                        "tenantId": {
+                            "mode": "chose",
+                            "label": "Nexus Delivery Team LTD"
+                        },
+                        "LineItems": {
+                            "mode": "chose"
+                        },
+                        "CurrencyCode": {
+                            "mode": "chose"
+                        },
+                        "SentToContact": {
+                            "mode": "chose"
+                        },
+                        "BrandingThemeID": {
+                            "mode": "chose"
+                        },
+                        "LineAmountTypes": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "xero3"
+                            },
+                            "label": "My Xero connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:xero3",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "tenantId",
+                        "type": "select",
+                        "label": "Organization",
+                        "required": true
+                    },
+                    {
+                        "name": "InvoiceID",
+                        "type": "uuid",
+                        "label": "Invoice ID",
+                        "required": true
+                    },
+                    {
+                        "name": "Type",
+                        "type": "select",
+                        "validate": {
+                            "enum": [
+                                "ACCPAY",
+                                "ACCREC"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "Contact",
+                        "type": "uuid",
+                        "label": "Contact ID"
+                    },
+                    {
+                        "name": "LineItems",
+                        "spec": [
+                            {
+                                "name": "LineItemID",
+                                "type": "text",
+                                "label": "Line item ID"
+                            },
+                            {
+                                "name": "Description",
+                                "type": "text",
+                                "label": "Description"
+                            },
+                            {
+                                "name": "Quantity",
+                                "type": "number",
+                                "label": "Quantity"
+                            },
+                            {
+                                "name": "UnitAmount",
+                                "type": "number",
+                                "label": "Unit amount"
+                            },
+                            {
+                                "mode": "edit",
+                                "name": "ItemCode",
+                                "type": "select",
+                                "label": "Item",
+                                "dynamic": true,
+                                "options": []
+                            },
+                            {
+                                "mode": "edit",
+                                "name": "AccountCode",
+                                "type": "select",
+                                "label": "Account code",
+                                "dynamic": true,
+                                "options": []
+                            },
+                            {
+                                "mode": "edit",
+                                "name": "TaxType",
+                                "type": "select",
+                                "label": "Tax code",
+                                "dynamic": true,
+                                "options": []
+                            },
+                            {
+                                "name": "TaxAmount",
+                                "type": "number",
+                                "label": "Tax amount"
+                            },
+                            {
+                                "name": "LineAmount",
+                                "type": "number",
+                                "label": "Line amount"
+                            },
+                            {
+                                "name": "DiscountRate",
+                                "type": "number",
+                                "label": "Discount rate"
+                            },
+                            {
+                                "name": "DiscountAmount",
+                                "type": "number",
+                                "label": "Discount amount"
+                            },
+                            {
+                                "name": "Tracking",
+                                "spec": [
+                                    {
+                                        "mode": "edit",
+                                        "name": "TrackingCategory",
+                                        "type": "select",
+                                        "label": "Name",
+                                        "dynamic": true,
+                                        "options": {
+                                            "store": []
+                                        }
+                                    }
+                                ],
+                                "type": "array",
+                                "label": "Tracking"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Line items"
+                    },
+                    {
+                        "name": "Date",
+                        "type": "date"
+                    },
+                    {
+                        "name": "DueDate",
+                        "type": "date",
+                        "label": "Due date"
+                    },
+                    {
+                        "name": "LineAmountTypes",
+                        "type": "select",
+                        "label": "Line amount type",
+                        "validate": {
+                            "enum": [
+                                "Exclusive",
+                                "Inclusive",
+                                "NoTax"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "InvoiceNumber",
+                        "type": "text",
+                        "label": "Invoice number"
+                    },
+                    {
+                        "name": "Reference",
+                        "type": "text"
+                    },
+                    {
+                        "mode": "edit",
+                        "name": "BrandingThemeID",
+                        "type": "select",
+                        "label": "Branding Theme"
+                    },
+                    {
+                        "name": "Url",
+                        "type": "url",
+                        "label": "URL"
+                    },
+                    {
+                        "mode": "edit",
+                        "name": "CurrencyCode",
+                        "type": "select",
+                        "label": "Currency code"
+                    },
+                    {
+                        "name": "CurrencyRate",
+                        "type": "number",
+                        "label": "Currency rate"
+                    },
+                    {
+                        "name": "Status",
+                        "type": "select",
+                        "validate": {
+                            "enum": [
+                                "DRAFT",
+                                "SUBMITTED",
+                                "AUTHORISED",
+                                "VOIDED",
+                                "DELETED"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "SentToContact",
+                        "type": "boolean",
+                        "label": "Send to contact"
+                    },
+                    {
+                        "name": "ExpectedPaymentDate",
+                        "type": "date",
+                        "label": "Expected payment date"
+                    },
+                    {
+                        "name": "PlannedPaymentDate",
+                        "type": "date",
+                        "label": "Planned payment date"
+                    }
+                ],
+                "advanced": true
+            }
+        },
+        {
+            "id": 9,
+            "module": "airtable:ActionSearchRecords",
+            "version": 3,
+            "parameters": {
+                "__IMTCONN__": 7774187
+            },
+            "filter": null,
+            "mapper": {
+                "base": "appWKD6dpoFTeTLUI",
+                "table": "tbl4NbMeu9JZDN45j",
+                "formula": "{Customer Name} = \"{{3.Contact.Name}}\"",
+                "maxRecords": "10",
+                "useColumnId": false
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1342,
+                    "y": -1
+                },
+                "restore": {
+                    "expect": {
+                        "base": {
+                            "mode": "chose",
+                            "label": "Nexus Delivery Control Tower"
+                        },
+                        "sort": {
+                            "mode": "chose"
+                        },
+                        "view": {
+                            "mode": "chose",
+                            "label": "Empty"
+                        },
+                        "table": {
+                            "mode": "chose",
+                            "label": "Factoring Customers"
+                        },
+                        "fields": {
+                            "mode": "chose"
+                        },
+                        "useColumnId": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "airtable2"
+                            },
+                            "label": "My Airtable OAuth connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:airtable3,airtable2",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "base",
+                        "type": "select",
+                        "label": "Base",
+                        "required": true
+                    },
+                    {
+                        "name": "useColumnId",
+                        "type": "boolean",
+                        "label": "Use Column ID",
+                        "required": true
+                    },
+                    {
+                        "name": "table",
+                        "type": "select",
+                        "label": "Table",
+                        "required": true
+                    },
+                    {
+                        "name": "formula",
+                        "type": "text",
+                        "label": "Formula"
+                    },
+                    {
+                        "name": "maxRecords",
+                        "type": "integer",
+                        "label": "Limit"
+                    },
+                    {
+                        "name": "sort",
+                        "spec": [
+                            {
+                                "name": "field",
+                                "type": "select",
+                                "label": "Field",
+                                "dynamic": true,
+                                "options": []
+                            },
+                            {
+                                "name": "direction",
+                                "type": "select",
+                                "label": "Direction",
+                                "options": [
+                                    {
+                                        "label": "Descending",
+                                        "value": "desc"
+                                    },
+                                    {
+                                        "label": "Ascending",
+                                        "value": "asc"
+                                    }
+                                ]
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Sort"
+                    },
+                    {
+                        "name": "view",
+                        "type": "select",
+                        "label": "View"
+                    },
+                    {
+                        "name": "fields",
+                        "type": "select",
+                        "label": "Output Fields",
+                        "multiple": true
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "__IMTLENGTH__",
+                        "type": "uinteger",
+                        "label": "Total number of bundles"
+                    },
+                    {
+                        "name": "__IMTINDEX__",
+                        "type": "uinteger",
+                        "label": "Bundle order position"
+                    },
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "label": "ID"
+                    },
+                    {
+                        "name": "createdTime",
+                        "type": "date",
+                        "label": "Created Time"
+                    },
+                    {
+                        "name": "Customer Name",
+                        "type": "text",
+                        "label": "Customer Name"
+                    },
+                    {
+                        "name": "Factor Prefix",
+                        "type": "text",
+                        "label": "Factor Prefix"
+                    },
+                    {
+                        "name": "Company",
+                        "type": "text",
+                        "label": "Company"
+                    },
+                    {
+                        "name": "Branding Theme",
+                        "type": "text",
+                        "label": "Branding Theme"
+                    },
+                    {
+                        "name": "Active",
+                        "type": "boolean",
+                        "label": "Active"
+                    },
+                    {
+                        "name": "Notes",
+                        "type": "text",
+                        "label": "Notes",
+                        "multiline": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": 10,
+            "module": "builtin:BasicRouter",
+            "version": 1,
+            "filter": null,
+            "mapper": null,
+            "metadata": {
+                "designer": {
+                    "x": 1638,
+                    "y": 10
+                }
+            },
+            "routes": [
+                {
+                    "flow": [
+                        {
+                            "id": 8,
+                            "module": "microsoft-excel:addATableRow",
+                            "version": 2,
+                            "parameters": {
+                                "__IMTCONN__": 8404714
+                            },
+                            "filter": {
+                                "name": "Customer Exists",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{3.Contact.Name}}",
+                                            "o": "exist"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "id": "2",
+                                "row": {
+                                    "0": "{{9.`Factor Prefix`}}",
+                                    "1": "{{3.InvoiceNumber}}",
+                                    "2": "{{formatDate(3.Date; \"DD-MM-YYYY\")}}",
+                                    "3": "{{3.LineItems}}",
+                                    "4": "{{3.InvoiceNumber}}"
+                                },
+                                "table": "Table3",
+                                "select": "list",
+                                "selectB": "my",
+                                "workbook": "/E0002 Upload copy copy.xlsx",
+                                "worksheet": "in"
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 1938,
+                                    "y": -140
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "table": {
+                                            "mode": "chose",
+                                            "label": "Table3",
+                                            "nested": [
+                                                {
+                                                    "help": "You have to fill at least one column in the row.",
+                                                    "name": "row",
+                                                    "spec": [
+                                                        {
+                                                            "name": "0",
+                                                            "type": "text",
+                                                            "label": "PRI01"
+                                                        },
+                                                        {
+                                                            "name": "1",
+                                                            "type": "text",
+                                                            "label": "043204 - TS11 8AZ"
+                                                        },
+                                                        {
+                                                            "name": "2",
+                                                            "type": "text",
+                                                            "label": "23-06-2026"
+                                                        },
+                                                        {
+                                                            "name": "3",
+                                                            "type": "text",
+                                                            "label": "67.3"
+                                                        },
+                                                        {
+                                                            "name": "4",
+                                                            "type": "text",
+                                                            "label": "Invoice"
+                                                        }
+                                                    ],
+                                                    "type": "collection",
+                                                    "label": "Row",
+                                                    "required": "true"
+                                                },
+                                                {
+                                                    "help": "To insert a row at a specific position in a table, specify the row number.",
+                                                    "name": "id",
+                                                    "type": "uinteger",
+                                                    "label": "Row ID"
+                                                }
+                                            ]
+                                        },
+                                        "select": {
+                                            "label": "Select from the list"
+                                        },
+                                        "selectB": {
+                                            "label": "My Drive"
+                                        },
+                                        "worksheet": {
+                                            "mode": "chose",
+                                            "label": "in",
+                                            "nested": [
+                                                {
+                                                    "name": "table",
+                                                    "type": "select",
+                                                    "label": "Table",
+                                                    "options": {
+                                                        "store": "rpc://microsoft-excel/2/listTables",
+                                                        "nested": "rpc://microsoft-excel/2/listTableRowFields?required=true"
+                                                    },
+                                                    "required": true
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "azure"
+                                            },
+                                            "label": "EXCEL CONNECTION (Andy McLachlan <andymclachlan@hotmail.com>)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:azure",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "select",
+                                        "type": "select",
+                                        "label": "Select a method",
+                                        "required": true,
+                                        "validate": {
+                                            "enum": [
+                                                "map",
+                                                "list"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "selectB",
+                                        "type": "select",
+                                        "label": "Choose your OneDrive location",
+                                        "required": true,
+                                        "validate": {
+                                            "enum": [
+                                                "my",
+                                                "site",
+                                                "group"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "workbook",
+                                        "type": "file",
+                                        "label": "Workbook",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "worksheet",
+                                        "type": "select",
+                                        "label": "Worksheet",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "row",
+                                        "spec": [
+                                            {
+                                                "name": "0",
+                                                "type": "text",
+                                                "label": "PRI01"
+                                            },
+                                            {
+                                                "name": "1",
+                                                "type": "text",
+                                                "label": "043204 - TS11 8AZ"
+                                            },
+                                            {
+                                                "name": "2",
+                                                "type": "text",
+                                                "label": "23-06-2026"
+                                            },
+                                            {
+                                                "name": "3",
+                                                "type": "text",
+                                                "label": "67.3"
+                                            },
+                                            {
+                                                "name": "4",
+                                                "type": "text",
+                                                "label": "Invoice"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Row",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "uinteger",
+                                        "label": "Row ID"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "@odata.id",
+                                        "type": "text",
+                                        "label": "@Odata ID"
+                                    },
+                                    {
+                                        "name": "index",
+                                        "type": "text",
+                                        "label": "Table Row ID"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "spec": [
+                                            {
+                                                "name": "0",
+                                                "type": "text",
+                                                "label": "Customer"
+                                            },
+                                            {
+                                                "name": "1",
+                                                "type": "text",
+                                                "label": "Invoice Number"
+                                            },
+                                            {
+                                                "name": "2",
+                                                "type": "text",
+                                                "label": "Date"
+                                            },
+                                            {
+                                                "name": "3",
+                                                "type": "text",
+                                                "label": "Amount"
+                                            },
+                                            {
+                                                "name": "4",
+                                                "type": "text",
+                                                "label": "Invoice"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Row"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 11,
+                            "module": "airtable:ActionCreateRecord",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 7774187
+                            },
+                            "filter": {
+                                "name": "Customer Does Not Exist",
+                                "conditions": [
+                                    [
+                                        {
+                                            "a": "{{3.Contact.Name}}",
+                                            "o": "notexist"
+                                        }
+                                    ]
+                                ]
+                            },
+                            "mapper": {
+                                "base": "appWKD6dpoFTeTLUI",
+                                "table": "tbl4NbMeu9JZDN45j",
+                                "record": {
+                                    "fldD9LMf8DoWklfPP": true,
+                                    "fldG9BTmOsms4tGB6": "{{3.Contact.Name}}",
+                                    "fldYsAG6XtqaKEG06": "{{3.Contact.Name}}",
+                                    "fldvt7jFoKFEyjTFT": "{{4.BrandingThemeID}}"
+                                },
+                                "typecast": false,
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 1938,
+                                    "y": 160
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "label": "Nexus Delivery Control Tower"
+                                        },
+                                        "table": {
+                                            "label": "Factoring Customers",
+                                            "nested": [
+                                                {
+                                                    "name": "record",
+                                                    "spec": [
+                                                        {
+                                                            "name": "fldG9BTmOsms4tGB6",
+                                                            "type": "text",
+                                                            "label": "Customer Name"
+                                                        },
+                                                        {
+                                                            "mode": "edit",
+                                                            "name": "fldYsAG6XtqaKEG06",
+                                                            "type": "select",
+                                                            "label": "Company",
+                                                            "dynamic": true,
+                                                            "options": [
+                                                                {
+                                                                    "label": "Nexus Delivery Team",
+                                                                    "value": "Nexus Delivery Team"
+                                                                },
+                                                                {
+                                                                    "label": "Courier to Northern Ireland",
+                                                                    "value": "Courier to Northern Ireland"
+                                                                },
+                                                                {
+                                                                    "label": "The Home Delivery Guys",
+                                                                    "value": "The Home Delivery Guys"
+                                                                },
+                                                                {
+                                                                    "label": "Nexus Fulfilment Solutions",
+                                                                    "value": "Nexus Fulfilment Solutions"
+                                                                }
+                                                            ],
+                                                            "validate": false
+                                                        },
+                                                        {
+                                                            "name": "fldvt7jFoKFEyjTFT",
+                                                            "type": "text",
+                                                            "label": "Branding Theme"
+                                                        },
+                                                        {
+                                                            "name": "fldD9LMf8DoWklfPP",
+                                                            "type": "boolean",
+                                                            "label": "Active"
+                                                        },
+                                                        {
+                                                            "name": "fld3ly5TedSbHpaw6",
+                                                            "type": "text",
+                                                            "label": "Notes",
+                                                            "multiline": true
+                                                        }
+                                                    ],
+                                                    "type": "collection",
+                                                    "label": "Record"
+                                                }
+                                            ]
+                                        },
+                                        "record": {
+                                            "nested": {
+                                                "fldD9LMf8DoWklfPP": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldYsAG6XtqaKEG06": {
+                                                    "mode": "edit"
+                                                }
+                                            }
+                                        },
+                                        "typecast": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable2"
+                                            },
+                                            "label": "My Airtable OAuth connection"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "typecast",
+                                        "type": "boolean",
+                                        "label": "Smart links",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "record",
+                                        "spec": [
+                                            {
+                                                "name": "fldG9BTmOsms4tGB6",
+                                                "type": "text",
+                                                "label": "Customer Name"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldYsAG6XtqaKEG06",
+                                                "type": "select",
+                                                "label": "Company"
+                                            },
+                                            {
+                                                "name": "fldvt7jFoKFEyjTFT",
+                                                "type": "text",
+                                                "label": "Branding Theme"
+                                            },
+                                            {
+                                                "name": "fldD9LMf8DoWklfPP",
+                                                "type": "boolean",
+                                                "label": "Active"
+                                            },
+                                            {
+                                                "name": "fld3ly5TedSbHpaw6",
+                                                "type": "text",
+                                                "label": "Notes"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Record"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Customer Name",
+                                        "type": "text",
+                                        "label": "Customer Name"
+                                    },
+                                    {
+                                        "name": "Factor Prefix",
+                                        "type": "text",
+                                        "label": "Factor Prefix"
+                                    },
+                                    {
+                                        "name": "Company",
+                                        "type": "text",
+                                        "label": "Company"
+                                    },
+                                    {
+                                        "name": "Branding Theme",
+                                        "type": "text",
+                                        "label": "Branding Theme"
+                                    },
+                                    {
+                                        "name": "Active",
+                                        "type": "boolean",
+                                        "label": "Active"
+                                    },
+                                    {
+                                        "name": "Notes",
+                                        "type": "text",
+                                        "label": "Notes",
+                                        "multiline": true
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "id": 13,
+                            "module": "microsoft-excel:addATableRow",
+                            "version": 2,
+                            "parameters": {
+                                "__IMTCONN__": 8404714
+                            },
+                            "mapper": {
+                                "id": "2",
+                                "row": {
+                                    "0": "{{11.`Factor Prefix`}}",
+                                    "1": "{{3.InvoiceNumber}}",
+                                    "2": "{{formatDate(3.Date; \"DD-MM-YYYY\")}}",
+                                    "3": "{{3.LineItems}}",
+                                    "4": "{{3.InvoiceNumber}}"
+                                },
+                                "table": "Table3",
+                                "select": "list",
+                                "selectB": "my",
+                                "workbook": "/E0002 Upload copy copy.xlsx",
+                                "worksheet": "in"
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 2189,
+                                    "y": 163
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "table": {
+                                            "mode": "chose",
+                                            "label": "Table3",
+                                            "nested": [
+                                                {
+                                                    "help": "You have to fill at least one column in the row.",
+                                                    "name": "row",
+                                                    "spec": [
+                                                        {
+                                                            "name": "0",
+                                                            "type": "text",
+                                                            "label": "PRI01"
+                                                        },
+                                                        {
+                                                            "name": "1",
+                                                            "type": "text",
+                                                            "label": "043204 - TS11 8AZ"
+                                                        },
+                                                        {
+                                                            "name": "2",
+                                                            "type": "text",
+                                                            "label": "23-06-2026"
+                                                        },
+                                                        {
+                                                            "name": "3",
+                                                            "type": "text",
+                                                            "label": "67.3"
+                                                        },
+                                                        {
+                                                            "name": "4",
+                                                            "type": "text",
+                                                            "label": "Invoice"
+                                                        }
+                                                    ],
+                                                    "type": "collection",
+                                                    "label": "Row",
+                                                    "required": "true"
+                                                },
+                                                {
+                                                    "help": "To insert a row at a specific position in a table, specify the row number.",
+                                                    "name": "id",
+                                                    "type": "uinteger",
+                                                    "label": "Row ID"
+                                                }
+                                            ]
+                                        },
+                                        "select": {
+                                            "label": "Select from the list"
+                                        },
+                                        "selectB": {
+                                            "label": "My Drive"
+                                        },
+                                        "worksheet": {
+                                            "mode": "chose",
+                                            "label": "in",
+                                            "nested": [
+                                                {
+                                                    "name": "table",
+                                                    "type": "select",
+                                                    "label": "Table",
+                                                    "options": {
+                                                        "store": "rpc://microsoft-excel/2/listTables",
+                                                        "nested": "rpc://microsoft-excel/2/listTableRowFields?required=true"
+                                                    },
+                                                    "required": true
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "azure"
+                                            },
+                                            "label": "EXCEL CONNECTION (Andy McLachlan <andymclachlan@hotmail.com>)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:azure",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "select",
+                                        "type": "select",
+                                        "label": "Select a method",
+                                        "required": true,
+                                        "validate": {
+                                            "enum": [
+                                                "map",
+                                                "list"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "selectB",
+                                        "type": "select",
+                                        "label": "Choose your OneDrive location",
+                                        "required": true,
+                                        "validate": {
+                                            "enum": [
+                                                "my",
+                                                "site",
+                                                "group"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "workbook",
+                                        "type": "file",
+                                        "label": "Workbook",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "worksheet",
+                                        "type": "select",
+                                        "label": "Worksheet",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "row",
+                                        "spec": [
+                                            {
+                                                "name": "0",
+                                                "type": "text",
+                                                "label": "PRI01"
+                                            },
+                                            {
+                                                "name": "1",
+                                                "type": "text",
+                                                "label": "043204 - TS11 8AZ"
+                                            },
+                                            {
+                                                "name": "2",
+                                                "type": "text",
+                                                "label": "23-06-2026"
+                                            },
+                                            {
+                                                "name": "3",
+                                                "type": "text",
+                                                "label": "67.3"
+                                            },
+                                            {
+                                                "name": "4",
+                                                "type": "text",
+                                                "label": "Invoice"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Row",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "uinteger",
+                                        "label": "Row ID"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "@odata.id",
+                                        "type": "text",
+                                        "label": "@Odata ID"
+                                    },
+                                    {
+                                        "name": "index",
+                                        "type": "text",
+                                        "label": "Table Row ID"
+                                    },
+                                    {
+                                        "name": "values",
+                                        "spec": [
+                                            {
+                                                "name": "0",
+                                                "type": "text",
+                                                "label": "Customer"
+                                            },
+                                            {
+                                                "name": "1",
+                                                "type": "text",
+                                                "label": "Invoice Number"
+                                            },
+                                            {
+                                                "name": "2",
+                                                "type": "text",
+                                                "label": "Date"
+                                            },
+                                            {
+                                                "name": "3",
+                                                "type": "text",
+                                                "label": "Amount"
+                                            },
+                                            {
+                                                "name": "4",
+                                                "type": "text",
+                                                "label": "Invoice"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Row"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "instant": false,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "eu1.make.com",
+        "notes": []
+    }
+}

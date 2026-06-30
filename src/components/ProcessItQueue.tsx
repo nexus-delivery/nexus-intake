@@ -1,0 +1,775 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type ProcessItJob = {
+  id: string;
+  jobReference: string | null;
+  status: string;
+  lifecycleStatus: string | null;
+  companyId: string;
+  merchantName: string;
+  collectionName: string;
+  collectionAddress: string;
+  collectionPhone: string;
+  collectionEmail: string;
+  deliveryName: string;
+  deliveryAddress: string;
+  deliveryPhone: string;
+  deliveryEmail: string;
+  goodsDescription: string;
+  orderReference: string;
+  deliveryDate: string;
+  collectionDate: string;
+  shipperName: string;
+  trackpodDeliveryOrderId: string | null;
+  trackpodCollectionOrderId: string | null;
+  trackpodDeliveryTrackingUrl: string | null;
+  trackpodCollectionTrackingUrl: string | null;
+  documentUrl: string | null;
+  documentFilename: string | null;
+  documentFileType: string | null;
+  errorDetail: Record<string, unknown> | null;
+  errorAt: string | null;
+  pushAttemptedAt: string | null;
+  pushCompletedAt: string | null;
+  xeroInvoiceId: string | null;
+  currentStatus: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ViewFilter = "all" | "pending" | "sent" | "error";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getLifecycleBadge(job: ProcessItJob) {
+  const ls = job.lifecycleStatus;
+  const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
+  const hasCollection = Boolean(job.trackpodCollectionOrderId);
+
+  if (ls === "TRACKPOD_ERROR") {
+    return { label: "Error", className: "bg-red-100 text-red-700 border border-red-200" };
+  }
+  if (ls === "READY_FOR_ROUTE" || (hasDelivery && hasCollection)) {
+    return { label: "Sent to Track-POD", className: "bg-emerald-100 text-emerald-700 border border-emerald-200" };
+  }
+  if (hasDelivery && !hasCollection) {
+    return { label: "Partial", className: "bg-amber-100 text-amber-700 border border-amber-200" };
+  }
+  if (ls === "READY_FOR_TRACKPOD" || job.status === "job_created") {
+    return { label: "Ready", className: "bg-violet-100 text-violet-700 border border-violet-200" };
+  }
+  return { label: job.status ?? "—", className: "bg-slate-100 text-slate-600 border border-slate-200" };
+}
+
+function getTrackPodStatusBadge(job: ProcessItJob) {
+  const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
+  const hasCollection = Boolean(job.trackpodCollectionOrderId);
+  if (hasDelivery && hasCollection) {
+    return { label: "Created", className: "bg-emerald-50 text-emerald-700" };
+  }
+  if (hasDelivery || hasCollection) {
+    return { label: "Partial", className: "bg-amber-50 text-amber-700" };
+  }
+  if (job.lifecycleStatus === "TRACKPOD_ERROR") {
+    return { label: "Failed", className: "bg-red-50 text-red-700" };
+  }
+  return { label: "Pending", className: "bg-slate-50 text-slate-500" };
+}
+
+function truncateId(id: string | null): string {
+  if (!id) return "—";
+  // Location header is full URL — extract last segment
+  const parts = id.split("/");
+  const last = parts[parts.length - 1] ?? id;
+  return last.length > 16 ? last.slice(0, 16) + "…" : last;
+}
+
+function jobMatchesFilter(job: ProcessItJob, filter: ViewFilter): boolean {
+  if (filter === "all") return true;
+  const ls = job.lifecycleStatus;
+  const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
+  const hasCollection = Boolean(job.trackpodCollectionOrderId);
+  if (filter === "sent") return Boolean(hasDelivery && hasCollection);
+  if (filter === "error") return ls === "TRACKPOD_ERROR";
+  if (filter === "pending") return !hasDelivery && !hasCollection && ls !== "TRACKPOD_ERROR";
+  return true;
+}
+
+// ─── Detail panel ─────────────────────────────────────────────────────────────
+
+function DetailPanel({ job, onClose }: { job: ProcessItJob; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/30 backdrop-blur-sm">
+      <div className="flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Job Detail</p>
+            <h2 className="mt-0.5 text-lg font-semibold text-slate-900">
+              {job.jobReference ?? job.id.slice(0, 8).toUpperCase()}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-6 px-6 py-6">
+          {/* Status */}
+          <section>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Status</p>
+            <div className="grid grid-cols-2 gap-3">
+              <DetailRow label="Lifecycle" value={job.lifecycleStatus ?? job.status} />
+              <DetailRow label="Current" value={job.currentStatus ?? "—"} />
+              <DetailRow label="Push attempted" value={job.pushAttemptedAt ? new Date(job.pushAttemptedAt).toLocaleString() : "—"} />
+              <DetailRow label="Push completed" value={job.pushCompletedAt ? new Date(job.pushCompletedAt).toLocaleString() : "—"} />
+            </div>
+          </section>
+
+          {/* Collection */}
+          <section>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Collection</p>
+            <div className="grid grid-cols-2 gap-3">
+              <DetailRow label="Name" value={job.collectionName || "—"} />
+              <DetailRow label="Phone" value={job.collectionPhone || "—"} />
+              <DetailRow label="Address" value={job.collectionAddress || "—"} span />
+              <DetailRow label="Email" value={job.collectionEmail || "—"} span />
+            </div>
+          </section>
+
+          {/* Delivery */}
+          <section>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Delivery</p>
+            <div className="grid grid-cols-2 gap-3">
+              <DetailRow label="Name" value={job.deliveryName || "—"} />
+              <DetailRow label="Phone" value={job.deliveryPhone || "—"} />
+              <DetailRow label="Address" value={job.deliveryAddress || "—"} span />
+              <DetailRow label="Email" value={job.deliveryEmail || "—"} span />
+            </div>
+          </section>
+
+          {/* Track-POD */}
+          <section>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Track-POD</p>
+            <div className="space-y-2">
+              <DetailRow label="Delivery Order ID" value={job.trackpodDeliveryOrderId || "Not created"} span mono />
+              <DetailRow label="Collection Order ID" value={job.trackpodCollectionOrderId || "Not created"} span mono />
+              {job.trackpodDeliveryTrackingUrl && (
+                <div>
+                  <p className="text-xs text-slate-500">Delivery Tracking</p>
+                  <a
+                    href={job.trackpodDeliveryTrackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-violet-600 underline underline-offset-2 hover:text-violet-800"
+                  >
+                    Open tracking link ↗
+                  </a>
+                </div>
+              )}
+              {job.trackpodCollectionTrackingUrl && (
+                <div>
+                  <p className="text-xs text-slate-500">Collection Tracking</p>
+                  <a
+                    href={job.trackpodCollectionTrackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-violet-600 underline underline-offset-2 hover:text-violet-800"
+                  >
+                    Open tracking link ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Document */}
+          {job.documentUrl && (
+            <section>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">Document</p>
+              <a
+                href={job.documentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                {job.documentFilename || "Open document"}
+              </a>
+            </section>
+          )}
+
+          {/* Error */}
+          {job.errorDetail && (
+            <section>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-red-600">Error Detail</p>
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+                {job.errorAt && (
+                  <p className="mb-2 text-xs text-red-500">{new Date(job.errorAt).toLocaleString()}</p>
+                )}
+                <pre className="overflow-x-auto whitespace-pre-wrap text-xs text-red-800">
+                  {JSON.stringify(job.errorDetail, null, 2)}
+                </pre>
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  span,
+  mono,
+}: {
+  label: string;
+  value: string;
+  span?: boolean;
+  mono?: boolean;
+}) {
+  return (
+    <div className={span ? "col-span-2" : ""}>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className={`mt-0.5 text-sm font-medium text-slate-800 ${mono ? "font-mono" : ""}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function ProcessItQueue() {
+  const [jobs, setJobs] = useState<ProcessItJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ViewFilter>("all");
+  const [selectedJob, setSelectedJob] = useState<ProcessItJob | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!supabase) throw new Error("Supabase not available");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const token = session?.access_token;
+      const res = await fetch("/api/process-it/queue", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: string };
+        throw new Error(json.error ?? `HTTP ${res.status}`);
+      }
+
+      const json = (await res.json()) as { jobs: ProcessItJob[] };
+      setJobs(json.jobs ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load jobs");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
+
+  const sendToTrackPod = useCallback(
+    async (job: ProcessItJob) => {
+      if (!supabase) return;
+      setSendingId(job.id);
+      setSendResult((prev) => {
+        const next = { ...prev };
+        delete next[job.id];
+        return next;
+      });
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+        const res = await fetch("/api/process-it/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ draftJobId: job.id }),
+        });
+
+        const json = (await res.json()) as {
+          success?: boolean;
+          error?: string;
+          trackpodDeliveryOrderId?: string;
+          trackpodCollectionOrderId?: string;
+          lifecycleStatus?: string;
+          partialSuccess?: unknown;
+        };
+
+        if (!res.ok) {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: { ok: false, msg: json.error ?? `Error ${res.status}` },
+          }));
+        } else {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: {
+              ok: true,
+              msg: `Sent — Delivery: ${json.trackpodDeliveryOrderId?.slice(-12)} | Collection: ${json.trackpodCollectionOrderId?.slice(-12)}`,
+            },
+          }));
+          // Refresh queue after short delay
+          setTimeout(() => void loadJobs(), 1200);
+        }
+      } catch (e) {
+        setSendResult((prev) => ({
+          ...prev,
+          [job.id]: { ok: false, msg: e instanceof Error ? e.message : "Unknown error" },
+        }));
+      } finally {
+        setSendingId(null);
+      }
+    },
+    [loadJobs]
+  );
+
+  const filteredJobs = jobs.filter((j) => jobMatchesFilter(j, filter));
+
+  const counts = {
+    all: jobs.length,
+    pending: jobs.filter((j) => jobMatchesFilter(j, "pending")).length,
+    sent: jobs.filter((j) => jobMatchesFilter(j, "sent")).length,
+    error: jobs.filter((j) => jobMatchesFilter(j, "error")).length,
+  };
+
+  // ─── Render ──────────────────────────────────────────────────────────────
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Process it
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold text-slate-950">Track-POD Queue</h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Send confirmed jobs to Track-POD. Each job creates a Delivery order and a Collection order.
+          </p>
+        </div>
+        <button
+          onClick={() => void loadJobs()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+          >
+            <path d="M4 4v5h5M20 20v-5h-5" />
+            <path d="M4 9a9 9 0 0115-4.5M20 15a9 9 0 01-15 4.5" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(["all", "pending", "sent", "error"] as ViewFilter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+              filter === f
+                ? f === "error"
+                  ? "bg-red-600 text-white shadow-sm"
+                  : "bg-[#7C3AED] text-white shadow-sm"
+                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+            <span
+              className={`ml-2 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                filter === f ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {counts[f]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && !error && (
+        <div className="flex items-center gap-3 py-12 text-slate-400">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-5 w-5 animate-spin"
+          >
+            <path d="M4 4v5h5M20 20v-5h-5" />
+            <path d="M4 9a9 9 0 0115-4.5M20 15a9 9 0 01-15 4.5" />
+          </svg>
+          Loading queue…
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && filteredJobs.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+          <p className="text-sm font-medium text-slate-500">No jobs in this view</p>
+          <p className="mt-1 text-xs text-slate-400">
+            {filter === "pending"
+              ? "All confirmed jobs have already been sent to Track-POD."
+              : "No records match this filter."}
+          </p>
+        </div>
+      )}
+
+      {/* Queue table */}
+      {!loading && filteredJobs.length > 0 && (
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                {[
+                  "Master Order",
+                  "Merchant",
+                  "Collection",
+                  "Delivery",
+                  "Current Status",
+                  "Track-POD",
+                  "Collection ID",
+                  "Delivery ID",
+                  "Documents",
+                  "Tracking Links",
+                  "Errors",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredJobs.map((job) => {
+                const lifecycle = getLifecycleBadge(job);
+                const tpStatus = getTrackPodStatusBadge(job);
+                const isSending = sendingId === job.id;
+                const result = sendResult[job.id];
+                const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
+                const hasCollection = Boolean(job.trackpodCollectionOrderId);
+                const bothSent = hasDelivery && hasCollection;
+                const hasError = job.lifecycleStatus === "TRACKPOD_ERROR";
+
+                return (
+                  <tr key={job.id} className="hover:bg-slate-50/60">
+                    {/* Master Order */}
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-slate-800">
+                        {job.jobReference ?? job.id.slice(0, 8).toUpperCase()}
+                      </div>
+                      {job.orderReference && job.orderReference !== job.jobReference && (
+                        <div className="mt-0.5 text-xs text-slate-400">{job.orderReference}</div>
+                      )}
+                      <div className="mt-1">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${lifecycle.className}`}>
+                          {lifecycle.label}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Merchant */}
+                    <td className="px-4 py-3">
+                      <div className="max-w-[120px] truncate font-medium text-slate-700">
+                        {job.merchantName || "—"}
+                      </div>
+                    </td>
+
+                    {/* Collection */}
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-800">{job.collectionName || "—"}</div>
+                      <div className="mt-0.5 max-w-[160px] truncate text-xs text-slate-400">
+                        {job.collectionAddress || ""}
+                      </div>
+                    </td>
+
+                    {/* Delivery */}
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-800">{job.deliveryName || "—"}</div>
+                      <div className="mt-0.5 max-w-[160px] truncate text-xs text-slate-400">
+                        {job.deliveryAddress || ""}
+                      </div>
+                    </td>
+
+                    {/* Current Status */}
+                    <td className="px-4 py-3">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${tpStatus.className}`}>
+                        {tpStatus.label}
+                      </span>
+                      {job.pushCompletedAt && (
+                        <div className="mt-1 text-xs text-slate-400">
+                          {new Date(job.pushCompletedAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Track-POD status badge */}
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <StatusDot label="Delivery" active={hasDelivery} />
+                        <StatusDot label="Collection" active={hasCollection} />
+                      </div>
+                    </td>
+
+                    {/* Collection ID */}
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                      {job.trackpodCollectionOrderId ? (
+                        <span title={job.trackpodCollectionOrderId}>
+                          {truncateId(job.trackpodCollectionOrderId)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+
+                    {/* Delivery ID */}
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                      {job.trackpodDeliveryOrderId ? (
+                        <span title={job.trackpodDeliveryOrderId}>
+                          {truncateId(job.trackpodDeliveryOrderId)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+
+                    {/* Documents */}
+                    <td className="px-4 py-3">
+                      {job.documentUrl ? (
+                        <a
+                          href={job.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                          title={job.documentFilename ?? ""}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                          </svg>
+                          {job.documentFileType?.toUpperCase() ?? "DOC"}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
+
+                    {/* Tracking Links */}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        {job.trackpodDeliveryTrackingUrl && (
+                          <a
+                            href={job.trackpodDeliveryTrackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20" />
+                            </svg>
+                            Delivery
+                          </a>
+                        )}
+                        {job.trackpodCollectionTrackingUrl && (
+                          <a
+                            href={job.trackpodCollectionTrackingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-violet-600 hover:underline"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20" />
+                            </svg>
+                            Collection
+                          </a>
+                        )}
+                        {!job.trackpodDeliveryTrackingUrl && !job.trackpodCollectionTrackingUrl && (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Errors */}
+                    <td className="px-4 py-3">
+                      {hasError && job.errorDetail ? (
+                        <button
+                          onClick={() => setSelectedJob(job)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3 w-3">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                          </svg>
+                          View error
+                        </button>
+                      ) : result && !result.ok ? (
+                        <span className="max-w-[120px] truncate text-xs text-red-600" title={result.msg}>
+                          {result.msg}
+                        </span>
+                      ) : result?.ok ? (
+                        <span className="text-xs text-emerald-600">✓ Sent</span>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {/* View */}
+                        <ActionButton
+                          label="View"
+                          onClick={() => setSelectedJob(job)}
+                          variant="ghost"
+                        />
+
+                        {/* Send / Retry */}
+                        {!bothSent && (
+                          <ActionButton
+                            label={isSending ? "Sending…" : hasError ? "Retry" : "Send"}
+                            onClick={() => void sendToTrackPod(job)}
+                            disabled={isSending}
+                            variant={hasError ? "warning" : "primary"}
+                          />
+                        )}
+
+                        {/* Open collection tracking */}
+                        {job.trackpodCollectionTrackingUrl && (
+                          <ActionButton
+                            label="Collection"
+                            onClick={() => window.open(job.trackpodCollectionTrackingUrl!, "_blank")}
+                            variant="link"
+                          />
+                        )}
+
+                        {/* Open delivery tracking */}
+                        {job.trackpodDeliveryTrackingUrl && (
+                          <ActionButton
+                            label="Delivery"
+                            onClick={() => window.open(job.trackpodDeliveryTrackingUrl!, "_blank")}
+                            variant="link"
+                          />
+                        )}
+
+                        {/* Documents */}
+                        {job.documentUrl && (
+                          <ActionButton
+                            label="Doc"
+                            onClick={() => window.open(job.documentUrl!, "_blank")}
+                            variant="ghost"
+                          />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Detail panel */}
+      {selectedJob && (
+        <DetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Small sub-components ─────────────────────────────────────────────────────
+
+function StatusDot({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className={`inline-block h-2 w-2 rounded-full ${active ? "bg-emerald-400" : "bg-slate-200"}`}
+      />
+      <span className={`text-xs ${active ? "text-slate-600" : "text-slate-400"}`}>{label}</span>
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+  disabled,
+  variant = "ghost",
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "warning" | "ghost" | "link";
+}) {
+  const base =
+    "inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50";
+  const variants = {
+    primary:
+      "bg-[#7C3AED] text-white hover:bg-violet-700 shadow-sm shadow-violet-200",
+    warning:
+      "bg-amber-500 text-white hover:bg-amber-600 shadow-sm shadow-amber-200",
+    ghost:
+      "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
+    link: "border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100",
+  };
+
+  return (
+    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant]}`}>
+      {label}
+    </button>
+  );
+}

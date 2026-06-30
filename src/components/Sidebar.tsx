@@ -16,6 +16,7 @@ type SidebarProps = {
 const moduleDescriptions: Record<string, string> = {
   "Manage it": "Company, users, security and platform controls",
   "Create it": "Create new work from any source",
+  "Process it": "Send confirmed jobs to Track-POD and monitor dispatch",
   "Track it": "Track vehicles, jobs and deliveries in real time",
   "Store it": "Warehouse, inventory and documents",
   "Account it": "Customers, invoicing and payments",
@@ -28,6 +29,7 @@ const moduleDescriptions: Record<string, string> = {
 const moduleStatus: Record<string, string> = {
   "Manage it": "installed",
   "Create it": "installed",
+  "Process it": "installed",
   "Track it": "installed",
   "Store it": "available",
   "Account it": "installed",
@@ -47,6 +49,13 @@ const navIcons: Record<string, ReactNode> = {
   "Create it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  "Process it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M5 12h14" />
+      <path d="M12 5l7 7-7 7" />
+      <circle cx="7" cy="12" r="2" fill="#7C3AED" stroke="none" />
     </svg>
   ),
   "Track it": (
