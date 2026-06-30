@@ -6,12 +6,23 @@ type ConfirmJobRequest = {
   trackPodMapping?: Record<string, string | null> | null;
 };
 
+type TrackPodOrderType = 1 | 0;
+
+type TrackPodOrderResult = {
+  orderId: string;
+  trackingUrl: string;
+  raw: unknown;
+};
+
 type TrackPodResult = {
   collectionOrderId: string;
   deliveryOrderId: string;
   collectionTrackingUrl: string;
   deliveryTrackingUrl: string;
-  raw: unknown;
+  raw: {
+    collection: unknown;
+    delivery: unknown;
+  };
 };
 
 type XeroResult = {
@@ -89,16 +100,44 @@ function resolveMasterReference(
 
 function buildTrackPodPayload(
   mapping: Record<string, string | null>,
-  masterReference: string
+  masterReference: string,
+  orderType: TrackPodOrderType,
+  documentInfo: {
+    documentUrl: string;
+    fileName: string;
+    fileType: string;
+    filePath: string;
+  } | null
 ) {
+  const baseNotes = cleanString(mapping.delivery_notes);
+  const documentNotes = documentInfo
+    ? [
+        "Delivery Notes...",
+        `Purchase Order: ${documentInfo.documentUrl}`,
+        `Document Filename: ${documentInfo.fileName}`,
+        `Document File Type: ${documentInfo.fileType}`,
+      ].join("\n")
+    : "";
+
+  const mergedNotes = [baseNotes, documentNotes].filter(Boolean).join("\n\n");
+
+  const client = cleanString(mapping.customer);
+  const shipper = cleanString(mapping.merchant_shipper) || cleanString(mapping.collection_name);
+  const depotShipFrom = cleanString(mapping.collection_name);
+
   return {
+    Number: masterReference,
+    Id: masterReference,
+    Type: orderType,
     reference: masterReference,
     collectionOrderNumber: masterReference,
     deliveryOrderNumber: masterReference,
     orderType: cleanString(mapping.order_type),
     collectionDate: cleanString(mapping.collection_date),
     deliveryDate: cleanString(mapping.delivery_date),
-    shipper: cleanString(mapping.merchant_shipper),
+    client,
+    shipper,
+    depotShipFrom,
     collectionName: cleanString(mapping.collection_name),
     collectionAddress: cleanString(mapping.collection_address),
     deliveryName: cleanString(mapping.customer),
@@ -109,9 +148,13 @@ function buildTrackPodPayload(
     goodsDescription: cleanString(mapping.goods_description),
     quantity: cleanString(mapping.quantity),
     weight: cleanString(mapping.weight),
-    notes: cleanString(mapping.delivery_notes),
+    notes: mergedNotes,
     packages: cleanString(mapping.plt_pkg),
     cod: cleanString(mapping.cod),
+    documentUrl: documentInfo?.documentUrl ?? "",
+    documentFilename: documentInfo?.fileName ?? "",
+    documentFileType: documentInfo?.fileType ?? "",
+    documentStoragePath: documentInfo?.filePath ?? "",
   };
 }
 
@@ -147,10 +190,17 @@ function buildXeroDraftInvoicePayload(
   };
 }
 
-async function createTrackPodDeliveryOrder(
+async function createTrackPodOrder(
   mapping: Record<string, string | null>,
-  masterReference: string
-): Promise<TrackPodResult> {
+  masterReference: string,
+  orderType: TrackPodOrderType,
+  documentInfo: {
+    documentUrl: string;
+    fileName: string;
+    fileType: string;
+    filePath: string;
+  } | null
+): Promise<TrackPodOrderResult> {
   if (!trackPodApiBaseUrl || (!trackPodApiKey && !trackPodApiToken)) {
     throw new Error("Track-POD credentials are not configured");
   }
@@ -169,42 +219,29 @@ async function createTrackPodDeliveryOrder(
   const response = await fetch(`${trackPodApiBaseUrl.replace(/\/$/, "")}/orders`, {
     method: "POST",
     headers,
-    body: JSON.stringify(buildTrackPodPayload(mapping, masterReference)),
+    body: JSON.stringify(buildTrackPodPayload(mapping, masterReference, orderType, documentInfo)),
   });
 
   const payload = (await response.json().catch(() => ({}))) as unknown;
 
   if (!response.ok) {
-    throw new Error(`Track-POD create order failed (${response.status})`);
+    const responseText = JSON.stringify(payload);
+    throw new Error(`Track-POD create order failed (${response.status}): ${responseText}`);
   }
 
-  const deliveryOrderId =
+  const orderId =
     extractFirstString(payload, ["id", "orderId", "deliveryOrderId", "reference"])
     ?? masterReference;
 
-  const collectionOrderId =
-    extractFirstString(payload, ["collectionOrderId", "pickupOrderId", "collectionId", "reference"])
-    ?? masterReference;
-
-  const deliveryTrackingUrl =
+  const trackingUrl =
     extractFirstString(payload, ["deliveryTrackingUrl", "trackingUrl", "publicTrackingUrl"])
     ?? "";
 
-  const collectionTrackingUrl =
-    extractFirstString(payload, ["collectionTrackingUrl", "pickupTrackingUrl", "collectionPublicTrackingUrl"])
-    ?? deliveryTrackingUrl;
-
-  if (!deliveryOrderId) {
+  if (!orderId) {
     throw new Error("Track-POD response did not include a delivery order ID");
   }
 
-  return {
-    collectionOrderId,
-    deliveryOrderId,
-    collectionTrackingUrl,
-    deliveryTrackingUrl,
-    raw: payload,
-  };
+  return { orderId, trackingUrl, raw: payload };
 }
 
 async function createXeroDraftInvoice(
@@ -255,6 +292,42 @@ function generateJobReference(jobId: string): string {
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
   const suffix = jobId.replace(/-/g, "").slice(-5).toUpperCase();
   return `NEX-${dateStr}-${suffix}`;
+}
+
+async function resolveDocumentInfo(
+  privilegedClient: any,
+  companyId: string,
+  documentId: string | null
+): Promise<{ documentUrl: string; fileName: string; fileType: string; filePath: string } | null> {
+  if (!documentId) return null;
+
+  const { data: document, error: documentError } = await privilegedClient
+    .from("uploaded_documents")
+    .select("file_name, file_type, file_path")
+    .eq("id", documentId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const resolvedDocument = document as
+    | { file_name: string; file_type: string; file_path: string }
+    | null;
+
+  if (documentError || !resolvedDocument) {
+    return null;
+  }
+
+  const publicUrlResult = privilegedClient.storage
+    .from("merchant-documents")
+    .getPublicUrl(resolvedDocument.file_path);
+
+  const documentUrl = publicUrlResult?.data?.publicUrl ?? "";
+
+  return {
+    documentUrl,
+    fileName: resolvedDocument.file_name,
+    fileType: resolvedDocument.file_type,
+    filePath: resolvedDocument.file_path,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -318,7 +391,37 @@ export async function POST(request: NextRequest) {
     const masterReference = resolveMasterReference(mapping, draftJob.id);
     const jobReference = masterReference;
 
-    const trackPodResult = await createTrackPodDeliveryOrder(mapping, masterReference);
+    const documentInfo = await resolveDocumentInfo(
+      privilegedClient,
+      profile.company_id,
+      draftJob.primary_document_id
+    );
+
+    const collectionOrder = await createTrackPodOrder(
+      mapping,
+      masterReference,
+      1,
+      documentInfo
+    );
+
+    const deliveryOrder = await createTrackPodOrder(
+      mapping,
+      masterReference,
+      0,
+      documentInfo
+    );
+
+    const trackPodResult: TrackPodResult = {
+      collectionOrderId: collectionOrder.orderId,
+      deliveryOrderId: deliveryOrder.orderId,
+      collectionTrackingUrl: collectionOrder.trackingUrl,
+      deliveryTrackingUrl: deliveryOrder.trackingUrl,
+      raw: {
+        collection: collectionOrder.raw,
+        delivery: deliveryOrder.raw,
+      },
+    };
+
     const xeroResult = await createXeroDraftInvoice(mapping, jobReference);
 
     const integrationMetadata = {
@@ -340,6 +443,7 @@ export async function POST(request: NextRequest) {
       },
       trackpod: trackPodResult.raw,
       xero: xeroResult.raw,
+      currentStatus: "track_it",
       updatedAt: new Date().toISOString(),
     };
 
@@ -353,6 +457,16 @@ export async function POST(request: NextRequest) {
         trackpod_collection_tracking_url: trackPodResult.collectionTrackingUrl,
         trackpod_delivery_tracking_url: trackPodResult.deliveryTrackingUrl,
         xero_draft_invoice_id: xeroResult.draftInvoiceId,
+        document_url: documentInfo?.documentUrl ?? null,
+        document_filename: documentInfo?.fileName ?? null,
+        document_file_type: documentInfo?.fileType ?? null,
+        document_storage_path: documentInfo?.filePath ?? null,
+        current_status: "track_it",
+        last_sync: new Date().toISOString(),
+        last_api_response: {
+          trackpod: trackPodResult.raw,
+          xero: xeroResult.raw,
+        },
         integration_metadata: integrationMetadata,
       })
       .eq("id", draftJob.id)
@@ -378,6 +492,7 @@ export async function POST(request: NextRequest) {
             trackPodCollectionTrackingUrl: trackPodResult.collectionTrackingUrl,
             trackPodDeliveryTrackingUrl: trackPodResult.deliveryTrackingUrl,
             xeroDraftInvoiceId: xeroResult.draftInvoiceId,
+            documentUrl: documentInfo?.documentUrl ?? null,
           },
         });
 
@@ -395,6 +510,7 @@ export async function POST(request: NextRequest) {
       trackPodCollectionTrackingUrl: trackPodResult.collectionTrackingUrl,
       trackPodDeliveryTrackingUrl: trackPodResult.deliveryTrackingUrl,
       xeroDraftInvoiceId: xeroResult.draftInvoiceId,
+      documentUrl: documentInfo?.documentUrl ?? null,
     });
   } catch (err) {
     return NextResponse.json(

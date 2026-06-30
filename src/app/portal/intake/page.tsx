@@ -38,6 +38,9 @@ export default function MerchantIntakePage() {
   const [trackPodCollectionTrackingUrl, setTrackPodCollectionTrackingUrl] = useState<string | null>(null);
   const [trackPodDeliveryTrackingUrl, setTrackPodDeliveryTrackingUrl] = useState<string | null>(null);
   const [xeroInvoiceId, setXeroInvoiceId] = useState<string | null>(null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [emailRecipient, setEmailRecipient] = useState<string>("");
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -65,6 +68,45 @@ export default function MerchantIntakePage() {
     window.location.href = `mailto:?subject=NEXUS Tracking Link&body=${encodeURIComponent(value)}`;
   };
 
+  const sendNexusEmail = async (kind: "collection" | "delivery" | "documents" | "pod") => {
+    if (!emailRecipient) {
+      setEmailStatus("Enter recipient email to send from NEXUS.");
+      return;
+    }
+
+    setEmailStatus("Sending...");
+
+    try {
+      const response = await fetch("/api/jobs/send-tracking-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: emailRecipient,
+          kind,
+          jobReference,
+          collectionTrackingUrl: trackPodCollectionTrackingUrl,
+          deliveryTrackingUrl: trackPodDeliveryTrackingUrl,
+          documentUrl,
+          podUrl: trackPodDeliveryTrackingUrl,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!response.ok) {
+        setEmailStatus(
+          typeof payload.error === "string" ? payload.error : "Failed to send email from NEXUS."
+        );
+        return;
+      }
+
+      setEmailStatus("Email sent from NEXUS.");
+    } catch {
+      setEmailStatus("Failed to send email from NEXUS.");
+    }
+  };
+
   const handleSelectMethod = (selected: BookingMethod) => {
     setMethod(selected);
     setStep(selected);
@@ -74,6 +116,7 @@ export default function MerchantIntakePage() {
     setUploadData(metadata);
     setOcrReviewData(null);
     setOcrError(null);
+    setEmailStatus(null);
   };
 
   const handleProceedToReview = async () => {
@@ -138,6 +181,9 @@ export default function MerchantIntakePage() {
       setTrackPodCollectionTrackingUrl(result.trackPodCollectionTrackingUrl ?? null);
       setTrackPodDeliveryTrackingUrl(result.trackPodDeliveryTrackingUrl ?? null);
       setXeroInvoiceId(result.xeroDraftInvoiceId ?? null);
+      setDocumentUrl(result.documentUrl ?? null);
+      setEmailRecipient(ocrReviewData?.email ?? "");
+      setEmailStatus(null);
       setStep("confirmed");
     } else {
       setConfirmError(result.error ?? "An error occurred. Please try again.");
@@ -161,6 +207,9 @@ export default function MerchantIntakePage() {
     setTrackPodCollectionTrackingUrl(null);
     setTrackPodDeliveryTrackingUrl(null);
     setXeroInvoiceId(null);
+    setDocumentUrl(null);
+    setEmailRecipient("");
+    setEmailStatus(null);
     setConfirmError(null);
   };
 
@@ -408,6 +457,57 @@ export default function MerchantIntakePage() {
                     </div>
                   ))}
               </div>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">NEXUS Email Actions</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+              <input
+                type="email"
+                value={emailRecipient}
+                onChange={(e) => setEmailRecipient(e.target.value)}
+                placeholder="recipient@example.com"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-[var(--nexus-graphite)]"
+              />
+              <button
+                type="button"
+                onClick={() => sendNexusEmail("collection")}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+              >
+                Send Collection Tracking
+              </button>
+              <button
+                type="button"
+                onClick={() => sendNexusEmail("delivery")}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+              >
+                Send Delivery Tracking
+              </button>
+              <button
+                type="button"
+                onClick={() => sendNexusEmail("documents")}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+              >
+                Send Document Links
+              </button>
+              <button
+                type="button"
+                onClick={() => sendNexusEmail("pod")}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-[var(--nexus-graphite)] hover:bg-slate-50"
+              >
+                Send POD
+              </button>
+            </div>
+            {emailStatus ? (
+              <p className="mt-2 text-xs text-slate-500">{emailStatus}</p>
+            ) : null}
+          </div>
+
+          {documentUrl && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Document Link</p>
+              <p className="mt-2 break-all text-xs text-slate-600">{documentUrl}</p>
             </div>
           )}
 

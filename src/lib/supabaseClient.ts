@@ -441,6 +441,7 @@ export async function confirmJob(params: {
   trackPodCollectionTrackingUrl?: string;
   trackPodDeliveryTrackingUrl?: string;
   xeroDraftInvoiceId?: string;
+  documentUrl?: string | null;
   error?: string;
 }> {
   // Graceful fallback for preview/local dev without Supabase env vars
@@ -515,6 +516,10 @@ export async function confirmJob(params: {
         xeroDraftInvoiceId:
           typeof payload.xeroDraftInvoiceId === "string"
             ? payload.xeroDraftInvoiceId
+            : undefined,
+        documentUrl:
+          typeof payload.documentUrl === "string" || payload.documentUrl === null
+            ? (payload.documentUrl as string | null)
             : undefined,
       };
     }
