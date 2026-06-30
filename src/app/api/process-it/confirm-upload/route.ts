@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 type ConfirmUploadRequest = {
   draftJobId?: string;
+  documentId?: string;
   trackPodMapping?: Record<string, string | null> | null;
 };
 
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest) {
     if (!body.draftJobId) {
       return NextResponse.json({ error: "Missing draft job ID" }, { status: 400 });
     }
+    if (!body.documentId) {
+      return NextResponse.json({ error: "Missing document ID" }, { status: 400 });
+    }
 
     const mapping = body.trackPodMapping;
     if (!mapping) {
@@ -98,6 +102,13 @@ export async function POST(request: NextRequest) {
     }
     if (!draftJob) {
       return NextResponse.json({ error: "Draft job not found for this company" }, { status: 404 });
+    }
+
+    if ((draftJob.primary_document_id as string | null) !== body.documentId) {
+      return NextResponse.json(
+        { error: "Draft job is not linked to the current uploaded document" },
+        { status: 409 }
+      );
     }
 
     const existingMeta =

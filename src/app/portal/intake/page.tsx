@@ -119,6 +119,13 @@ export default function MerchantIntakePage() {
     setEmailStatus(null);
   };
 
+  const handleUploadStart = () => {
+    setUploadData(null);
+    setOcrReviewData(null);
+    setOcrError(null);
+    setConfirmError(null);
+  };
+
   const handleProceedToReview = async () => {
     if (!uploadData) {
       return;
@@ -161,6 +168,12 @@ export default function MerchantIntakePage() {
     setIsConfirming(true);
     setConfirmError(null);
 
+    if (method === "upload" && !uploadData) {
+      setConfirmError("No uploaded document is selected for this review.");
+      setIsConfirming(false);
+      return;
+    }
+
     const mappedPayload =
       method === "upload" && ocrReviewData ? mapToTrackPodPayload(ocrReviewData) : null;
 
@@ -168,6 +181,7 @@ export default function MerchantIntakePage() {
       method === "upload"
         ? {
             draftJobId: uploadData?.jobId,
+            documentId: uploadData?.documentId,
             trackPodMapping: mappedPayload,
           }
         : {}
@@ -249,6 +263,7 @@ export default function MerchantIntakePage() {
         <div className="space-y-4">
           <DocumentUploadCard
             companyId={companyId}
+            onUploadStart={handleUploadStart}
             onUploadSuccess={handleUploadSuccess}
           />
 

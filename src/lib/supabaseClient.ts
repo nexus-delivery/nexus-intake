@@ -429,6 +429,7 @@ export function generateJobReference(jobId: string): string {
  */
 export async function confirmJob(params: {
   draftJobId?: string;
+  documentId?: string;
   companyId?: string;
   userId?: string;
   trackPodMapping?: Record<string, string | null> | null;
@@ -481,6 +482,7 @@ export async function confirmJob(params: {
         },
         body: JSON.stringify({
           draftJobId: params.draftJobId,
+          documentId: params.documentId,
           trackPodMapping: params.trackPodMapping,
         }),
       });
