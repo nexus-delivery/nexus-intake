@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
           "document_file_type",
           "current_status",
           "xero_draft_invoice_id",
+          "integration_metadata",
           "created_at",
           "updated_at",
         ].join(", ")
@@ -151,7 +152,19 @@ export async function GET(request: NextRequest) {
     // Merge everything into the response shape
     const result = (jobs as unknown as Array<Record<string, unknown>>).map((job) => {
       const docId = job.primary_document_id as string | null;
-      const fields = docId ? (extractedFieldsIndex[docId] ?? {}) : {};
+      const extractedFields = docId ? (extractedFieldsIndex[docId] ?? {}) : {};
+
+      // Fall back to integration_metadata.trackPodMapping when document_extracted_fields
+      // are not yet populated (e.g. table missing or upload-review path).
+      const meta = job.integration_metadata;
+      const mappingFallback =
+        meta && typeof meta === "object" &&
+        (meta as Record<string, unknown>).trackPodMapping &&
+        typeof (meta as Record<string, unknown>).trackPodMapping === "object"
+          ? ((meta as Record<string, unknown>).trackPodMapping as Record<string, string>)
+          : {};
+
+      const fields: Record<string, string> = { ...mappingFallback, ...extractedFields };
 
       return {
         id: job.id,
