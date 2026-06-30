@@ -1,0 +1,12 @@
+Production Scenario,Existing System,Target NEXUS Service,Required Inputs,Current Status,Parity Achieved
+Nexus Intake,Make + Airtable,Book it + Check it services,Make blueprint + Airtable fields,Awaiting Source Artifact,No
+CTNI Intake,Make + Airtable,Book it intake variant,Make blueprint + Airtable fields,Awaiting Source Artifact,No
+WooCommerce Refresh,Make + Airtable,Intake sync route/service,Make blueprint + webhook config,Awaiting Source Artifact,No
+Wodely Refresh,Make + Airtable,Intake refresh route/service,Make blueprint + field map,Awaiting Source Artifact,No
+Track-POD Creation,Make + Airtable,Process it Track-POD service,Make blueprint + payload/response samples,Awaiting Source Artifact,No
+Route Planning,Make + Airtable,Move it / Route it service,Scenario export + status transitions,Awaiting Source Artifact,No
+Status Feedback,Make + Airtable,Track it sync/status service,Webhook exports + mapping table,Awaiting Source Artifact,No
+Xero Draft Invoice,Make + Airtable,Invoice it draft service,Xero Make blueprint + field map,Awaiting Source Artifact,No
+Invoice Authorisation,Make + Airtable,Invoice it authorisation service,Make blueprint + transition rules,Awaiting Source Artifact,No
+Factoring Export,Make + Airtable,Finance export service,Make blueprint + payload samples,Awaiting Source Artifact,No
+Finance,Make + Airtable,Invoice it + See it finance services,Scenario exports + field maps,Awaiting Source Artifact,No
