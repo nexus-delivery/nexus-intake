@@ -14,6 +14,7 @@ import { WorkspaceCardGrid } from "@/components/WorkspaceDesignSystem";
 const ALL_NAV_ITEMS = [
   { label: "Manage it", href: "/" },
   { label: "Create it", href: "/create-it" },
+  { label: "Process it", href: "/process-it" },
   { label: "Track it", href: "/track-it" },
   { label: "Store it", href: "/store-it" },
   { label: "Account it", href: "/account-it" },
@@ -28,6 +29,12 @@ const manageItModules = [
     description: "Create new work from any source.",
     href: "/create-it",
     icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M12 5v14M5 12h14" /></svg>),
+  },
+  {
+    title: "Process it",
+    description: "Prepare jobs and send to Track-POD.",
+    href: "/process-it",
+    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M5 12h14" /><path d="M13 7l5 5-5 5" /><rect x="3" y="4" width="7" height="16" rx="1.5" /></svg>),
   },
   {
     title: "Track it",
@@ -214,8 +221,8 @@ export default function HubPage() {
   // Filter modules based on user type
   const moduleAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
     admin: new Set(manageItModules.map(m => m.title)), // All modules
-    merchant: new Set(["Create it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
-    customer: new Set(["Create it", "Track it", "Improve it"]),
+    merchant: new Set(["Create it", "Process it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
+    customer: new Set(["Create it", "Process it", "Track it", "Improve it"]),
   };
   
   const createAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
