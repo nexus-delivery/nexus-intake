@@ -154,10 +154,37 @@ function detectSupportedDocumentType(
   text: string
 ): SupportedDocumentType | null {
   const source = `${fileName} ${text}`.toLowerCase();
+  const compactSource = source.replace(/\s+/g, " ");
+
+  const hasDeliveryKeyword =
+    compactSource.includes("delivery")
+    || compactSource.includes("dispatch")
+    || compactSource.includes("despatch")
+    || compactSource.includes("docket")
+    || compactSource.includes("goods received")
+    || compactSource.includes("goods receipt");
+
+  const hasNoteKeyword =
+    compactSource.includes("note")
+    || compactSource.includes("advice")
+    || compactSource.includes("docket")
+    || compactSource.includes("goods received")
+    || compactSource.includes("goods receipt");
+
   if (source.includes("purchase order") || source.includes("po ") || source.includes("po#")) {
     return "purchase_order";
   }
-  if (source.includes("delivery note") || source.includes("deliverynote")) {
+  if (
+    compactSource.includes("delivery note")
+    || compactSource.includes("deliverynote")
+    || compactSource.includes("delivery advice")
+    || compactSource.includes("dispatch note")
+    || compactSource.includes("despatch note")
+    || compactSource.includes("goods received note")
+    || compactSource.includes("goods receipt note")
+    || compactSource.includes("delivery docket")
+    || (hasDeliveryKeyword && hasNoteKeyword)
+  ) {
     return "delivery_note";
   }
   if (source.includes("order form") || source.includes("orderform")) {
@@ -256,6 +283,46 @@ function buildReviewData(
     /(collection|delivery)\s+order/i,
   ]);
 
+  const orderReferencePatterns =
+    docType === "delivery_note"
+      ? [
+          /job\s*(?:number|no\.?|#)\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
+          /job\s*reference\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
+          /delivery\s*(?:note\s*)?(?:number|no\.?|#)\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
+          /reference\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i,
+        ]
+      : [
+          /order\s*(?:reference|ref|number|no\.?|#)\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i,
+          /po\s*(?:number|no\.?|#)?\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
+        ];
+
+  const merchantPatterns =
+    docType === "delivery_note"
+      ? [
+          /(?:merchant|shipper|sender|supplier|vendor|from)\s*[:\-]\s*([^\n]+)/i,
+        ]
+      : [
+          /(?:merchant|shipper|sender|from)\s*[:\-]\s*([^\n]+)/i,
+        ];
+
+  const customerPatterns =
+    docType === "delivery_note"
+      ? [
+          /(?:customer|consignee|delivery\s*name|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
+        ]
+      : [
+          /(?:customer|consignee|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
+        ];
+
+  const goodsDescriptionPatterns =
+    docType === "delivery_note"
+      ? [
+          /(?:goods\s*description|item\s*description|description|items?)\s*[:\-]\s*([^\n]+)/i,
+        ]
+      : [
+          /(?:goods\s*description|description|items?)\s*[:\-]\s*([^\n]+)/i,
+        ];
+
   const priorityText = pickFirst(text, [
     /priority\s*[:\-]\s*(high|normal|low)/i,
   ]).toLowerCase();
@@ -313,22 +380,15 @@ function buildReviewData(
   return {
     documentType: docType,
     orderReference:
-      pickFirst(text, [
-        /order\s*(?:reference|ref|number|no\.?|#)\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i,
-        /po\s*(?:number|no\.?|#)?\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
-      ]) || fileInference.orderReference,
+      pickFirst(text, orderReferencePatterns) || fileInference.orderReference,
     orderType: orderTypeText.toLowerCase() === "collection" ? "Collection" : "Delivery",
-      collectionDate: normalizedCollectionDate || normalizeDate(metadata.uploadedAt),
-      collectionDateConfidence: normalizedCollectionDate ? "high" : "low",
-      deliveryDate: normalizedDeliveryDate,
-      deliveryDateConfidence: normalizedDeliveryDate ? "high" : "low",
-    merchantShipper: pickFirst(text, [
-      /(?:merchant|shipper|sender|from)\s*[:\-]\s*([^\n]+)/i,
-    ]),
+    collectionDate: normalizedCollectionDate || normalizeDate(metadata.uploadedAt),
+    collectionDateConfidence: normalizedCollectionDate ? "high" : "low",
+    deliveryDate: normalizedDeliveryDate,
+    deliveryDateConfidence: normalizedDeliveryDate ? "high" : "low",
+    merchantShipper: pickFirst(text, merchantPatterns),
     customer:
-      pickFirst(text, [
-        /(?:customer|consignee|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
-      ]) || fileInference.customer,
+      pickFirst(text, customerPatterns) || fileInference.customer,
     collectionName: pickFirst(text, [
       /(?:collection\s*name|collect\s*from\s*name|pickup\s*name)\s*[:\-]\s*([^\n]+)/i,
       /(?:collection\s*from)\s*[:\-]\s*([^\n]+)/i,
@@ -350,9 +410,7 @@ function buildReviewData(
     email: pickFirst(text, [
       /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i,
     ]),
-    goodsDescription: pickFirst(text, [
-      /(?:goods\s*description|description|items?)\s*[:\-]\s*([^\n]+)/i,
-    ]),
+    goodsDescription: pickFirst(text, goodsDescriptionPatterns),
     packages: pickFirst(text, [
       /(?:packages?|pallets?|plt\/?pkg|pkgs?)\s*[:\-]\s*(\d+)/i,
     ]),
@@ -417,16 +475,16 @@ export async function extractUploadToOcrReviewData(
   metadata: UploadedDocumentMetadata
 ): Promise<OcrExtractionResult> {
   const fallbackDocType = detectSupportedDocumentType(metadata.fileName, "");
-  if (!fallbackDocType) {
-    return {
-      success: false,
-      error:
-        "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
-    };
-  }
 
   const signedUrlResult = await requestMerchantDocumentSignedUrl(metadata.documentId);
   if (!signedUrlResult.success) {
+    if (!fallbackDocType) {
+      return {
+        success: false,
+        error:
+          "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
+      };
+    }
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
     return { success: true, data: fallbackData, source: "filename-fallback" };
   }
@@ -434,6 +492,13 @@ export async function extractUploadToOcrReviewData(
   try {
     const response = await fetch(signedUrlResult.signedUrl);
     if (!response.ok) {
+      if (!fallbackDocType) {
+        return {
+          success: false,
+          error:
+            "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
+        };
+      }
       const fallbackData = buildReviewData(metadata, "", fallbackDocType);
       return { success: true, data: fallbackData, source: "filename-fallback" };
     }
@@ -441,6 +506,13 @@ export async function extractUploadToOcrReviewData(
     const buffer = await response.arrayBuffer();
     const text = decodeVisibleText(buffer);
     const docType = detectSupportedDocumentType(metadata.fileName, text) ?? fallbackDocType;
+    if (!docType) {
+      return {
+        success: false,
+        error:
+          "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
+      };
+    }
     const data = buildReviewData(metadata, text, docType);
 
     return {
@@ -449,6 +521,13 @@ export async function extractUploadToOcrReviewData(
       source: "signed-url",
     };
   } catch {
+    if (!fallbackDocType) {
+      return {
+        success: false,
+        error:
+          "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
+      };
+    }
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
     return { success: true, data: fallbackData, source: "filename-fallback" };
   }
