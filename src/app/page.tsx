@@ -123,6 +123,7 @@ export default function HubPage() {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [accessIssue, setAccessIssue] = useState<AccessSetupIssue | null>(null);
   const [activeTab, setActiveTab] = useState<"manage" | "create">("manage");
+  const [workspaceRole, setWorkspaceRole] = useState<"admin" | "merchant" | "customer">("admin");
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
@@ -229,6 +230,39 @@ export default function HubPage() {
               <p className="mt-2 max-w-2xl text-base text-slate-600">
                 Everything you need to build, operate and grow your transport business.
               </p>
+
+              {/* ── Workspace role switcher ────────────────────── */}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Workspace</span>
+                <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100 p-1 text-xs">
+                  {([
+                    { role: "admin" as const, label: "Admin", description: "Full platform access" },
+                    { role: "merchant" as const, label: "Merchant", description: "Customer-facing portal" },
+                    { role: "customer" as const, label: "Customer", description: "End-customer view" },
+                  ]).map(({ role, label }) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setWorkspaceRole(role)}
+                      className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-semibold transition ${
+                        workspaceRole === role
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {workspaceRole === role && (
+                        <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
+                      )}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-slate-400">
+                  {workspaceRole === "admin" && "Full platform — all modules visible"}
+                  {workspaceRole === "merchant" && "Merchant portal — booking and tracking"}
+                  {workspaceRole === "customer" && "Customer view — create and track jobs"}
+                </span>
+              </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
               <div className="flex items-center gap-2">

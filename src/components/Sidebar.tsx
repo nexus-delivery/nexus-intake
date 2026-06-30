@@ -185,7 +185,7 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-white">Fleet it</p>
+              <p className="text-sm font-semibold text-white">Run it</p>
               <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
                 coming soon
               </span>
