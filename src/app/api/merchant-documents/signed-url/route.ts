@@ -9,6 +9,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+function keyFingerprint(value: string | undefined) {
+  return value ? value.slice(0, 20) : null;
+}
+
 const authClient =
   supabaseUrl && supabaseAnonKey
     ? createClient(supabaseUrl, supabaseAnonKey, {
@@ -102,6 +106,27 @@ export async function POST(request: NextRequest) {
     const runtimeDiagnostics = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
       SUPABASE_SERVICE_ROLE_KEY_EXISTS: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      SUPABASE_SERVICE_ROLE_KEY_FINGERPRINT: keyFingerprint(
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      ),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY_FINGERPRINT: keyFingerprint(
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ),
+      SERVICE_ROLE_AND_ANON_KEYS_DIFFERENT:
+        (process.env.SUPABASE_SERVICE_ROLE_KEY ?? null) !==
+        (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? null),
+      SERVICE_ROLE_CLIENT_KEY_SOURCE: "supabaseServiceRoleKey",
+      SERVICE_ROLE_CLIENT_KEY_VARIABLE_VALUE_FINGERPRINT: keyFingerprint(
+        supabaseServiceRoleKey
+      ),
+      SERVICE_ROLE_CLIENT_CONSTRUCTION: {
+        createClientCall: "createClient(supabaseUrl, supabaseServiceRoleKey, ...)",
+        constructedAtModuleScope: true,
+        clientVariableName: "privilegedClient",
+        reusedInHandlerVia: "const dbClient = privilegedClient",
+        dbClientIsPrivilegedClient: dbClient === privilegedClient,
+        overwrittenAfterConstructionInThisFile: false,
+      },
       "dbClient.from(\"profiles\").select(\"*\")": {
         data: profilesResult.data ?? null,
         error:
