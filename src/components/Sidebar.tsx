@@ -22,6 +22,17 @@ const moduleDescriptions: Record<string, string> = {
   Settings: "Workspace governance and configuration",
 };
 
+const moduleStatus: Record<string, string> = {
+  "Manage it": "installed",
+  "Create it": "installed",
+  "Track it": "installed",
+  "Store it": "available",
+  "Account it": "installed",
+  "Report it": "installed",
+  "Improve it": "available",
+  Settings: "installed",
+};
+
 const navIcons: Record<string, ReactNode> = {
   "Manage it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
@@ -100,7 +111,7 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
             </div>
             <div>
               <p className="text-sm font-semibold text-white">Nexus it</p>
-              <p className="text-xs text-slate-400">Nexus Intelligent Transport</p>
+              <p className="text-xs text-slate-400">Intelligent Transport</p>
             </div>
           </div>
 
@@ -115,6 +126,7 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
         <nav className="space-y-3">
           {items.map((item) => {
             const active = item.href === activePath || (item.href !== "/" && activePath.startsWith(item.href));
+            const status = moduleStatus[item.label] ?? "installed";
             return (
               <Link
                 key={item.href}
@@ -133,11 +145,15 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
                   </span>
                   <span
                     className={
-                      "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] " +
-                      (active ? "bg-[#7C3AED]/40 text-[#d7c9ff]" : "bg-white/10 text-slate-300")
+                      "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] " +
+                      (status === "installed"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : status === "available"
+                          ? "bg-sky-500/20 text-sky-300"
+                          : "bg-violet-500/20 text-violet-300")
                     }
                   >
-                    Product
+                    {status}
                   </span>
                 </div>
                 <p className="text-sm font-semibold">{item.label}</p>
@@ -149,9 +165,32 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
           })}
         </nav>
 
-        <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-3">
-          <p className="text-sm font-semibold text-white">Sell it</p>
-          <p className="mt-1 text-xs leading-5 text-slate-400">Available soon · Install when released</p>
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">More products</p>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white">Sell it</p>
+              <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
+                coming soon
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-slate-400">Websites, marketing and customer acquisition.</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white">Fleet it</p>
+              <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
+                coming soon
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-5 text-slate-400">Fleet, maintenance and asset management.</p>
+          </div>
+          <button
+            type="button"
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-left text-sm font-medium text-slate-200 transition hover:border-[#7C3AED]/40 hover:text-white"
+          >
+            Browse all products
+          </button>
         </div>
       </div>
     </aside>

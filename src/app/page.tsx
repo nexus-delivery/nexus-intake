@@ -368,25 +368,25 @@ export default function HubPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111827] flex flex-col">
+    <div className="min-h-screen bg-transparent flex flex-col text-slate-900">
       {/* ── Top bar ──────────────────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-6 py-5 sm:px-10 border-b border-white/10">
+      <header className="flex items-center justify-between border-b border-slate-200 px-6 py-5 sm:px-10">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#7C3AED] text-sm font-bold text-white shadow shadow-[#7C3AED]/40">
             N
           </div>
-              <p className="text-sm font-semibold text-white">Nexus it</p>
+          <p className="text-sm font-semibold text-slate-900">Nexus it</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Manage it.</p>
-            <p className="text-xs text-slate-300">{companyName ?? userEmail ?? "Customer"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Manage it</p>
+            <p className="text-xs text-slate-600">{companyName ?? userEmail ?? "Customer"}</p>
             {signOutError ? <p className="text-[11px] text-red-300">{signOutError}</p> : null}
           </div>
           <button
             type="button"
             onClick={handleSignOut}
-            className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Sign out
           </button>
@@ -401,10 +401,10 @@ export default function HubPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#7C3AED] mb-4">
               NEXUS IT TODAY
             </p>
-            <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 tracking-tight leading-tight">
               How would you like to Nexus it today?
             </h1>
-            <p className="mt-4 text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="mt-4 text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
               Select a product to create, track, store, account or report from one intelligent workspace.
             </p>
           </div>
@@ -421,7 +421,7 @@ export default function HubPage() {
                 <Link
                   key={`${s.href}-${s.title}`}
                   href={s.href}
-                  className="group relative flex flex-col rounded-2xl border border-white/10 bg-white/5 p-7 hover:border-[#7C3AED]/50 hover:bg-white/8 cursor-pointer transition-all duration-200"
+                  className="group relative flex flex-col rounded-2xl border border-slate-200 bg-white p-7 hover:border-[#7C3AED]/35 hover:bg-slate-50 cursor-pointer transition-all duration-200 shadow-sm"
                 >
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#7C3AED]/20 text-[#a78bfa]">
@@ -429,8 +429,8 @@ export default function HubPage() {
                     </div>
                     <span className="text-[#7C3AED] text-lg font-light opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                   </div>
-                  <h2 className="text-lg font-semibold text-white mb-2">{s.title}</h2>
-                  <p className="text-sm leading-relaxed text-slate-400">{s.description}</p>
+                  <h2 className="text-lg font-semibold text-slate-900 mb-2">{s.title}</h2>
+                  <p className="text-sm leading-relaxed text-slate-600">{s.description}</p>
                 </Link>
               ))}
             </div>
@@ -439,8 +439,8 @@ export default function HubPage() {
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-white/10 px-6 py-4 text-center">
-        <p className="text-xs text-slate-600">
+      <footer className="border-t border-slate-200 px-6 py-4 text-center">
+        <p className="text-xs text-slate-500">
           Nexus it Today · Intelligent Transport workspace
         </p>
       </footer>

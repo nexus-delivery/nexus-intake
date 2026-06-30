@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export type WorkspaceCardStatus = "live" | "coming-soon";
+export type WorkspaceCardStatus = "live" | "available" | "coming-soon";
 
 export type WorkspaceCardItem = {
   title: string;
@@ -31,6 +31,10 @@ type WorkspaceInfoStripProps = {
 function StatusPill({ status }: { status: WorkspaceCardStatus | string }) {
   if (status === "live") {
     return <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Installed</span>;
+  }
+
+  if (status === "available") {
+    return <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">Available</span>;
   }
 
   return <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Available Soon</span>;
@@ -95,7 +99,7 @@ export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
 
         if (!item.href || item.status !== "live") {
           return (
-            <div key={item.title} className="nexus-card group flex h-full flex-col rounded-[28px] p-6 opacity-80">
+            <div key={item.title} className="nexus-card group flex h-full flex-col rounded-[28px] p-6">
               {cardBody}
             </div>
           );

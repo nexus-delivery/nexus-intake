@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
-import { WorkspaceCardGrid, WorkspaceHero } from "@/components/WorkspaceDesignSystem";
+import { WorkspaceCardGrid } from "@/components/WorkspaceDesignSystem";
 
 const sections = [
   {
@@ -104,7 +104,7 @@ const sections = [
     title: "Shopify",
     description: "Install when released to sync online store checkouts.",
     href: "/build-it",
-    status: "coming-soon",
+    status: "available",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M6 20l1.2-12h9.6L18 20z" />
@@ -130,35 +130,76 @@ export default function CreateItPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        <WorkspaceHero
-          kicker="Create actions"
-          title="Choose how you'd like to create work."
-          description="Each method is an installable intake path inside the Create it product."
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          }
-        />
+        <div className="nexus-card rounded-[30px] p-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-5">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-[#7C3AED] text-white shadow-lg shadow-[#7C3AED]/30">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </div>
+              <div>
+                <p className="nexus-kicker">Create it</p>
+                <h1 className="mt-1 text-4xl font-semibold text-slate-900">Choose how you'd like to create work.</h1>
+                <p className="mt-1.5 text-sm text-slate-600">Each method below is an intake path inside the Create it product.</p>
+              </div>
+            </div>
+            <div className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white p-1 text-sm">
+              <button type="button" className="rounded-full bg-[var(--nexus-purple)] px-4 py-1 font-semibold text-white">
+                Grid
+              </button>
+              <button type="button" className="rounded-full px-4 py-1 font-semibold text-slate-500">
+                List
+              </button>
+            </div>
+          </div>
+        </div>
 
         <WorkspaceCardGrid items={sections} />
-        <div className="nexus-surface rounded-[24px] p-5">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Common setup
-          </p>
-          <Link
-            href="/account-it/pod-settings"
-            className="group inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#7C3AED]/30 hover:text-[#7C3AED]"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5 text-[#7C3AED]">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg>
-            Configure POD settings
-            <span className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">→</span>
-          </Link>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="nexus-card rounded-[24px] p-5">
+            <p className="text-xl font-semibold text-slate-900">Quick actions</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                "Create new job",
+                "View today's jobs",
+                "Upload document",
+                "Track a job",
+              ].map((action) => (
+                <button
+                  key={action}
+                  type="button"
+                  className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-medium text-slate-600 transition hover:border-[#7C3AED]/40 hover:text-[#7C3AED]"
+                >
+                  {action}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="nexus-card rounded-[24px] p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xl font-semibold text-slate-900">Recent activity</p>
+              <Link href="/orders" className="text-sm font-semibold text-[#7C3AED]">
+                View all
+              </Link>
+            </div>
+            <div className="mt-4 space-y-3 text-sm text-slate-600">
+              <div className="flex items-center justify-between">
+                <span>12 new bookings received</span>
+                <span>5m ago</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>8 jobs updated</span>
+                <span>15m ago</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Driver check-in: John D.</span>
+                <span>32m ago</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </AppShell>

@@ -8,14 +8,13 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "Manage it", href: "/" },
   { label: "Create it", href: "/create-it" },
   { label: "Track it", href: "/track-it" },
   { label: "Store it", href: "/store-it" },
   { label: "Account it", href: "/account-it" },
   { label: "Report it", href: "/report-it" },
   { label: "Improve it", href: "/improve-it" },
-  { label: "Settings", href: "/settings" },
+  { label: "Manage it", href: "/" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -62,7 +61,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         <div className="flex-1 lg:min-h-screen lg:overflow-hidden">
           <div className="border-b border-slate-200/80 bg-white/80 backdrop-blur">
-            <Header title={pageTitle} subtitle="Nexus Intelligent Transport workspace" />
+            <Header title={pageTitle} subtitle="Everything you need to build, operate and grow your transport business." />
           </div>
 
           <main className="bg-transparent px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">
