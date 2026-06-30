@@ -93,7 +93,20 @@ export default function SignInPage() {
       <div className="pointer-events-none absolute inset-0 opacity-55 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(124,58,237,0.28),transparent_33%),radial-gradient(circle_at_28%_76%,rgba(59,130,246,0.2),transparent_33%)]" />
 
-      <div className="relative z-10 w-full max-w-md rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] p-8 shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+      <div className="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="hidden border-r border-white/10 p-8 lg:block">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
+          <h2 className="mt-2 text-4xl font-semibold text-white">Nexus Intelligent Transport Operating System.</h2>
+          <p className="mt-3 max-w-lg text-sm text-slate-300">Operations-ready workflows for freight, warehouse and delivery teams.</p>
+          <div className="mt-8 grid grid-cols-2 gap-3 text-xs font-semibold text-slate-200">
+            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Heavy trucks</div>
+            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Warehouse docks</div>
+            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Freight aircraft</div>
+            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Shipping containers</div>
+          </div>
+        </div>
+
+        <div className="p-8">
         <div className="mb-7 flex flex-col items-center gap-3 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C3AED] text-lg font-bold text-white shadow-lg shadow-[#7C3AED]/40">
             N
@@ -194,6 +207,7 @@ export default function SignInPage() {
             Create account
           </Link>
         </p>
+        </div>
       </div>
     </div>
   );

@@ -31,6 +31,12 @@ const manageItModules = [
     icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M12 5v14M5 12h14" /></svg>),
   },
   {
+    title: "Upload it",
+    description: "Upload transport documents for OCR and review.",
+    href: "/portal/intake",
+    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M12 3v12" /><path d="M7 8l5-5 5 5" /><path d="M5 20h14" /></svg>),
+  },
+  {
     title: "Process it",
     description: "Prepare jobs and send to Track-POD.",
     href: "/process-it",
@@ -221,8 +227,8 @@ export default function HubPage() {
   // Filter modules based on user type
   const moduleAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
     admin: new Set(manageItModules.map(m => m.title)), // All modules
-    merchant: new Set(["Create it", "Process it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
-    customer: new Set(["Create it", "Process it", "Track it", "Improve it"]),
+    merchant: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
+    customer: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it"]),
   };
   
   const createAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
@@ -256,21 +262,23 @@ export default function HubPage() {
       <div className="flex flex-1 flex-col overflow-auto">
 
         {/* Workspace heading bar */}
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-8 py-6 backdrop-blur">
-          <div className="flex items-start justify-between gap-6">
+        <div className="sticky top-0 z-10 overflow-hidden border-b border-violet-500/20 bg-[#070916] px-8 py-6 text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(124,58,237,0.34),transparent_44%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.24),transparent_38%),linear-gradient(140deg,#060913_0%,#11122b_45%,#131738_100%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] [background-size:42px_42px]" />
+          <div className="relative flex items-start justify-between gap-6">
             <div>
-              <p className="nexus-kicker">Nexus it Today</p>
-              <h1 className="mt-1 text-4xl font-semibold tracking-tight text-slate-900 lg:text-5xl">
-                How would you like to Nexus it today?
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
+              <h1 className="mt-1 text-4xl font-semibold tracking-tight text-white lg:text-5xl">
+                Enter To Nexus it Today
               </h1>
-              <p className="mt-2 max-w-2xl text-base text-slate-600">
-                Everything you need to build, operate and grow your transport business.
+              <p className="mt-2 max-w-2xl text-base text-slate-200">
+                Nexus Intelligent Transport Operating System.
               </p>
 
               {/* ── Workspace role switcher ────────────────────── */}
               <div className="mt-4 flex flex-wrap items-center gap-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Workspace</span>
-                <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100 p-1 text-xs">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Workspace</span>
+                <div className="flex items-center rounded-xl border border-white/20 bg-white/10 p-1 text-xs">
                   {([
                     { role: "admin" as const, label: "Admin", description: "Full platform access" },
                     { role: "merchant" as const, label: "Merchant", description: "Customer-facing portal" },
@@ -283,7 +291,7 @@ export default function HubPage() {
                       className={`flex items-center gap-1.5 rounded-lg px-4 py-1.5 font-semibold transition ${
                         workspaceRole === role
                           ? "bg-white text-slate-900 shadow-sm"
-                          : "text-slate-500 hover:text-slate-800"
+                          : "text-slate-200 hover:text-white"
                       }`}
                     >
                       {workspaceRole === role && (
@@ -293,7 +301,7 @@ export default function HubPage() {
                     </button>
                   ))}
                 </div>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-300">
                   {workspaceRole === "admin" && "Full platform — all modules visible"}
                   {workspaceRole === "merchant" && "Merchant portal — booking and tracking"}
                   {workspaceRole === "customer" && "Customer view — create and track jobs"}
@@ -301,8 +309,16 @@ export default function HubPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
+              <div className="hidden grid-cols-3 gap-2 lg:grid">
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Trucks</span>
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Warehouses</span>
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Freight Aircraft</span>
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Containers</span>
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Pallets</span>
+                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Logistics</span>
+              </div>
               <div className="flex items-center gap-2">
-                <button type="button" className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300">
+                <button type="button" className="flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm transition hover:border-white/35">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4"><path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5" /><path d="M10 17a2 2 0 104 0" /></svg>
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7C3AED] text-[11px] font-bold text-white">3</span>
                   Notifications
@@ -313,8 +329,8 @@ export default function HubPage() {
                 </button>
               </div>
               <div className="flex items-center gap-3">
-                {(companyName ?? userEmail) ? <span className="text-xs text-slate-500">{companyName ?? userEmail}</span> : null}
-                <button type="button" onClick={handleSignOut} className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                {(companyName ?? userEmail) ? <span className="text-xs text-slate-300">{companyName ?? userEmail}</span> : null}
+                <button type="button" onClick={handleSignOut} className="rounded-lg border border-white/25 px-3 py-1 text-xs font-semibold text-slate-100 transition hover:bg-white/10">
                   Sign out
                 </button>
                 {signOutError ? <span className="text-xs text-red-500">{signOutError}</span> : null}
@@ -323,9 +339,9 @@ export default function HubPage() {
           </div>
 
           {/* Live status */}
-          <div className="mt-4 flex items-center gap-2">
+          <div className="relative mt-4 flex items-center gap-2">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-sm text-slate-600">Live &bull; updated 2m ago</span>
+            <span className="text-sm text-slate-200">Live &bull; updated 2m ago</span>
           </div>
         </div>
 

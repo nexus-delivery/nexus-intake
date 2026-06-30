@@ -116,16 +116,6 @@ export async function POST(request: NextRequest) {
         ? (draftJob.integration_metadata as Record<string, unknown>)
         : {};
 
-    const existingTrackPodMapping =
-      existingMeta.trackPodMapping && typeof existingMeta.trackPodMapping === "object"
-        ? (existingMeta.trackPodMapping as Record<string, string | null>)
-        : {};
-
-    const mergedTrackPodMapping: Record<string, string | null> = {
-      ...existingTrackPodMapping,
-      ...mapping,
-    };
-
     const jobReference =
       clean(mapping.order_reference) ||
       clean(draftJob.job_reference as string | null) ||
@@ -141,7 +131,7 @@ export async function POST(request: NextRequest) {
         job_reference: jobReference,
         integration_metadata: {
           ...existingMeta,
-          trackPodMapping: mergedTrackPodMapping,
+          trackPodMapping: mapping,
           updatedAt: now,
         },
         last_sync: now,

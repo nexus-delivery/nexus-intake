@@ -126,6 +126,7 @@ export default function DocumentUploadCard({
     if (result.success && result.metadata) {
       setUploadState("success");
       setMetadata(result.metadata);
+      console.info("Upload created draft_job_id:", result.metadata.jobId);
       onUploadComplete?.(result.metadata.fileName);
       onUploadSuccess?.(result.metadata);
     } else {

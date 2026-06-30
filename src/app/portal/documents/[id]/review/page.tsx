@@ -8,6 +8,7 @@ import {
   confirmJob,
   fetchDraftJobById,
   fetchCurrentProfile,
+  requestMerchantDocumentSignedUrl,
   fetchUploadedDocumentById,
   type UploadedDocumentMetadata,
 } from "@/lib/supabaseClient";
@@ -61,21 +62,27 @@ export default function DocumentReviewPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createdRef, setCreatedRef] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const REVIEW_LOAD_ERROR = "This upload could not be loaded.";
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadReview() {
       if (!documentId) {
-        setError("Document ID is missing.");
+        setError(REVIEW_LOAD_ERROR);
         setLoading(false);
         return;
       }
       if (!draftJobId) {
-        setError("Draft job ID is missing. Open this review from the Documents inbox.");
+        console.info("Review requested draft_job_id:", "<missing>");
+        setError(REVIEW_LOAD_ERROR);
         setLoading(false);
         return;
       }
+
+      console.info("Review requested draft_job_id:", draftJobId);
 
       setLoading(true);
       setError(null);
@@ -84,7 +91,7 @@ export default function DocumentReviewPage() {
       const profileResult = await fetchCurrentProfile();
       if (!profileResult.success) {
         if (!cancelled) {
-          setError(profileResult.error);
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
@@ -97,7 +104,7 @@ export default function DocumentReviewPage() {
 
       if (!documentResult.success || !documentResult.data) {
         if (!cancelled) {
-          setError(documentResult.success ? "Document not found." : documentResult.error);
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
@@ -109,40 +116,45 @@ export default function DocumentReviewPage() {
       );
       if (!draftJobResult.success) {
         if (!cancelled) {
-          setError(draftJobResult.error);
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
       }
       if (!draftJobResult.data) {
         if (!cancelled) {
-          setError("Draft job not found for this company.");
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
       }
       if (draftJobResult.data.primary_document_id !== documentId) {
         if (!cancelled) {
-          setError("Draft job does not match the selected uploaded document.");
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
       }
+
+      console.info("Review loaded draft_job_id:", draftJobResult.data.id);
 
       const builtMetadata = toMetadata(documentResult.data, draftJobResult.data.id);
       const extraction = await extractUploadToOcrReviewData(builtMetadata);
 
       if (!extraction.success) {
         if (!cancelled) {
-          setError(extraction.error);
+          setError(REVIEW_LOAD_ERROR);
           setLoading(false);
         }
         return;
       }
 
+      const signedUrlResult = await requestMerchantDocumentSignedUrl(documentId);
+
       if (!cancelled) {
         setMetadata(builtMetadata);
         setReviewData(extraction.data);
+        setPreviewUrl(signedUrlResult.success ? signedUrlResult.signedUrl : null);
         setLoading(false);
       }
     }
@@ -228,6 +240,41 @@ export default function DocumentReviewPage() {
         <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
         <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
       </div>
+
+      <section className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Uploaded document</h2>
+          <div className="mt-3 space-y-2 text-sm text-slate-700">
+            <p><span className="font-semibold text-slate-900">File:</span> {metadata?.fileName}</p>
+            <p><span className="font-semibold text-slate-900">Document ID:</span> {metadata?.documentId}</p>
+            <p><span className="font-semibold text-slate-900">Draft Job ID:</span> {metadata?.jobId}</p>
+            {previewUrl ? (
+              <a
+                href={previewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Open document preview
+              </a>
+            ) : (
+              <p className="text-xs text-slate-500">Document preview link unavailable.</p>
+            )}
+          </div>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Extraction confidence</h2>
+          <div className="mt-3 grid gap-2 text-sm text-slate-700">
+            <p>
+              Collection date: <span className={reviewData.collectionDateConfidence === "high" ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{reviewData.collectionDateConfidence}</span>
+            </p>
+            <p>
+              Delivery date: <span className={reviewData.deliveryDateConfidence === "high" ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>{reviewData.deliveryDateConfidence}</span>
+            </p>
+            <p className="text-xs text-slate-500">Low-confidence fields stay editable and are never replaced by another draft job.</p>
+          </div>
+        </article>
+      </section>
 
       {createdRef && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-800">
