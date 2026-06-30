@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // Production Track-POD API endpoint and auth — as per reference/trackpod/PROCESS-IT.md
-const TRACKPOD_API_URL = "https://api.track-pod.com/Order";
-const TRACKPOD_API_KEY =
-  process.env.TRACKPOD_API_KEY ??
-  process.env.TRACKPOD_API_TOKEN ??
-  "";
+const TRACKPOD_API_BASE_URL =
+  process.env.TRACKPOD_API_BASE_URL ?? "https://api.track-pod.com/Order";
+const TRACKPOD_API_KEY = process.env.TRACKPOD_API_KEY ?? "";
 
 // Rate limit: 20 req/sec, 429 = retry after 60s (handled by client retry logic)
 const TRACKPOD_REQUEST_TIMEOUT_MS = 15_000;
@@ -47,6 +45,14 @@ function ifempty(a: string, b: string): string {
   return a || b;
 }
 
+function firstNonBlank(fields: Record<string, string>, keys: string[]): string {
+  for (const key of keys) {
+    const value = clean(fields[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
   // Normalise to YYYY-MM-DD
@@ -61,95 +67,92 @@ function formatDate(dateStr: string): string {
 
 function buildDeliveryPayload(
   fields: Record<string, string>,
-  orderRef: string,
-  sourceSystem: "Wodely" | "WooCommerce"
+  orderRef: string
 ): Record<string, unknown> {
-  const deliveryName = clean(
-    ifempty(fields.delivery_name ?? fields.customer ?? "", fields.collection_name ?? "")
-  );
-  const collectionName = clean(
-    ifempty(fields.collection_name ?? "", fields.merchant_shipper ?? "")
-  );
-  const deliveryDate = formatDate(fields.delivery_date ?? fields.collection_date ?? "");
-  const goodsNote = ""; // delivery orders always get empty Note per blueprint
+  const deliveryName = firstNonBlank(fields, ["delivery_name", "Delivery Name"]);
+  const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
+  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
+  const deliveryAddress = firstNonBlank(fields, ["delivery_address", "Delivery Address"]);
+  const deliveryPhone = firstNonBlank(fields, ["delivery_phone", "Delivery Phone"]);
+  const deliveryEmail = firstNonBlank(fields, ["delivery_email", "Delivery Email"]);
 
-  const payload: Record<string, unknown> = {
+  const requestedDeliveryDate = firstNonBlank(fields, [
+    "requested_delivery_date",
+    "Requested Delivery Date",
+    "delivery_date",
+  ]);
+  const expectedCollectionDate = firstNonBlank(fields, [
+    "expected_collection_date",
+    "Expected Collection Date",
+    "collection_date",
+  ]);
+
+  const goodsName = firstNonBlank(fields, [
+    "trackpod_goods",
+    "TrackPOD Goods",
+    "goods_description",
+    "Goods Description",
+  ]);
+
+  return {
     Number: orderRef,
     Id: orderRef,
     Type: 0, // Delivery
+    Date: formatDate(ifempty(requestedDeliveryDate, expectedCollectionDate)),
     Client: ifempty(deliveryName, collectionName),
-    ContactName:
-      sourceSystem === "WooCommerce"
-        ? collectionName // THDG cross-maps ContactName = Collection Name
-        : ifempty(deliveryName, collectionName),
-    Address: clean(fields.delivery_address ?? ""),
-    Phone: clean(fields.delivery_phone ?? fields.telephone ?? fields.phone ?? ""),
-    Shipper: clean(ifempty(fields.merchant_shipper ?? "", fields.collection_name ?? "")),
+    ContactName: ifempty(deliveryName, collectionName),
+    Address: deliveryAddress,
+    Phone: deliveryPhone,
+    Email: deliveryEmail,
+    Shipper: shipperName,
     GoodsList: [
       {
-        GoodsName: clean(fields.goods_description ?? fields.trackpod_goods ?? "Delivery"),
+        GoodsName: goodsName || "Delivery",
         GoodsUnit: "pcs",
         Quantity: 1,
-        Note: goodsNote,
+        Note: "",
       },
     ],
   };
-
-  // Email: Wodely uses delivery_email only; WooCommerce concatenates both
-  if (sourceSystem === "WooCommerce") {
-    const collEmail = clean(fields.collection_email ?? fields.email ?? "");
-    const delEmail = clean(fields.delivery_email ?? fields.email ?? "");
-    const combinedEmail = [collEmail, delEmail].filter(Boolean).join(", ");
-    if (combinedEmail) payload.Email = combinedEmail;
-  } else {
-    const delEmail = clean(fields.delivery_email ?? fields.email ?? "");
-    if (delEmail) payload.Email = delEmail;
-  }
-
-  // Date: Wodely only — use requested delivery date, fall back to collection date
-  if (sourceSystem === "Wodely" && deliveryDate) {
-    payload.Date = deliveryDate;
-  }
-
-  return payload;
 }
 
 function buildCollectionPayload(
   fields: Record<string, string>,
-  orderRef: string,
-  sourceSystem: "Wodely" | "WooCommerce"
+  orderRef: string
 ): Record<string, unknown> {
-  const collectionName = clean(
-    ifempty(fields.collection_name ?? "", fields.merchant_shipper ?? "")
-  );
-
-  // Note: production Airtable field name is "Colllection Email" (triple-l)
-  // We normalise it from whichever variant is present in extracted fields
-  const collectionEmail = clean(
-    fields.colllection_email ??
-      fields.collection_email ??
-      fields.email ??
-      ""
-  );
-
-  const goodsNote =
-    sourceSystem === "Wodely"
-      ? clean(fields.trackpod_photo_note ?? fields.notes ?? "")
-      : ""; // WooCommerce/THDG always uses empty Note for collection
+  const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
+  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
+  const collectionAddress = firstNonBlank(fields, ["collection_address", "Collection Address"]);
+  const collectionPhone = firstNonBlank(fields, ["collection_phone", "Collection Phone"]);
+  const collectionEmail = firstNonBlank(fields, [
+    "colllection_email",
+    "Colllection Email",
+    "collection_email",
+  ]);
+  const goodsName = firstNonBlank(fields, [
+    "trackpod_goods",
+    "TrackPOD Goods",
+    "goods_description",
+    "Goods Description",
+  ]);
+  const goodsNote = firstNonBlank(fields, [
+    "trackpod_photo_note",
+    "TRACKPOD PHOTO & NOTE",
+  ]);
 
   return {
     Number: orderRef,
     Id: orderRef,
     Type: 1, // Collection / Pickup
-    Client: collectionName,
-    ContactName: collectionName,
-    Address: clean(fields.collection_address ?? ""),
-    Phone: clean(fields.collection_phone ?? fields.telephone ?? fields.phone ?? ""),
+    Client: ifempty(collectionName, shipperName),
+    ContactName: ifempty(collectionName, shipperName),
+    Address: collectionAddress,
+    Phone: collectionPhone,
     Email: collectionEmail,
-    Shipper: clean(ifempty(fields.merchant_shipper ?? "", fields.collection_name ?? "")),
+    Shipper: shipperName,
     GoodsList: [
       {
-        GoodsName: clean(fields.goods_description ?? fields.trackpod_goods ?? "Collection"),
+        GoodsName: goodsName || "Collection",
         GoodsUnit: "pcs",
         Quantity: 1,
         Note: goodsNote,
@@ -173,6 +176,12 @@ type TrackPodResult = {
 async function callTrackPod(
   payload: Record<string, unknown>
 ): Promise<TrackPodResult> {
+  console.info("[process-it/send] Track-POD config", {
+    keyExists: Boolean(TRACKPOD_API_KEY),
+    keyLength: TRACKPOD_API_KEY.length,
+    baseUrl: TRACKPOD_API_BASE_URL,
+  });
+
   if (!TRACKPOD_API_KEY) {
     throw new Error("TRACKPOD_API_KEY environment variable is not configured");
   }
@@ -182,7 +191,7 @@ async function callTrackPod(
 
   let response: Response;
   try {
-    response = await fetch(TRACKPOD_API_URL, {
+    response = await fetch(TRACKPOD_API_BASE_URL, {
       method: "POST",
       headers: {
         "X-API-KEY": TRACKPOD_API_KEY,
@@ -405,7 +414,7 @@ export async function POST(request: NextRequest) {
       .eq("company_id", profile.company_id);
 
     // ── Create Delivery order (Type 0) ──────────────────────────────────────
-    const deliveryPayload = buildDeliveryPayload(fields, orderRef, sourceSystem);
+    const deliveryPayload = buildDeliveryPayload(fields, orderRef);
 
     let deliveryResult: TrackPodResult;
     try {
@@ -446,7 +455,7 @@ export async function POST(request: NextRequest) {
       .eq("company_id", profile.company_id);
 
     // ── Create Collection order (Type 1) ────────────────────────────────────
-    const collectionPayload = buildCollectionPayload(fields, orderRef, sourceSystem);
+    const collectionPayload = buildCollectionPayload(fields, orderRef);
 
     let collectionResult: TrackPodResult;
     try {
