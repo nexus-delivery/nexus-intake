@@ -164,6 +164,8 @@ type TrackPodResult = {
   locationHeader: string;
   orderId: string;
   trackLink: string | null;
+  trackKey: string | null;
+  trackId: string | null;
   rawResponse: unknown;
   httpStatus: number;
 };
@@ -210,25 +212,48 @@ async function callTrackPod(
     );
   }
 
-  // Production response: 201 Created, Location header contains order URL
+  // Production response: 201 Created, Location header = /Order/Number/{ref}
   const locationHeader = response.headers.get("location") ?? "";
 
-  // Extract the order ID from the Location header URL
-  // e.g. https://api.track-pod.com/Order/Id/abc123
-  const locationParts = locationHeader.split("/");
-  const orderId = locationParts[locationParts.length - 1] ?? locationHeader;
+  // ── Fetch the created order to retrieve TrackLink, TrackKey, TrackId ──────
+  // The POST body only returns {"Status":201,...}; tracking URLs require a GET.
+  let trackLink: string | null = null;
+  let trackKey: string | null = null;
+  let trackId: string | null = null;
 
-  // TrackLink may be present in response body (requires GET /Order/Id/{id} to retrieve)
-  // Body fields: TrackLink, TrackKey, TrackId
-  const bodyObj =
-    body && typeof body === "object" ? (body as Record<string, unknown>) : {};
-  const trackLink =
-    typeof bodyObj.TrackLink === "string" ? bodyObj.TrackLink : null;
+  if (locationHeader) {
+    try {
+      const getController = new AbortController();
+      const getTimer = setTimeout(() => getController.abort(), 10_000);
+      let getResp: Response;
+      try {
+        getResp = await fetch(`https://api.track-pod.com${locationHeader}`, {
+          headers: {
+            "X-API-KEY": TRACKPOD_API_KEY,
+            Accept: "application/json",
+          },
+          signal: getController.signal,
+        });
+      } finally {
+        clearTimeout(getTimer);
+      }
+      if (getResp.ok) {
+        const orderData = (await getResp.json()) as Record<string, unknown>;
+        trackLink = typeof orderData.TrackLink === "string" ? orderData.TrackLink : null;
+        trackKey = typeof orderData.TrackKey === "string" ? orderData.TrackKey : null;
+        trackId = typeof orderData.TrackId === "string" ? orderData.TrackId : null;
+      }
+    } catch {
+      // Non-fatal — tracking URL can be fetched later by a background job
+    }
+  }
 
   return {
     locationHeader,
-    orderId: orderId || locationHeader,
+    orderId: locationHeader || (payload.Number as string) || "",
     trackLink,
+    trackKey,
+    trackId,
     rawResponse: body,
     httpStatus: response.status,
   };
@@ -477,8 +502,20 @@ export async function POST(request: NextRequest) {
         last_sync: now,
         current_status: "READY_FOR_ROUTE",
         last_api_response: {
-          delivery: deliveryResult.rawResponse,
-          collection: collectionResult.rawResponse,
+          delivery: {
+            locationHeader: deliveryResult.locationHeader,
+            trackLink: deliveryResult.trackLink,
+            trackKey: deliveryResult.trackKey,
+            trackId: deliveryResult.trackId,
+            raw: deliveryResult.rawResponse,
+          },
+          collection: {
+            locationHeader: collectionResult.locationHeader,
+            trackLink: collectionResult.trackLink,
+            trackKey: collectionResult.trackKey,
+            trackId: collectionResult.trackId,
+            raw: collectionResult.rawResponse,
+          },
         },
       })
       .eq("id", jobRecord.id)
@@ -515,6 +552,8 @@ export async function POST(request: NextRequest) {
       trackpodCollectionOrderId: collectionResult.locationHeader,
       trackpodDeliveryTrackingUrl: deliveryResult.trackLink ?? null,
       trackpodCollectionTrackingUrl: collectionResult.trackLink ?? null,
+      trackpodDeliveryTrackKey: deliveryResult.trackKey ?? null,
+      trackpodCollectionTrackKey: collectionResult.trackKey ?? null,
       lifecycleStatus: "READY_FOR_ROUTE",
     });
   } catch (err) {

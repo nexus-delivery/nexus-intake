@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,6 +99,451 @@ function jobMatchesFilter(job: ProcessItJob, filter: ViewFilter): boolean {
   if (filter === "pending") return !hasDelivery && !hasCollection && ls !== "TRACKPOD_ERROR";
   return true;
 }
+
+// ─── Create Job Form ──────────────────────────────────────────────────────────
+
+type CreateJobFormData = {
+  orderReference: string;
+  collectionName: string;
+  collectionAddress: string;
+  collectionPhone: string;
+  collectionEmail: string;
+  deliveryName: string;
+  deliveryAddress: string;
+  deliveryPhone: string;
+  deliveryEmail: string;
+  goodsDescription: string;
+  shipperName: string;
+  deliveryDate: string;
+  notes: string;
+  trackpodPhotoNote: string;
+  sendImmediately: boolean;
+};
+
+const EMPTY_FORM: CreateJobFormData = {
+  orderReference: "",
+  collectionName: "",
+  collectionAddress: "",
+  collectionPhone: "",
+  collectionEmail: "",
+  deliveryName: "",
+  deliveryAddress: "",
+  deliveryPhone: "",
+  deliveryEmail: "",
+  goodsDescription: "",
+  shipperName: "",
+  deliveryDate: "",
+  notes: "",
+  trackpodPhotoNote: "",
+  sendImmediately: true,
+};
+
+function CreateJobForm({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (jobId: string, ref: string, sentToTrackPod: boolean) => void;
+}) {
+  const [form, setForm] = useState<CreateJobFormData>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [trackPodResult, setTrackPodResult] = useState<{
+    deliveryId: string;
+    collectionId: string;
+    deliveryTrackLink: string | null;
+    collectionTrackLink: string | null;
+  } | null>(null);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+  }, []);
+
+  const set = (field: keyof CreateJobFormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    setSaving(true);
+    setError(null);
+    setTrackPodResult(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      // Step 1 — create the job record
+      const createRes = await fetch("/api/process-it/create-job", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          orderReference: form.orderReference || undefined,
+          collectionName: form.collectionName,
+          collectionAddress: form.collectionAddress,
+          collectionPhone: form.collectionPhone,
+          collectionEmail: form.collectionEmail,
+          deliveryName: form.deliveryName,
+          deliveryAddress: form.deliveryAddress,
+          deliveryPhone: form.deliveryPhone,
+          deliveryEmail: form.deliveryEmail,
+          goodsDescription: form.goodsDescription || "General goods",
+          shipperName: form.shipperName || form.collectionName,
+          deliveryDate: form.deliveryDate || undefined,
+          notes: form.notes || undefined,
+          trackpodPhotoNote: form.trackpodPhotoNote || undefined,
+        }),
+      });
+
+      const createJson = (await createRes.json()) as {
+        success?: boolean;
+        jobId?: string;
+        jobReference?: string;
+        error?: string;
+      };
+
+      if (!createRes.ok || !createJson.jobId) {
+        throw new Error(createJson.error ?? `Create failed (${createRes.status})`);
+      }
+
+      const { jobId, jobReference } = createJson;
+
+      // Step 2 — optionally send to Track-POD immediately
+      if (form.sendImmediately) {
+        const sendRes = await fetch("/api/process-it/send", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ draftJobId: jobId, sourceSystem: "Wodely" }),
+        });
+
+        const sendJson = (await sendRes.json()) as {
+          success?: boolean;
+          trackpodDeliveryOrderId?: string;
+          trackpodCollectionOrderId?: string;
+          trackpodDeliveryTrackingUrl?: string | null;
+          trackpodCollectionTrackingUrl?: string | null;
+          error?: string;
+        };
+
+        if (!sendRes.ok) {
+          // Job was created but Track-POD failed — still report partial success
+          setError(`Job created (${jobReference}) but Track-POD error: ${sendJson.error ?? "unknown"}`);
+          onCreated(jobId!, jobReference!, false);
+          return;
+        }
+
+        setTrackPodResult({
+          deliveryId: sendJson.trackpodDeliveryOrderId ?? "",
+          collectionId: sendJson.trackpodCollectionOrderId ?? "",
+          deliveryTrackLink: sendJson.trackpodDeliveryTrackingUrl ?? null,
+          collectionTrackLink: sendJson.trackpodCollectionTrackingUrl ?? null,
+        });
+
+        // Keep form visible briefly to show success, then notify parent
+        setTimeout(() => onCreated(jobId!, jobReference!, true), 2500);
+      } else {
+        onCreated(jobId!, jobReference!, false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40 backdrop-blur-sm">
+      <div className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 bg-[#7C3AED] px-6 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-violet-200">Process it</p>
+            <h2 className="mt-0.5 text-lg font-semibold text-white">Create Job</h2>
+          </div>
+          <button
+            onClick={onClose}
+            type="button"
+            className="rounded-lg p-2 text-violet-200 hover:bg-violet-700 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Track-POD success banner */}
+        {trackPodResult && (
+          <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4">
+            <p className="text-sm font-semibold text-emerald-800">Track-POD orders created</p>
+            <div className="mt-2 space-y-1 text-xs text-emerald-700">
+              <div>
+                <span className="font-medium">Delivery:</span>{" "}
+                <span className="font-mono">{trackPodResult.deliveryId}</span>
+                {trackPodResult.deliveryTrackLink && (
+                  <a
+                    href={trackPodResult.deliveryTrackLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 underline"
+                  >
+                    Track ↗
+                  </a>
+                )}
+              </div>
+              <div>
+                <span className="font-medium">Collection:</span>{" "}
+                <span className="font-mono">{trackPodResult.collectionId}</span>
+                {trackPodResult.collectionTrackLink && (
+                  <a
+                    href={trackPodResult.collectionTrackLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 underline"
+                  >
+                    Track ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {error && (
+          <div className="border-b border-red-200 bg-red-50 px-6 py-3">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex-1 space-y-6 px-6 py-6">
+          {/* Order reference */}
+          <FieldGroup label="Order Reference" hint="Leave blank to auto-generate">
+            <FormInput
+              ref={firstFieldRef}
+              placeholder="e.g. WC-12345 or leave blank"
+              value={form.orderReference}
+              onChange={set("orderReference")}
+            />
+          </FieldGroup>
+
+          {/* Collection */}
+          <fieldset>
+            <legend className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Collection
+            </legend>
+            <div className="space-y-3">
+              <FieldGroup label="Name *">
+                <FormInput
+                  required
+                  placeholder="Collection contact / business name"
+                  value={form.collectionName}
+                  onChange={set("collectionName")}
+                />
+              </FieldGroup>
+              <FieldGroup label="Address *">
+                <FormInput
+                  required
+                  placeholder="Full collection address"
+                  value={form.collectionAddress}
+                  onChange={set("collectionAddress")}
+                />
+              </FieldGroup>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Phone">
+                  <FormInput
+                    placeholder="+44 7700 000000"
+                    value={form.collectionPhone}
+                    onChange={set("collectionPhone")}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Email">
+                  <FormInput
+                    type="email"
+                    placeholder="collection@example.com"
+                    value={form.collectionEmail}
+                    onChange={set("collectionEmail")}
+                  />
+                </FieldGroup>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Delivery */}
+          <fieldset>
+            <legend className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Delivery
+            </legend>
+            <div className="space-y-3">
+              <FieldGroup label="Name *">
+                <FormInput
+                  required
+                  placeholder="Delivery recipient / business name"
+                  value={form.deliveryName}
+                  onChange={set("deliveryName")}
+                />
+              </FieldGroup>
+              <FieldGroup label="Address *">
+                <FormInput
+                  required
+                  placeholder="Full delivery address"
+                  value={form.deliveryAddress}
+                  onChange={set("deliveryAddress")}
+                />
+              </FieldGroup>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Phone">
+                  <FormInput
+                    placeholder="+44 7700 000001"
+                    value={form.deliveryPhone}
+                    onChange={set("deliveryPhone")}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Email">
+                  <FormInput
+                    type="email"
+                    placeholder="delivery@example.com"
+                    value={form.deliveryEmail}
+                    onChange={set("deliveryEmail")}
+                  />
+                </FieldGroup>
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Order details */}
+          <fieldset>
+            <legend className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Order Details
+            </legend>
+            <div className="space-y-3">
+              <FieldGroup label="Goods Description">
+                <FormInput
+                  placeholder="e.g. Furniture — 2 boxes"
+                  value={form.goodsDescription}
+                  onChange={set("goodsDescription")}
+                />
+              </FieldGroup>
+              <div className="grid grid-cols-2 gap-3">
+                <FieldGroup label="Shipper / Depot">
+                  <FormInput
+                    placeholder="Shipper name"
+                    value={form.shipperName}
+                    onChange={set("shipperName")}
+                  />
+                </FieldGroup>
+                <FieldGroup label="Delivery Date">
+                  <FormInput
+                    type="date"
+                    value={form.deliveryDate}
+                    onChange={set("deliveryDate")}
+                  />
+                </FieldGroup>
+              </div>
+              <FieldGroup label="Notes">
+                <textarea
+                  rows={2}
+                  placeholder="Special instructions or notes"
+                  value={form.notes}
+                  onChange={set("notes")}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </FieldGroup>
+              <FieldGroup label="Track-POD Photo Note" hint="Shown to driver at collection">
+                <FormInput
+                  placeholder="e.g. Please photograph all items before loading"
+                  value={form.trackpodPhotoNote}
+                  onChange={set("trackpodPhotoNote")}
+                />
+              </FieldGroup>
+            </div>
+          </fieldset>
+
+          {/* Send immediately toggle */}
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <input
+              type="checkbox"
+              checked={form.sendImmediately}
+              onChange={(e) => setForm((p) => ({ ...p, sendImmediately: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 accent-[#7C3AED]"
+            />
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Send to Track-POD immediately</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Creates both Collection and Delivery orders in Track-POD right now.
+              </p>
+            </div>
+          </label>
+
+          {/* Submit */}
+          <div className="flex gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 rounded-xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-violet-200 hover:bg-violet-700 disabled:opacity-60"
+            >
+              {saving
+                ? form.sendImmediately
+                  ? "Creating job and sending to Track-POD…"
+                  : "Creating job…"
+                : form.sendImmediately
+                  ? "Create Job + Send to Track-POD"
+                  : "Create Job"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+        {label}
+        {hint && <span className="ml-1.5 font-normal text-slate-400">— {hint}</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const FormInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  function FormInput(props, ref) {
+    return (
+      <input
+        {...props}
+        ref={ref}
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+      />
+    );
+  }
+);
 
 // ─── Detail panel ─────────────────────────────────────────────────────────────
 
@@ -260,6 +705,7 @@ export default function ProcessItQueue() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ViewFilter>("all");
   const [selectedJob, setSelectedJob] = useState<ProcessItJob | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
@@ -381,23 +827,34 @@ export default function ProcessItQueue() {
             Send confirmed jobs to Track-POD. Each job creates a Delivery order and a Collection order.
           </p>
         </div>
-        <button
-          onClick={() => void loadJobs()}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#7C3AED] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-violet-200 hover:bg-violet-700"
           >
-            <path d="M4 4v5h5M20 20v-5h-5" />
-            <path d="M4 9a9 9 0 0115-4.5M20 15a9 9 0 01-15 4.5" />
-          </svg>
-          Refresh
-        </button>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="h-4 w-4">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            Create Job
+          </button>
+          <button
+            onClick={() => void loadJobs()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            >
+              <path d="M4 4v5h5M20 20v-5h-5" />
+              <path d="M4 9a9 9 0 0115-4.5M20 15a9 9 0 01-15 4.5" />
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -726,6 +1183,17 @@ export default function ProcessItQueue() {
       {/* Detail panel */}
       {selectedJob && (
         <DetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+      )}
+
+      {/* Create Job form */}
+      {showCreateForm && (
+        <CreateJobForm
+          onClose={() => setShowCreateForm(false)}
+          onCreated={(_jobId, _ref, _sent) => {
+            setShowCreateForm(false);
+            void loadJobs();
+          }}
+        />
       )}
     </div>
   );
