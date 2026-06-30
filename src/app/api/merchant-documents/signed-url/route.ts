@@ -6,16 +6,19 @@ const NO_COMPANY_ERROR = "No company is linked to this user";
 const ACCESS_DENIED_ERROR = "You do not have access to this document";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabasePublicKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServerKey =
+  process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 function keyFingerprint(value: string | undefined) {
   return value ? value.slice(0, 20) : null;
 }
 
 const authClient =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey, {
+  supabaseUrl && supabasePublicKey
+    ? createClient(supabaseUrl, supabasePublicKey, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
@@ -24,8 +27,8 @@ const authClient =
     : null;
 
 const privilegedClient =
-  supabaseUrl && supabaseServiceRoleKey
-    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+  supabaseUrl && supabaseServerKey
+    ? createClient(supabaseUrl, supabaseServerKey, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
@@ -34,11 +37,11 @@ const privilegedClient =
     : null;
 
 function createAuthenticatedAnonClient(accessToken: string) {
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabasePublicKey) {
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(supabaseUrl, supabasePublicKey, {
     global: {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -106,21 +109,34 @@ export async function POST(request: NextRequest) {
     const runtimeDiagnostics = {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
       SUPABASE_SERVICE_ROLE_KEY_EXISTS: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-      SUPABASE_SERVICE_ROLE_KEY_FINGERPRINT: keyFingerprint(
-        process.env.SUPABASE_SERVICE_ROLE_KEY
+      SUPABASE_SECRET_KEY_EXISTS: Boolean(process.env.SUPABASE_SECRET_KEY),
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY_EXISTS: Boolean(
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       ),
+      SUPABASE_SERVICE_ROLE_KEY_FINGERPRINT: keyFingerprint(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      SUPABASE_SECRET_KEY_FINGERPRINT: keyFingerprint(process.env.SUPABASE_SECRET_KEY),
       NEXT_PUBLIC_SUPABASE_ANON_KEY_FINGERPRINT: keyFingerprint(
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ),
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY_FINGERPRINT: keyFingerprint(
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       ),
       SERVICE_ROLE_AND_ANON_KEYS_DIFFERENT:
         (process.env.SUPABASE_SERVICE_ROLE_KEY ?? null) !==
         (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? null),
-      SERVICE_ROLE_CLIENT_KEY_SOURCE: "supabaseServiceRoleKey",
+      SERVER_AND_PUBLIC_KEYS_DIFFERENT:
+        (supabaseServerKey ?? null) !== (supabasePublicKey ?? null),
+      SERVER_CLIENT_KEY_SOURCE:
+        process.env.SUPABASE_SECRET_KEY != null
+          ? "SUPABASE_SECRET_KEY"
+          : process.env.SUPABASE_SERVICE_ROLE_KEY != null
+            ? "SUPABASE_SERVICE_ROLE_KEY"
+            : null,
       SERVICE_ROLE_CLIENT_KEY_VARIABLE_VALUE_FINGERPRINT: keyFingerprint(
-        supabaseServiceRoleKey
+        supabaseServerKey
       ),
       SERVICE_ROLE_CLIENT_CONSTRUCTION: {
-        createClientCall: "createClient(supabaseUrl, supabaseServiceRoleKey, ...)",
+        createClientCall: "createClient(supabaseUrl, supabaseServerKey, ...)",
         constructedAtModuleScope: true,
         clientVariableName: "privilegedClient",
         reusedInHandlerVia: "const dbClient = privilegedClient",
