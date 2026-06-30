@@ -473,7 +473,7 @@ export async function confirmJob(params: {
         return { success: false, error: SIGN_IN_ERROR };
       }
 
-      const response = await fetch("/api/jobs/confirm", {
+      const response = await fetch("/api/process-it/confirm-upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

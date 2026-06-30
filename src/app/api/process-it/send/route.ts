@@ -61,6 +61,10 @@ function formatDate(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+function isTestOrderReference(ref: string): boolean {
+  return /^(TEST-|NEX-TEST-)/i.test(ref.trim());
+}
+
 // ─── Production payload builders ──────────────────────────────────────────────
 // Field names and fallback chains exactly as documented in
 // reference/trackpod/PROCESS-IT.md and reference/trackpod/TRACKPOD-API-MAPPINGS.md
@@ -383,7 +387,7 @@ export async function POST(request: NextRequest) {
         for (const [k, v] of Object.entries(
           meta.trackPodMapping as Record<string, string | null>
         )) {
-          if (v != null && !fields[k]) fields[k] = v;
+          if (v != null && !clean(fields[k])) fields[k] = v;
         }
       }
     }
@@ -393,6 +397,19 @@ export async function POST(request: NextRequest) {
       clean(jobRecord.job_reference as string | null) ||
       clean(fields.order_reference) ||
       (jobRecord.id as string);
+
+    if (
+      isTestOrderReference(orderRef) &&
+      process.env.TRACKPOD_ALLOW_TEST_ORDERS !== "true"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Track-POD test order creation is blocked. Set TRACKPOD_ALLOW_TEST_ORDERS=true only for explicitly approved test runs.",
+        },
+        { status: 403 }
+      );
+    }
 
     // Determine source system
     const sourceSystem: "Wodely" | "WooCommerce" =
