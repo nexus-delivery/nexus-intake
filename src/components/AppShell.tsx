@@ -14,6 +14,7 @@ const navItems = [
   { label: "Store it", href: "/store-it" },
   { label: "Account it", href: "/account-it" },
   { label: "Report it", href: "/report-it" },
+  { label: "Improve it", href: "/improve-it" },
   { label: "Settings", href: "/settings" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -60,11 +61,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Sidebar items={filteredNavItems} activePath={activePath} />
 
         <div className="flex-1 lg:min-h-screen lg:overflow-hidden">
-          <div className="border-b border-white/10 bg-[rgba(9,12,24,0.88)] backdrop-blur">
+          <div className="border-b border-slate-200/80 bg-white/80 backdrop-blur">
             <Header title={pageTitle} subtitle="Nexus Intelligent Transport workspace" />
           </div>
 
-          <main className="px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">
+          <main className="bg-transparent px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">
             <div className="mx-auto max-w-7xl">{children}</div>
           </main>
         </div>

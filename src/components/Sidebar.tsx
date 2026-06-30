@@ -12,13 +12,14 @@ type SidebarProps = {
 };
 
 const moduleDescriptions: Record<string, string> = {
-  "Manage it": "Operations command and control",
-  "Create it": "Job creation and intake channels",
-  "Track it": "Live tracking and exception control",
-  "Store it": "Warehouse, inventory and media",
-  "Account it": "Commercials, billing and finance",
-  "Report it": "Analytics and business intelligence",
-  Settings: "Workspace governance",
+  "Manage it": "Company, users, security and platform controls",
+  "Create it": "Create new work from any source",
+  "Track it": "Track vehicles, jobs and deliveries in real time",
+  "Store it": "Warehouse, inventory and documents",
+  "Account it": "Customers, invoicing and payments",
+  "Report it": "Dashboards, KPIs and business insights",
+  "Improve it": "Feedback, automation and continuous improvement",
+  Settings: "Workspace governance and configuration",
 };
 
 const navIcons: Record<string, ReactNode> = {
@@ -61,6 +62,11 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M4 18h16" />
     </svg>
   ),
+  "Improve it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M12 2l3.2 6.5 7.2 1-5.2 5 1.2 7.3-6.4-3.4-6.4 3.4 1.2-7.3-5.2-5 7.2-1L12 2z" />
+    </svg>
+  ),
   Settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 8a4 4 0 100 8 4 4 0 000-8z" />
@@ -99,9 +105,9 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20">
-            <p className="font-medium text-slate-100">Nexus product catalogue</p>
+            <p className="font-medium text-slate-100">Products</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Each module is a focused SaaS product designed to run alone or as part of the Nexus ecosystem.
+              Install only the products your business needs.
             </p>
           </div>
         </div>
@@ -142,6 +148,11 @@ export default function Sidebar({ items, activePath }: SidebarProps) {
             );
           })}
         </nav>
+
+        <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 px-4 py-3">
+          <p className="text-sm font-semibold text-white">Sell it</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">Available soon · Install when released</p>
+        </div>
       </div>
     </aside>
   );

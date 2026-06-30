@@ -89,8 +89,9 @@ export default function SignInPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(130deg,rgba(6,8,16,0.88),rgba(6,8,16,0.55)),url('https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.32),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.18),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(167,139,250,0.3),transparent_42%),radial-gradient(circle_at_86%_20%,rgba(96,165,250,0.24),transparent_38%),linear-gradient(150deg,#050714_0%,#0a1026_44%,#121a38_100%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-55 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(124,58,237,0.28),transparent_33%),radial-gradient(circle_at_28%_76%,rgba(59,130,246,0.2),transparent_33%)]" />
 
       <div className="relative z-10 w-full max-w-md rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] p-8 shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl">
         <div className="mb-7 flex flex-col items-center gap-3 text-center">
@@ -100,18 +101,18 @@ export default function SignInPage() {
           <p className="nexus-kicker">Nexus it Today</p>
           <div>
             <h1 className="text-3xl font-semibold text-white">Sign in to Nexus it</h1>
-            <p className="mt-2 text-sm text-slate-300">Access your Nexus Intelligent Transport workspace.</p>
+            <p className="mt-2 text-sm text-slate-300">Access your transport business operating system.</p>
           </div>
         </div>
 
-        <div className="mb-5 rounded-2xl border border-white/10 bg-white/5 p-1.5">
+        <div className="mb-5 rounded-2xl border border-white/15 bg-black/20 p-1">
           <div className="grid grid-cols-2 gap-1.5">
             <button
               type="button"
               onClick={() => setEntryMode("manage")}
               className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                 entryMode === "manage"
-                  ? "bg-[var(--nexus-purple)] text-white shadow-[0_10px_20px_-12px_rgba(139,92,246,0.95)]"
+                  ? "bg-white text-slate-900 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.9)]"
                   : "text-slate-300 hover:bg-white/10"
               }`}
             >
@@ -122,7 +123,7 @@ export default function SignInPage() {
               onClick={() => setEntryMode("create")}
               className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
                 entryMode === "create"
-                  ? "bg-[var(--nexus-purple)] text-white shadow-[0_10px_20px_-12px_rgba(139,92,246,0.95)]"
+                  ? "bg-white text-slate-900 shadow-[0_10px_22px_-16px_rgba(0,0,0,0.9)]"
                   : "text-slate-300 hover:bg-white/10"
               }`}
             >

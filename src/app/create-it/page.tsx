@@ -52,6 +52,20 @@ const sections = [
     ),
   },
   {
+    title: "Connect it",
+    description: "Use API integrations to push jobs from external systems.",
+    href: "/build-it",
+    status: "live",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M15 7h4v4" />
+        <path d="M9 17H5v-4" />
+        <path d="M19 7l-6 6" />
+        <path d="M5 13l6-6" />
+      </svg>
+    ),
+  },
+  {
     title: "Import it",
     description: "CSV and spreadsheet imports for batch creation at scale.",
     href: "/portal/intake",
@@ -75,30 +89,38 @@ const sections = [
     ),
   },
   {
-    title: "Connect it",
-    description: "Use API integrations to push jobs from third-party systems.",
+    title: "WooCommerce",
+    description: "Commerce connector for storefront order intake automation.",
     href: "/build-it",
-    status: "live",
+    status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <path d="M15 7h4v4" />
-        <path d="M9 17H5v-4" />
-        <path d="M19 7l-6 6" />
-        <path d="M5 13l6-6" />
+        <path d="M6 7h12l-1 10H7L6 7z" />
+        <path d="M9 7a3 3 0 116 0" />
       </svg>
     ),
   },
   {
-    title: "Sync it",
-    description: "Sync commerce channels including WooCommerce and Shopify.",
+    title: "Shopify",
+    description: "Install when released to sync online store checkouts.",
     href: "/build-it",
-    status: "live",
+    status: "coming-soon",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-        <path d="M3 12a9 9 0 0115.55-6.36" />
-        <path d="M21 3v6h-6" />
-        <path d="M21 12a9 9 0 01-15.55 6.36" />
-        <path d="M3 21v-6h6" />
+        <path d="M6 20l1.2-12h9.6L18 20z" />
+        <path d="M9 9c0-3 1.8-5 4-5s4 2 4 5" />
+      </svg>
+    ),
+  },
+  {
+    title: "CSV",
+    description: "Bulk spreadsheet intake templates for scheduled imports.",
+    href: "/portal/intake",
+    status: "coming-soon",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M4 4h16v16H4z" />
+        <path d="M4 9h16M9 4v16" />
       </svg>
     ),
   },
@@ -110,8 +132,8 @@ export default function CreateItPage() {
       <div className="space-y-8">
         <WorkspaceHero
           kicker="Create actions"
-          title="Create it"
-          description="Every way your team creates work, from booking forms to deep integrations."
+          title="Choose how you'd like to create work."
+          description="Each method is an installable intake path inside the Create it product."
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-8 w-8">
               <path d="M12 5v14M5 12h14" />
@@ -126,7 +148,7 @@ export default function CreateItPage() {
           </p>
           <Link
             href="/account-it/pod-settings"
-            className="group inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-slate-200 shadow-sm transition hover:border-[#7C3AED]/30 hover:text-[#A78BFA]"
+            className="group inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-[#7C3AED]/30 hover:text-[#7C3AED]"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5 text-[#7C3AED]">
               <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />

@@ -399,13 +399,13 @@ export default function HubPage() {
           {/* Headline */}
           <div className="text-center mb-14">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#7C3AED] mb-4">
-              Manage it
+              NEXUS IT TODAY
             </p>
             <h1 className="text-4xl sm:text-5xl font-semibold text-white tracking-tight leading-tight">
-              How would you like to run today?
+              How would you like to Nexus it today?
             </h1>
             <p className="mt-4 text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Create work, dispatch routes, track live movement and manage commercial outcomes from one workspace.
+              Select a product to create, track, store, account or report from one intelligent workspace.
             </p>
           </div>
 

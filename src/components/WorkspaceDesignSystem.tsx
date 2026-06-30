@@ -30,10 +30,10 @@ type WorkspaceInfoStripProps = {
 
 function StatusPill({ status }: { status: WorkspaceCardStatus | string }) {
   if (status === "live") {
-    return <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">Live</span>;
+    return <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Installed</span>;
   }
 
-  return <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-300">Coming Soon</span>;
+  return <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold text-violet-700">Available Soon</span>;
 }
 
 export function WorkspaceHero({ kicker, title, description, icon }: WorkspaceHeroProps) {
@@ -45,8 +45,8 @@ export function WorkspaceHero({ kicker, title, description, icon }: WorkspaceHer
         </div>
         <div>
           <p className="nexus-kicker">{kicker}</p>
-          <h1 className="mt-1 text-3xl font-semibold text-white">{title}</h1>
-          <p className="mt-1.5 text-sm text-slate-300">{description}</p>
+          <h1 className="mt-1 text-3xl font-semibold text-slate-900">{title}</h1>
+          <p className="mt-1.5 text-sm text-slate-600">{description}</p>
         </div>
       </div>
     </div>
@@ -55,14 +55,14 @@ export function WorkspaceHero({ kicker, title, description, icon }: WorkspaceHer
 
 export function WorkspaceInfoStrip({ title, description, icon }: WorkspaceInfoStripProps) {
   return (
-    <div className="rounded-[28px] border border-sky-300/30 bg-sky-500/10 px-6 py-5">
+    <div className="rounded-[28px] border border-sky-200 bg-sky-50 px-6 py-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-sky-200">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
           {icon}
         </div>
         <div>
-          <p className="text-sm font-semibold text-sky-100">{title}</p>
-          <p className="text-sm text-sky-200/90">{description}</p>
+          <p className="text-sm font-semibold text-sky-900">{title}</p>
+          <p className="text-sm text-sky-700">{description}</p>
         </div>
       </div>
     </div>
@@ -81,13 +81,15 @@ export function WorkspaceCardGrid({ items }: WorkspaceCardGridProps) {
               </div>
               <StatusPill status={item.status} />
             </div>
-            <h3 className="text-base font-semibold text-white">{item.title}</h3>
-            <p className="mt-2 flex-1 text-sm leading-6 text-slate-300">{item.description}</p>
+            <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+            <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{item.description}</p>
             {item.href && item.status === "live" ? (
               <div className="mt-4 flex items-center gap-1 text-sm font-medium text-[#a78bfa] opacity-0 transition-opacity group-hover:opacity-100">
                 Open <span className="ml-1">→</span>
               </div>
-            ) : null}
+            ) : (
+              <p className="mt-4 text-xs font-medium text-slate-500">Install when released</p>
+            )}
           </>
         );
 
