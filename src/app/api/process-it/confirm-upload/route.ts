@@ -142,6 +142,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
+    // Persist reviewed OCR/mapped fields for Process It queue hydration.
+    const documentId = draftJob.primary_document_id as string | null;
+    if (documentId) {
+      const fieldNames = Object.keys(mergedTrackPodMapping);
+
+      if (fieldNames.length > 0) {
+        const { error: deleteFieldsError } = await privilegedClient
+          .from("document_extracted_fields")
+          .delete()
+          .eq("document_id", documentId)
+          .eq("company_id", profile.company_id)
+          .in("field_name", fieldNames);
+
+        if (deleteFieldsError) {
+          return NextResponse.json({ error: deleteFieldsError.message }, { status: 500 });
+        }
+
+        const rows = Object.entries(mergedTrackPodMapping).map(([fieldName, value]) => {
+          const cleanedValue = clean(value);
+          return {
+            document_id: documentId,
+            company_id: profile.company_id,
+            field_name: fieldName,
+            field_value: cleanedValue || null,
+            is_edited: true,
+            edited_by_profile_id: profile.id,
+          };
+        });
+
+        const { error: insertFieldsError } = await privilegedClient
+          .from("document_extracted_fields")
+          .insert(rows);
+
+        if (insertFieldsError) {
+          return NextResponse.json({ error: insertFieldsError.message }, { status: 500 });
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       jobId: draftJob.id,
