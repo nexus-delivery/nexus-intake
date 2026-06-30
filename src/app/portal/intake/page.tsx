@@ -32,6 +32,8 @@ export default function MerchantIntakePage() {
   const [jobFormData, setJobFormData] = useState<JobFormData | null>(null);
   const [jobReference, setJobReference] = useState<string | null>(null);
   const [confirmedJobId, setConfirmedJobId] = useState<string | null>(null);
+  const [trackPodOrderId, setTrackPodOrderId] = useState<string | null>(null);
+  const [xeroInvoiceId, setXeroInvoiceId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -103,6 +105,8 @@ export default function MerchantIntakePage() {
     if (result.success) {
       setJobReference(result.jobReference ?? null);
       setConfirmedJobId(result.jobId ?? null);
+      setTrackPodOrderId(result.trackPodDeliveryOrderId ?? null);
+      setXeroInvoiceId(result.xeroDraftInvoiceId ?? null);
       setStep("confirmed");
     } else {
       setConfirmError(result.error ?? "An error occurred. Please try again.");
@@ -121,6 +125,8 @@ export default function MerchantIntakePage() {
     setJobFormData(null);
     setJobReference(null);
     setConfirmedJobId(null);
+    setTrackPodOrderId(null);
+    setXeroInvoiceId(null);
     setConfirmError(null);
   };
 
@@ -279,6 +285,20 @@ export default function MerchantIntakePage() {
                 <p className="mt-1 font-mono text-xs text-slate-400">
                   {confirmedJobId}
                 </p>
+              )}
+              {(trackPodOrderId || xeroInvoiceId) && (
+                <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                  {trackPodOrderId && (
+                    <p>
+                      Track-POD Delivery Order ID: <span className="font-mono">{trackPodOrderId}</span>
+                    </p>
+                  )}
+                  {xeroInvoiceId && (
+                    <p>
+                      Xero Draft Invoice ID: <span className="font-mono">{xeroInvoiceId}</span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>

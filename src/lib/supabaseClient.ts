@@ -432,7 +432,14 @@ export async function confirmJob(params: {
   companyId?: string;
   userId?: string;
   trackPodMapping?: Record<string, string | null> | null;
-}): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
+}): Promise<{
+  success: boolean;
+  jobId?: string;
+  jobReference?: string;
+  trackPodDeliveryOrderId?: string;
+  xeroDraftInvoiceId?: string;
+  error?: string;
+}> {
   // Graceful fallback for preview/local dev without Supabase env vars
   if (!supabase) {
     const mockId = generateMockJobId();
@@ -455,6 +462,47 @@ export async function confirmJob(params: {
 
   try {
     let jobId: string;
+
+    if (params.draftJobId && params.trackPodMapping) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session?.access_token) {
+        return { success: false, error: SIGN_IN_ERROR };
+      }
+
+      const response = await fetch("/api/jobs/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+        body: JSON.stringify({
+          draftJobId: params.draftJobId,
+          trackPodMapping: params.trackPodMapping,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+      if (!response.ok) {
+        return {
+          success: false,
+          error: typeof payload.error === "string" ? payload.error : "Failed to confirm job",
+        };
+      }
+
+      return {
+        success: true,
+        jobId: typeof payload.jobId === "string" ? payload.jobId : params.draftJobId,
+        jobReference: typeof payload.jobReference === "string" ? payload.jobReference : undefined,
+        trackPodDeliveryOrderId:
+          typeof payload.trackPodDeliveryOrderId === "string"
+            ? payload.trackPodDeliveryOrderId
+            : undefined,
+        xeroDraftInvoiceId:
+          typeof payload.xeroDraftInvoiceId === "string"
+            ? payload.xeroDraftInvoiceId
+            : undefined,
+      };
+    }
 
     if (params.draftJobId) {
       // Upload path: update existing draft job to job_created status
