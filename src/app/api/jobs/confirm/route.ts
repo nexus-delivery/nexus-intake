@@ -37,9 +37,9 @@ const supabasePublicKey =
 const supabaseServerKey =
   process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const trackPodApiBaseUrl = process.env.TRACKPOD_API_BASE_URL;
-const trackPodApiKey = process.env.TRACKPOD_API_KEY;
-const trackPodApiToken = process.env.TRACKPOD_API_TOKEN;
+const trackPodApiBaseUrl =
+  process.env.TRACKPOD_API_BASE_URL ?? "https://api.track-pod.com/Order";
+const trackPodApiKey = process.env.TRACKPOD_API_KEY ?? "";
 
 const xeroApiBaseUrl = process.env.XERO_API_BASE_URL ?? "https://api.xero.com/api.xro/2.0";
 const xeroAccessToken = process.env.XERO_ACCESS_TOKEN;
@@ -96,6 +96,10 @@ function resolveMasterReference(
     return customerReference;
   }
   return generateJobReference(draftJobId);
+}
+
+function isTestOrderReference(ref: string): boolean {
+  return /^(TEST-|NEX-TEST-)/i.test(ref.trim());
 }
 
 function buildTrackPodPayload(
@@ -201,7 +205,18 @@ async function createTrackPodOrder(
     filePath: string;
   } | null
 ): Promise<TrackPodOrderResult> {
-  if (!trackPodApiBaseUrl || (!trackPodApiKey && !trackPodApiToken)) {
+  const step = orderType === 0 ? "delivery_order" : "collection_order";
+
+  console.info("[jobs/confirm] Track-POD config", {
+    step,
+    orderType,
+    reference: masterReference,
+    keyExists: Boolean(trackPodApiKey),
+    keyLength: trackPodApiKey.length,
+    baseUrl: trackPodApiBaseUrl,
+  });
+
+  if (!trackPodApiBaseUrl || !trackPodApiKey) {
     throw new Error("Track-POD credentials are not configured");
   }
 
@@ -209,14 +224,9 @@ async function createTrackPodOrder(
     "Content-Type": "application/json",
   };
 
-  if (trackPodApiToken) {
-    headers.Authorization = `Bearer ${trackPodApiToken}`;
-  }
-  if (trackPodApiKey) {
-    headers["X-API-Key"] = trackPodApiKey;
-  }
+  headers["X-API-KEY"] = trackPodApiKey;
 
-  const response = await fetch(`${trackPodApiBaseUrl.replace(/\/$/, "")}/orders`, {
+  const response = await fetch(trackPodApiBaseUrl.replace(/\/$/, ""), {
     method: "POST",
     headers,
     body: JSON.stringify(buildTrackPodPayload(mapping, masterReference, orderType, documentInfo)),
@@ -228,6 +238,14 @@ async function createTrackPodOrder(
     const responseText = JSON.stringify(payload);
     throw new Error(`Track-POD create order failed (${response.status}): ${responseText}`);
   }
+
+  console.info("[jobs/confirm] Track-POD order created", {
+    step,
+    orderType,
+    reference: masterReference,
+    status: response.status,
+    locationHeader: response.headers.get("location") ?? null,
+  });
 
   const orderId =
     extractFirstString(payload, ["id", "orderId", "deliveryOrderId", "reference"])
@@ -391,25 +409,105 @@ export async function POST(request: NextRequest) {
     const masterReference = resolveMasterReference(mapping, draftJob.id);
     const jobReference = masterReference;
 
+    if (
+      isTestOrderReference(masterReference) &&
+      process.env.TRACKPOD_ALLOW_TEST_ORDERS !== "true"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Track-POD test order creation is blocked. Set TRACKPOD_ALLOW_TEST_ORDERS=true only for explicitly approved test runs.",
+        },
+        { status: 403 }
+      );
+    }
+
     const documentInfo = await resolveDocumentInfo(
       privilegedClient,
       profile.company_id,
       draftJob.primary_document_id
     );
 
-    const collectionOrder = await createTrackPodOrder(
-      mapping,
-      masterReference,
-      1,
-      documentInfo
-    );
+    console.info("[jobs/confirm] Starting Track-POD order creation", {
+      draftJobId: draftJob.id,
+      reference: masterReference,
+      hasDocument: Boolean(draftJob.primary_document_id),
+    });
 
-    const deliveryOrder = await createTrackPodOrder(
-      mapping,
-      masterReference,
-      0,
-      documentInfo
-    );
+    let deliveryOrder: TrackPodOrderResult;
+    try {
+      deliveryOrder = await createTrackPodOrder(
+        mapping,
+        masterReference,
+        0,
+        documentInfo
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+
+      await privilegedClient
+        .from("draft_jobs")
+        .update({
+          lifecycle_status: "TRACKPOD_ERROR",
+          trackpod_error_detail: {
+            step: "delivery_order",
+            message,
+            reference: masterReference,
+            payload: buildTrackPodPayload(mapping, masterReference, 0, documentInfo),
+          },
+          trackpod_error_at: new Date().toISOString(),
+        })
+        .eq("id", draftJob.id)
+        .eq("company_id", profile.company_id);
+
+      return NextResponse.json(
+        {
+          error: `Delivery order failed: ${message}`,
+          step: "delivery_order",
+        },
+        { status: 502 }
+      );
+    }
+
+    let collectionOrder: TrackPodOrderResult;
+    try {
+      collectionOrder = await createTrackPodOrder(
+        mapping,
+        masterReference,
+        1,
+        documentInfo
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+
+      await privilegedClient
+        .from("draft_jobs")
+        .update({
+          trackpod_delivery_order_id: deliveryOrder.orderId,
+          lifecycle_status: "TRACKPOD_ERROR",
+          trackpod_error_detail: {
+            step: "collection_order",
+            message,
+            reference: masterReference,
+            payload: buildTrackPodPayload(mapping, masterReference, 1, documentInfo),
+            deliveryOrderAlreadyCreated: deliveryOrder.orderId,
+          },
+          trackpod_error_at: new Date().toISOString(),
+        })
+        .eq("id", draftJob.id)
+        .eq("company_id", profile.company_id);
+
+      return NextResponse.json(
+        {
+          error: `Collection order failed (delivery order was created): ${message}`,
+          step: "collection_order",
+          partialSuccess: {
+            trackPodDeliveryOrderId: deliveryOrder.orderId,
+          },
+        },
+        { status: 502 }
+      );
+    }
 
     const trackPodResult: TrackPodResult = {
       collectionOrderId: collectionOrder.orderId,
