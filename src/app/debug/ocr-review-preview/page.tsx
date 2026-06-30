@@ -10,9 +10,12 @@ const initialData: OcrReviewData = {
   orderReference: "PO-240628-UK01",
   orderType: "Delivery",
   collectionDate: "2026-07-01",
+  collectionDateConfidence: "high",
   deliveryDate: "2026-07-02",
+  deliveryDateConfidence: "high",
   merchantShipper: "Nook Home Ltd",
   customer: "Doorway Group",
+  collectionName: "Warehouse A",
   collectionAddress: "Warehouse A, 14 Riverside Road, Belfast BT3 9AA",
   deliveryAddress: "5 Shore Road, Holywood BT18 0HX",
   contactName: "Jane Smith",
@@ -25,6 +28,10 @@ const initialData: OcrReviewData = {
   volume: "4.2 cbm",
   priority: "Normal",
   cashOnDelivery: "£0.00",
+  netAmount: "£60.00",
+  vatAmount: "£12.00",
+  grossTotal: "£72.00",
+  vatRate: "20%",
   notes: "Call customer 30 mins before delivery. Use rear loading bay.",
 };
 

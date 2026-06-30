@@ -62,6 +62,8 @@ export default function UploadOcrReviewScreen({
   error,
 }: UploadOcrReviewScreenProps) {
   const trackPodPreview = mapToTrackPodPayload(data);
+  const needsCollectionDateInput = !data.collectionDate || data.collectionDateConfidence === "low";
+  const needsDeliveryDateInput = !data.deliveryDate || data.deliveryDateConfidence === "low";
 
   const setField = <K extends keyof OcrReviewData>(field: K, value: OcrReviewData[K]) => {
     onChange({ ...data, [field]: value });
@@ -115,9 +117,17 @@ export default function UploadOcrReviewScreen({
             id="collectionDate"
             type="date"
             value={data.collectionDate}
-            onChange={(e) => setField("collectionDate", e.target.value)}
+            onChange={(e) => {
+              setField("collectionDate", e.target.value);
+              setField("collectionDateConfidence", e.target.value ? "high" : "low");
+            }}
             className={inputClass}
           />
+          {needsCollectionDateInput ? (
+            <p className="mt-1 text-xs text-amber-700">
+              Enter collection date before creating the job. OCR could not confirm this date.
+            </p>
+          ) : null}
         </div>
 
         <div>
@@ -126,9 +136,17 @@ export default function UploadOcrReviewScreen({
             id="deliveryDate"
             type="date"
             value={data.deliveryDate}
-            onChange={(e) => setField("deliveryDate", e.target.value)}
+            onChange={(e) => {
+              setField("deliveryDate", e.target.value);
+              setField("deliveryDateConfidence", e.target.value ? "high" : "low");
+            }}
             className={inputClass}
           />
+          {needsDeliveryDateInput ? (
+            <p className="mt-1 text-xs text-amber-700">
+              Enter delivery date before creating the job. OCR could not confirm this date.
+            </p>
+          ) : null}
         </div>
 
         <div>
@@ -147,6 +165,16 @@ export default function UploadOcrReviewScreen({
             id="customer"
             value={data.customer}
             onChange={(e) => setField("customer", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="collectionName" label="Collection Name" required />
+          <input
+            id="collectionName"
+            value={data.collectionName}
+            onChange={(e) => setField("collectionName", e.target.value)}
             className={inputClass}
           />
         </div>
@@ -285,6 +313,46 @@ export default function UploadOcrReviewScreen({
             className={inputClass}
           />
         </div>
+
+        <div>
+          <FieldLabel htmlFor="netAmount" label="Net Amount" />
+          <input
+            id="netAmount"
+            value={data.netAmount}
+            onChange={(e) => setField("netAmount", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="vatAmount" label="VAT Amount" />
+          <input
+            id="vatAmount"
+            value={data.vatAmount}
+            onChange={(e) => setField("vatAmount", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="grossTotal" label="Gross Total" />
+          <input
+            id="grossTotal"
+            value={data.grossTotal}
+            onChange={(e) => setField("grossTotal", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="vatRate" label="VAT Rate" />
+          <input
+            id="vatRate"
+            value={data.vatRate}
+            onChange={(e) => setField("vatRate", e.target.value)}
+            className={inputClass}
+          />
+        </div>
       </Section>
 
       <Section title="Notes">
@@ -326,6 +394,36 @@ export default function UploadOcrReviewScreen({
                 <td className="py-2 pr-4">Order Type</td>
                 <td className="py-2 pr-4 font-mono text-xs">order_type</td>
                 <td className="py-2">{trackPodPreview.order_type}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">Collection Date Confidence</td>
+                <td className="py-2 pr-4 font-mono text-xs">collection_date_confidence</td>
+                <td className="py-2">{trackPodPreview.collection_date_confidence}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">Delivery Date Confidence</td>
+                <td className="py-2 pr-4 font-mono text-xs">delivery_date_confidence</td>
+                <td className="py-2">{trackPodPreview.delivery_date_confidence}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">Net Amount</td>
+                <td className="py-2 pr-4 font-mono text-xs">net_amount</td>
+                <td className="py-2">{trackPodPreview.net_amount || "-"}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">VAT Amount</td>
+                <td className="py-2 pr-4 font-mono text-xs">vat_amount</td>
+                <td className="py-2">{trackPodPreview.vat_amount || "-"}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">Gross Total</td>
+                <td className="py-2 pr-4 font-mono text-xs">gross_total</td>
+                <td className="py-2">{trackPodPreview.gross_total || "-"}</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-4">VAT Rate</td>
+                <td className="py-2 pr-4 font-mono text-xs">vat_rate</td>
+                <td className="py-2">{trackPodPreview.vat_rate || "-"}</td>
               </tr>
             </tbody>
           </table>
