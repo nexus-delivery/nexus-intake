@@ -7,11 +7,17 @@ import BookingMethodSelector, {
 import DocumentUploadCard from "@/components/DocumentUploadCard";
 import JobDetailsForm, { type JobFormData } from "@/components/JobDetailsForm";
 import ReviewJobScreen from "@/components/ReviewJobScreen";
+import UploadOcrReviewScreen from "@/components/UploadOcrReviewScreen";
 import {
   type UploadedDocumentMetadata,
   confirmJob,
 } from "@/lib/supabaseClient";
 import { useRuntimeCompanyId } from "@/lib/useRuntimeCompanyId";
+import {
+  extractUploadToOcrReviewData,
+  mapToTrackPodPayload,
+  type OcrReviewData,
+} from "@/lib/uploadOcr";
 
 type Step = "select_method" | "upload" | "enter_details" | "review" | "confirmed";
 
@@ -20,6 +26,9 @@ export default function MerchantIntakePage() {
   const [step, setStep] = useState<Step>("select_method");
   const [method, setMethod] = useState<BookingMethod | null>(null);
   const [uploadData, setUploadData] = useState<UploadedDocumentMetadata | null>(null);
+  const [ocrReviewData, setOcrReviewData] = useState<OcrReviewData | null>(null);
+  const [ocrExtracting, setOcrExtracting] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
   const [jobFormData, setJobFormData] = useState<JobFormData | null>(null);
   const [jobReference, setJobReference] = useState<string | null>(null);
   const [confirmedJobId, setConfirmedJobId] = useState<string | null>(null);
@@ -33,9 +42,28 @@ export default function MerchantIntakePage() {
 
   const handleUploadSuccess = (metadata: UploadedDocumentMetadata) => {
     setUploadData(metadata);
+    setOcrReviewData(null);
+    setOcrError(null);
   };
 
-  const handleProceedToReview = () => {
+  const handleProceedToReview = async () => {
+    if (!uploadData) {
+      return;
+    }
+
+    setOcrExtracting(true);
+    setOcrError(null);
+
+    const extraction = await extractUploadToOcrReviewData(uploadData);
+
+    if (!extraction.success) {
+      setOcrError(extraction.error);
+      setOcrExtracting(false);
+      return;
+    }
+
+    setOcrReviewData(extraction.data);
+    setOcrExtracting(false);
     setStep("review");
   };
 
@@ -51,6 +79,7 @@ export default function MerchantIntakePage() {
       setStep("select_method");
       setMethod(null);
       setUploadData(null);
+      setOcrReviewData(null);
     }
     setConfirmError(null);
   };
@@ -59,9 +88,15 @@ export default function MerchantIntakePage() {
     setIsConfirming(true);
     setConfirmError(null);
 
+    const mappedPayload =
+      method === "upload" && ocrReviewData ? mapToTrackPodPayload(ocrReviewData) : null;
+
     const result = await confirmJob(
       method === "upload"
-        ? { draftJobId: uploadData?.jobId }
+        ? {
+            draftJobId: uploadData?.jobId,
+            trackPodMapping: mappedPayload,
+          }
         : {}
     );
 
@@ -80,6 +115,9 @@ export default function MerchantIntakePage() {
     setStep("select_method");
     setMethod(null);
     setUploadData(null);
+    setOcrReviewData(null);
+    setOcrExtracting(false);
+    setOcrError(null);
     setJobFormData(null);
     setJobReference(null);
     setConfirmedJobId(null);
@@ -91,7 +129,7 @@ export default function MerchantIntakePage() {
     select_method: "Create Job",
     upload: "Upload Document",
     enter_details: "Enter Job Details",
-    review: "Review Job",
+    review: method === "upload" ? "Review Extracted Job" : "Review Job",
     confirmed: "Job Created",
   };
 
@@ -100,7 +138,7 @@ export default function MerchantIntakePage() {
       {/* Page header */}
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--nexus-purple)]">
-          NEXUS Booking
+          Upload it
         </p>
         <h1 className="text-2xl font-semibold text-[var(--nexus-graphite)] sm:text-3xl">
           {stepLabel[step]}
@@ -126,22 +164,32 @@ export default function MerchantIntakePage() {
           />
 
           {uploadData && (
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleProceedToReview}
-                className="rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-[var(--nexus-purple)]/40"
-              >
-                Review Job
-              </button>
-            </div>
+            <>
+              {ocrError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {ocrError}
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  disabled={ocrExtracting}
+                  className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-[var(--nexus-graphite)] transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleProceedToReview}
+                  disabled={ocrExtracting}
+                  className="rounded-lg bg-[var(--nexus-purple)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-[var(--nexus-purple)]/40 disabled:opacity-60"
+                >
+                  {ocrExtracting ? "Extracting…" : "Review Job"}
+                </button>
+              </div>
+            </>
           )}
 
           {!uploadData && (
@@ -167,9 +215,20 @@ export default function MerchantIntakePage() {
       )}
 
       {/* ── Step 3: Review Job ───────────────────────────────────────── */}
-      {step === "review" && method && (
+      {step === "review" && method === "upload" && ocrReviewData && (
+        <UploadOcrReviewScreen
+          data={ocrReviewData}
+          onChange={setOcrReviewData}
+          onBack={handleBack}
+          onCreateJob={handleConfirm}
+          isCreating={isConfirming}
+          error={confirmError}
+        />
+      )}
+
+      {step === "review" && method === "enter_details" && (
         <ReviewJobScreen
-          method={method}
+          method="enter_details"
           uploadData={uploadData ?? undefined}
           formData={jobFormData ?? undefined}
           onBack={handleBack}

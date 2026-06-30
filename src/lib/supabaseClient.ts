@@ -431,6 +431,7 @@ export async function confirmJob(params: {
   draftJobId?: string;
   companyId?: string;
   userId?: string;
+  trackPodMapping?: Record<string, string> | null;
 }): Promise<{ success: boolean; jobId?: string; jobReference?: string; error?: string }> {
   // Graceful fallback for preview/local dev without Supabase env vars
   if (!supabase) {
