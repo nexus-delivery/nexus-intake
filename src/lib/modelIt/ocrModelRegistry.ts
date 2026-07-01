@@ -241,7 +241,7 @@ function normalizeOrderReference(rawValue: string): string {
 
 function stripLeadingLabelArtifacts(value: string): string {
   return value
-    .replace(/^\s*(name|address|description|notes?)\s*[:\-]\s*/i, "")
+    .replace(/^\s*(name|address|description|notes?|del\s*notes?)\s*[:\-]\s*/i, "")
     .trim();
 }
 
@@ -303,6 +303,34 @@ function splitNormalizedLines(text: string): string[] {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function getBlbRowValue(
+  text: string,
+  labels: string[]
+): string {
+  const lines = splitNormalizedLines(text);
+  const labelPattern = labels.map((label) => label.replace(/\s+/g, "\\s*")).join("|");
+  const rowRegex = new RegExp(`^(?:${labelPattern})\\s*[:\\-]?\\s*(.*)$`, "i");
+  const nextLabelRegex = /^(order\s*no\.?|reference|order\s*date|rtc\s*date|rtcdate|delivery\s*date|deliverydate|collection|delivery|del\s*notes?|notes?|nett?|vat|total|email|telephone|phone|description|manufacture\s+as\s+below)\b/i;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    const match = line.match(rowRegex);
+    if (!match) continue;
+
+    const inline = formatCompressedValue((match[1] ?? "").trim());
+    if (inline) return inline;
+
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const next = (lines[j] ?? "").trim();
+      if (!next) continue;
+      if (nextLabelRegex.test(next)) break;
+      return formatCompressedValue(next);
+    }
+  }
+
+  return "";
 }
 
 function findBoundaryIndex(lines: string[], patterns: RegExp[]): number {
@@ -710,29 +738,28 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const segmented = extractBlbSegmentedSections(text);
 
   const orderNo =
-    extractValueAfterLabel(text, ["Order\\s*No\\.?", "Order\\s*Number", "PO\\s*Number", "PO\\s*#"]) ||
+    getBlbRowValue(text, ["Order No", "Order Number", "PO Number", "PO #"]) ||
     pickFirst(text, [
       /(?:^|\n)\s*order\s*no\.?\s*[:\-]?\s*(\d{3,})\b/i,
       /(?:^|\n)\s*order\s*reference\s*[:\-]?\s*[^\n]*?\b(\d{3,})[A-Za-z]?\b/i,
-      /(?:order\s*(?:no\.?|number)|po\s*(?:number|#))\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
   const orderDateRaw =
-    extractValueAfterLabel(text, ["Order\\s*Date"]) ||
+    getBlbRowValue(text, ["Order Date", "OrderDate"]) ||
     pickFirst(text, [/(?:order\s*date|orderdate)\s*[:\-]?\s*([^\n]+)/i]);
 
   const rtcDate =
-    extractValueAfterLabel(text, ["RTC\\s*Date", "Ready\\s*To\\s*Collect\\s*Date"]) ||
+    getBlbRowValue(text, ["RTC date", "RTC Date", "RTCDate", "Ready To Collect Date"]) ||
     pickFirst(text, [
       /(?:rtc\s*date|rtcdate|ready\s*to\s*collect\s*date)\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
   const reference =
-    extractValueAfterLabel(text, ["Reference", "Customer\\s*Reference"]) ||
+    getBlbRowValue(text, ["Reference", "Customer Reference"]) ||
     pickFirst(text, [/(?:^|\n)\s*(?:customer\s*reference|reference)\s*[:\-]?\s*([^\n]+)/i]);
 
   const deliveryDate =
-    extractValueAfterLabel(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
+    getBlbRowValue(text, ["Delivery date", "Delivery Date", "DeliveryDate"]) ||
     pickFirst(text, [/(?:delivery\s*date|deliverydate)\s*[:\-]?\s*([^\n]+)/i]) ||
     defaultData.deliveryDate;
 
@@ -776,12 +803,14 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     ]);
 
   const goodsFromSection = cleanGoodsValue(segmented.goodsSection);
-  const notesAsGoods = stripLeadingLabelArtifacts(segmented.notesSection);
+  const notesAsGoods = stripLeadingLabelArtifacts(segmented.notesSection)
+    .replace(/^del\s*notes?\s*[:\-]?\s*/i, "")
+    .trim();
   const goods = [goodsFromSection, notesAsGoods]
     .filter((part) => part.length > 0)
     .join("\n") || extractGoodsSection(text) || defaultData.goodsDescription;
 
-  const commercialFromSegment = extractCommercialTotals(segmented.commercialSection);
+  const commercialFromSegment = extractCommercialTotals(segmented.commercialSection || text);
   const pricing = parsePricingAmounts(text);
 
   const deliveryNotes =
@@ -795,6 +824,8 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const modelCustomer = stripLeadingLabelArtifacts(reference)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\s{2,}/g, " ")
+    .replace(/([A-Za-z])([0-9])/g, "$1 $2")
+    .replace(/([0-9])([A-Za-z])/g, "$1 $2")
     .split(/\n/)[0]
     .trim();
   const modelDeliveryName = stripLeadingLabelArtifacts(
@@ -813,7 +844,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     merchantShipper: "BLB Home Group",
     orderReference: orderNo ? `Nook ${normalizeOrderReference(orderNo)}` : "",
     collectionDate: normalizedRtcDate || normalizedOrderDate,
-    collectionDateConfidence: normalizedRtcDate
+    collectionDateConfidence: (normalizedRtcDate || normalizedOrderDate)
       ? "high"
       : defaultData.collectionDateConfidence,
     deliveryDate: normalizedDeliveryDate,
@@ -840,7 +871,9 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
         pricing.netAmount || defaultData.netAmount,
         pricing.vatAmount || defaultData.vatAmount
       ),
-    notes: stripLeadingLabelArtifacts(deliveryNotes),
+    notes: stripLeadingLabelArtifacts(deliveryNotes)
+      .replace(/^del\s*notes?\s*[:\-]?\s*/i, "")
+      .trim(),
   };
 }
 
