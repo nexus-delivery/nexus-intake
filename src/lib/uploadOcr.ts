@@ -182,6 +182,27 @@ function pickFirst(text: string, patterns: RegExp[]): string {
   return "";
 }
 
+function normalizeLabelKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function formatCompressedValue(value: string): string {
+  if (!value) return "";
+
+  const expanded = value
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([0-9])([A-Za-z])/g, "$1 $2")
+    .replace(/([a-z])(to|of|and|for|at|in)([A-Z])/g, "$1 $2 $3")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+
+  return expanded.replace(
+    /\b([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})\b/g,
+    "$1 $2"
+  );
+}
+
 function detectSupportedDocumentType(
   fileName: string,
   text: string
@@ -383,38 +404,90 @@ async function decodeVisibleText(buffer: ArrayBuffer): Promise<string> {
 }
 
 function findLabelValue(text: string, labels: string[]): string {
-  const lines = text.split(/\r?\n/);
-  for (const line of lines) {
-    for (const label of labels) {
-      const pattern = new RegExp(`^${label}\\s*[:\\-]\\s*(.+)$`, "i");
-      const match = line.match(pattern);
-      if (match?.[1]?.trim()) {
-        return match[1].trim();
-      }
+  const lines = text.split(/\r?\n/).map((line) => line.trim());
+  const labelPatterns = labels.map(
+    (label) => new RegExp(`^${label}\\s*[:\\-]?\\s*(.*)$`, "i")
+  );
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (!line) continue;
+
+    const matchedPattern = labelPatterns.find((pattern) => pattern.test(line));
+    if (!matchedPattern) continue;
+
+    const inline = (line.match(matchedPattern)?.[1] ?? "").trim();
+    if (inline) {
+      return formatCompressedValue(inline);
+    }
+
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const next = (lines[cursor] ?? "").trim();
+      if (!next) continue;
+      if (lineLooksLikeLabel(next)) break;
+      return formatCompressedValue(next);
     }
   }
+
   return "";
 }
 
 function lineLooksLikeLabel(line: string): boolean {
-  return /^[A-Za-z][A-Za-z0-9 /&()\-]{1,40}\s*[:\-]\s*/.test(line.trim());
+  const trimmed = line.trim();
+  if (/^[A-Za-z][A-Za-z0-9 /&()\-]{1,40}\s*[:\-]\s*/.test(trimmed)) {
+    return true;
+  }
+  const compact = normalizeLabelKey(trimmed);
+  const knownLabelStarts = [
+    "orderreference",
+    "orderref",
+    "orderno",
+    "ordernumber",
+    "ponumber",
+    "customer",
+    "consignee",
+    "deliveryname",
+    "deliverto",
+    "shipto",
+    "collectionaddress",
+    "collectfromaddress",
+    "collectfrom",
+    "collectionname",
+    "pickupname",
+    "deliveryaddress",
+    "collectiondate",
+    "deliverydate",
+    "contact",
+    "telephone",
+    "phone",
+    "email",
+    "goodsdescription",
+    "description",
+    "quantity",
+    "qty",
+    "weight",
+    "volume",
+    "priority",
+    "notes",
+  ];
+  return knownLabelStarts.some((label) => compact === label || compact.startsWith(label));
 }
 
 function findMultilineValue(text: string, labels: string[]): string {
   const lines = text.split(/\r?\n/).map((line) => line.trim());
+  const labelPatterns = labels.map(
+    (label) => new RegExp(`^${label}\\s*[:\\-]?\\s*(.*)$`, "i")
+  );
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
-    const matchedLabel = labels.find((label) => {
-      const pattern = new RegExp(`^${label}\\s*[:\\-]\\s*(.*)$`, "i");
-      return pattern.test(line);
-    });
+    if (!line) continue;
 
-    if (!matchedLabel) continue;
+    const matchedPattern = labelPatterns.find((pattern) => pattern.test(line));
+    if (!matchedPattern) continue;
 
-    const pattern = new RegExp(`^${matchedLabel}\\s*[:\\-]\\s*(.*)$`, "i");
-    const first = (line.match(pattern)?.[1] ?? "").trim();
-    const parts: string[] = first ? [first] : [];
+    const first = (line.match(matchedPattern)?.[1] ?? "").trim();
+    const parts: string[] = first ? [formatCompressedValue(first)] : [];
 
     for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
       const next = (lines[cursor] ?? "").trim();
@@ -423,7 +496,7 @@ function findMultilineValue(text: string, labels: string[]): string {
         continue;
       }
       if (lineLooksLikeLabel(next)) break;
-      parts.push(next);
+      parts.push(formatCompressedValue(next));
       if (parts.length >= 4) break;
     }
 
@@ -480,15 +553,15 @@ function buildReviewData(
   ]);
 
   const collectionDateRaw = pickFirst(text, [
-    /collection\s*date\s*[:\-]\s*([^\n]+)/i,
+    /collection\s*date\s*[:\-]?\s*([^\n]+)/i,
     /collect\s*on\s*[:\-]\s*([^\n]+)/i,
     /rtc\s*date\s*[:\-]\s*([^\n]+)/i,
-  ]);
+  ]) || findLabelValue(text, ["Collection\s*Date", "Collect\s*On", "RTC\s*Date"]);
 
   const deliveryDateRaw = pickFirst(text, [
-    /delivery\s*date\s*[:\-]\s*([^\n]+)/i,
+    /delivery\s*date\s*[:\-]?\s*([^\n]+)/i,
     /delivery\s*(?:by|on)\s*[:\-]?\s*([^\n]+)/i,
-  ]);
+  ]) || findLabelValue(text, ["Delivery\s*Date", "Delivery\s*By", "Delivery\s*On"]);
 
   const normalizedCollectionDate = normalizeDate(collectionDateRaw);
   const normalizedDeliveryDate = normalizeDate(deliveryDateRaw);
@@ -522,14 +595,14 @@ function buildReviewData(
     ]);
 
   const collectionAddressValue =
-    findMultilineValue(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address", "Collect\\s*From"]) ||
+    findMultilineValue(text, ["Collection\s*Address", "Collect\s*From\s*Address", "Collect\s*From", "Collection\b"]) ||
     pickFirst(text, [
       /collection\s*address\s*[:\-]\s*([^\n]+)/i,
       /collect\s*from\s*[:\-]\s*([^\n]+)/i,
     ]);
 
   const deliveryAddressValue =
-    findMultilineValue(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address", "Deliver\\s*To"]) ||
+    findMultilineValue(text, ["Delivery\s*Address", "Deliver\s*To\s*Address", "Deliver\s*To", "Delivery\b"]) ||
     pickFirst(text, [
       /delivery\s*address\s*[:\-]\s*([^\n]+)/i,
       /deliver\s*to\s*[:\-]\s*([^\n]+)/i,
@@ -552,10 +625,18 @@ function buildReviewData(
       /(?:merchant|shipper|sender|from)\s*[:\-]\s*([^\n]+)/i,
     ]),
     customer: customerValue,
-    collectionName: pickFirst(text, [
-      /(?:collection\s*name|collect\s*from\s*name|pickup\s*name)\s*[:\-]\s*([^\n]+)/i,
-      /(?:collection\s*from)\s*[:\-]\s*([^\n]+)/i,
-    ]),
+    collectionName:
+      findLabelValue(text, [
+        "Collection\s*Name",
+        "Collect\s*From\s*Name",
+        "Pickup\s*Name",
+        "Collection\b",
+        "Collect\s*From",
+      ]) ||
+      pickFirst(text, [
+        /(?:collection\s*name|collect\s*from\s*name|pickup\s*name)\s*[:\-]?\s*([^\n]+)/i,
+        /(?:collection\s*from)\s*[:\-]?\s*([^\n]+)/i,
+      ]),
     collectionAddress: collectionAddressValue,
     deliveryAddress: deliveryAddressValue,
     contactName: pickFirst(text, [
