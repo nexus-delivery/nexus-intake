@@ -65,6 +65,25 @@ function isTestOrderReference(ref: string): boolean {
   return /^(TEST-|NEX-TEST-)/i.test(ref.trim());
 }
 
+function toBoolString(value: string | null | undefined): boolean {
+  const normalized = clean(value).toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
+function buildServiceTags(fields: Record<string, string>): string[] {
+  const tags: string[] = [];
+  if (toBoolString(fields.two_man)) tags.push("2 MAN");
+  if (toBoolString(fields.northern_ireland_delivery)) tags.push("NI");
+  if (toBoolString(fields.tail_lift_required)) tags.push("TAIL LIFT");
+  if (toBoolString(fields.dedicated_vehicle)) tags.push("DEDICATED VEHICLE");
+  return tags;
+}
+
+function withTags(orderRef: string, tags: string[]): string {
+  if (!tags.length) return orderRef;
+  return `${orderRef} ${tags.join(" ")}`;
+}
+
 // ─── Production payload builders ──────────────────────────────────────────────
 // Field names and fallback chains exactly as documented in
 // reference/trackpod/PROCESS-IT.md and reference/trackpod/TRACKPOD-API-MAPPINGS.md
@@ -73,6 +92,8 @@ function buildDeliveryPayload(
   fields: Record<string, string>,
   orderRef: string
 ): Record<string, unknown> {
+  const tags = buildServiceTags(fields);
+  const refWithTags = withTags(orderRef, tags);
   const deliveryName = firstNonBlank(fields, ["delivery_name", "Delivery Name"]);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
@@ -98,9 +119,14 @@ function buildDeliveryPayload(
     "Goods Description",
   ]);
 
+  const baseNote = firstNonBlank(fields, ["delivery_notes", "Notes", "notes"]);
+  const taggedNote = [tags.length ? `Service Flags: ${tags.join(" | ")}` : "", baseNote]
+    .filter(Boolean)
+    .join("\n\n");
+
   return {
-    Number: orderRef,
-    Id: orderRef,
+    Number: refWithTags,
+    Id: refWithTags,
     Type: 0, // Delivery
     Date: formatDate(ifempty(requestedDeliveryDate, expectedCollectionDate)),
     Client: ifempty(deliveryName, collectionName),
@@ -114,7 +140,7 @@ function buildDeliveryPayload(
         GoodsName: goodsName || "Delivery",
         GoodsUnit: "pcs",
         Quantity: 1,
-        Note: "",
+        Note: taggedNote,
       },
     ],
   };
@@ -124,6 +150,8 @@ function buildCollectionPayload(
   fields: Record<string, string>,
   orderRef: string
 ): Record<string, unknown> {
+  const tags = buildServiceTags(fields);
+  const refWithTags = withTags(orderRef, tags);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
   const collectionAddress = firstNonBlank(fields, ["collection_address", "Collection Address"]);
@@ -144,9 +172,13 @@ function buildCollectionPayload(
     "TRACKPOD PHOTO & NOTE",
   ]);
 
+  const taggedNote = [tags.length ? `Service Flags: ${tags.join(" | ")}` : "", goodsNote]
+    .filter(Boolean)
+    .join("\n\n");
+
   return {
-    Number: orderRef,
-    Id: orderRef,
+    Number: refWithTags,
+    Id: refWithTags,
     Type: 1, // Collection / Pickup
     Client: ifempty(collectionName, shipperName),
     ContactName: ifempty(collectionName, shipperName),
@@ -159,7 +191,7 @@ function buildCollectionPayload(
         GoodsName: goodsName || "Collection",
         GoodsUnit: "pcs",
         Quantity: 1,
-        Note: goodsNote,
+        Note: taggedNote,
       },
     ],
   };
@@ -430,48 +462,7 @@ export async function POST(request: NextRequest) {
       .eq("id", jobRecord.id)
       .eq("company_id", profile.company_id);
 
-    // ── Create Delivery order (Type 0) ──────────────────────────────────────
-    const deliveryPayload = buildDeliveryPayload(fields, orderRef);
-
-    let deliveryResult: TrackPodResult;
-    try {
-      deliveryResult = await callTrackPod(deliveryPayload);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const httpStatus =
-        (err as { httpStatus?: number }).httpStatus ?? 500;
-      const errBody = (err as { body?: unknown }).body ?? null;
-
-      await privilegedClient
-        .from("draft_jobs")
-        .update({
-          lifecycle_status: "TRACKPOD_ERROR",
-          trackpod_error_detail: {
-            step: "delivery_order",
-            message: errMsg,
-            httpStatus,
-            body: errBody,
-            payload: deliveryPayload,
-          },
-          trackpod_error_at: new Date().toISOString(),
-        })
-        .eq("id", jobRecord.id)
-        .eq("company_id", profile.company_id);
-
-      return NextResponse.json(
-        { error: `Delivery order failed: ${errMsg}`, httpStatus },
-        { status: 502 }
-      );
-    }
-
-    // Store delivery ID immediately
-    await privilegedClient
-      .from("draft_jobs")
-      .update({ trackpod_delivery_order_id: deliveryResult.locationHeader })
-      .eq("id", jobRecord.id)
-      .eq("company_id", profile.company_id);
-
-    // ── Create Collection order (Type 1) ────────────────────────────────────
+    // ── Create Collection order (Type 1) first ─────────────────────────────
     const collectionPayload = buildCollectionPayload(fields, orderRef);
 
     let collectionResult: TrackPodResult;
@@ -493,7 +484,48 @@ export async function POST(request: NextRequest) {
             httpStatus,
             body: errBody,
             payload: collectionPayload,
-            deliveryOrderAlreadyCreated: deliveryResult.locationHeader,
+          },
+          trackpod_error_at: new Date().toISOString(),
+        })
+        .eq("id", jobRecord.id)
+        .eq("company_id", profile.company_id);
+
+      return NextResponse.json(
+        { error: `Collection order failed: ${errMsg}`, httpStatus },
+        { status: 502 }
+      );
+    }
+
+    // Store collection ID immediately
+    await privilegedClient
+      .from("draft_jobs")
+      .update({ trackpod_collection_order_id: collectionResult.locationHeader })
+      .eq("id", jobRecord.id)
+      .eq("company_id", profile.company_id);
+
+    // ── Create Delivery order (Type 0) after collection ─────────────────────
+    const deliveryPayload = buildDeliveryPayload(fields, orderRef);
+
+    let deliveryResult: TrackPodResult;
+    try {
+      deliveryResult = await callTrackPod(deliveryPayload);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const httpStatus =
+        (err as { httpStatus?: number }).httpStatus ?? 500;
+      const errBody = (err as { body?: unknown }).body ?? null;
+
+      await privilegedClient
+        .from("draft_jobs")
+        .update({
+          lifecycle_status: "TRACKPOD_ERROR",
+          trackpod_error_detail: {
+            step: "delivery_order",
+            message: errMsg,
+            httpStatus,
+            body: errBody,
+            payload: deliveryPayload,
+            collectionOrderAlreadyCreated: collectionResult.locationHeader,
           },
           trackpod_error_at: new Date().toISOString(),
         })
@@ -502,10 +534,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: `Collection order failed (delivery order was created): ${errMsg}`,
+          error: `Delivery order failed (collection order was created): ${errMsg}`,
           httpStatus,
           partialSuccess: {
-            trackpodDeliveryOrderId: deliveryResult.locationHeader,
+            trackpodCollectionOrderId: collectionResult.locationHeader,
           },
         },
         { status: 502 }

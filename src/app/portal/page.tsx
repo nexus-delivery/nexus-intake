@@ -6,8 +6,11 @@ const moduleCards = [
   { title: "Track it", href: "/portal/track-it", detail: "Open tracking and delivery visibility." },
   { title: "Documents", href: "/portal/documents", detail: "Upload, store, and retrieve source files and PODs." },
   { title: "Customers", href: "/portal/customers", detail: "View merchant and customer accounts." },
-  { title: "Addresses", href: "/portal/addresses", detail: "Manage saved collection and delivery addresses." },
-  { title: "Products", href: "/portal/products", detail: "Catalog foundations for products and services." },
+  { title: "Catalogue it", href: "/portal/catalogue-it", detail: "Merchant catalogue for products and services." },
+  { title: "Price it", href: "/portal/price-it", detail: "Commercial pricing foundation by merchant and catalogue item." },
+  { title: "Market it", href: "/portal/market-it", detail: "Placeholder navigation for future merchant growth workflows." },
+  { title: "Notify it", href: "/portal/notify-it", detail: "Placeholder module foundation for internal communication." },
+  { title: "Discuss it", href: "/portal/discuss-it", detail: "Placeholder module foundation for an operational timeline." },
   { title: "Settings", href: "/portal/settings", detail: "Portal preferences, access, and defaults." },
 ];
 
@@ -16,7 +19,7 @@ export default function MerchantPortalPage() {
     <section className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
       <div className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Workspace access</p>
-        <h1 className="text-3xl font-semibold text-slate-950">Merchant Portal</h1>
+        <h1 className="text-3xl font-semibold text-slate-950">Merchant Portal Dashboard</h1>
         <p className="max-w-3xl text-sm text-slate-600">
           Doorway can book work, review orders, open tracking, and return to Workspace from every module.
         </p>

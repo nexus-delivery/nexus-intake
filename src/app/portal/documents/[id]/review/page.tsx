@@ -38,6 +38,8 @@ function toMetadata(
     fileType: document.file_type,
     fileSize: document.file_size ?? 0,
     filePath: document.file_path,
+    permanentUrl: `/portal/documents/${document.id}`,
+    secureUrl: `/api/merchant-documents/signed-url?document_id=${encodeURIComponent(document.id)}`,
     uploadedAt: document.created_at,
   };
 }

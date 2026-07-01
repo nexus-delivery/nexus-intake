@@ -22,6 +22,9 @@ export type StandardGoodsItem = {
   roomOfChoice: boolean;
   assembly: boolean;
   photosRequired: boolean;
+  tailLiftRequired: boolean;
+  dedicatedVehicle: boolean;
+  northernIrelandDelivery: boolean;
   catalogueItemId: string;
   itemType: string;
   unitPrice: number;
@@ -42,6 +45,8 @@ export type StandardStop = {
   date: string;
   time: string;
   instructions: string;
+  latitude: string;
+  longitude: string;
 };
 
 export type StandardCommercial = {
@@ -60,6 +65,8 @@ export type StandardOperations = {
   shipper: string;
   serviceType: string;
   readyForTrackPod: boolean;
+  distanceKm: string;
+  journeyMinutes: string;
 };
 
 export type StandardOrder = {
@@ -123,6 +130,8 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
       date: "",
       time: "",
       instructions: "",
+      latitude: "",
+      longitude: "",
     },
     delivery: {
       company: "",
@@ -137,6 +146,8 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
       date: "",
       time: "",
       instructions: "",
+      latitude: "",
+      longitude: "",
     },
     goods: [
       {
@@ -152,6 +163,9 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
         roomOfChoice: false,
         assembly: false,
         photosRequired: false,
+        tailLiftRequired: false,
+        dedicatedVehicle: false,
+        northernIrelandDelivery: false,
         catalogueItemId: "",
         itemType: "product",
         unitPrice: 0,
@@ -174,6 +188,8 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
       shipper: "",
       serviceType: "",
       readyForTrackPod: false,
+      distanceKm: "",
+      journeyMinutes: "",
     },
   };
 }
@@ -215,6 +231,8 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
       date: toText(source.collection?.date),
       time: toText(source.collection?.time),
       instructions: toText(source.collection?.instructions),
+      latitude: toText(source.collection?.latitude),
+      longitude: toText(source.collection?.longitude),
     },
     delivery: {
       ...empty.delivery,
@@ -231,6 +249,8 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
       date: toText(source.delivery?.date),
       time: toText(source.delivery?.time),
       instructions: toText(source.delivery?.instructions),
+      latitude: toText(source.delivery?.latitude),
+      longitude: toText(source.delivery?.longitude),
     },
     goods: Array.isArray(source.goods) && source.goods.length > 0
       ? source.goods.map((item) => ({
@@ -251,6 +271,9 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
           lineTotal: toNumber(item.lineTotal),
           assembly: toBool(item.assembly),
           photosRequired: toBool(item.photosRequired),
+          tailLiftRequired: toBool(item.tailLiftRequired),
+          dedicatedVehicle: toBool(item.dedicatedVehicle),
+          northernIrelandDelivery: toBool(item.northernIrelandDelivery),
         }))
       : empty.goods,
     commercial: {
@@ -272,6 +295,8 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
       shipper: toText(source.operations?.shipper),
       serviceType: toText(source.operations?.serviceType),
       readyForTrackPod: toBool(source.operations?.readyForTrackPod),
+      distanceKm: toText(source.operations?.distanceKm),
+      journeyMinutes: toText(source.operations?.journeyMinutes),
     },
   };
 }
@@ -314,6 +339,8 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     collection_date: order.collection.date,
     collection_time: order.collection.time,
     collection_instructions: order.collection.instructions,
+    collection_latitude: order.collection.latitude,
+    collection_longitude: order.collection.longitude,
     delivery_name: order.delivery.company,
     delivery_address: joinAddress(order.delivery),
     delivery_phone: order.delivery.phone,
@@ -321,6 +348,8 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     delivery_date: order.delivery.date,
     delivery_time: order.delivery.time,
     delivery_instructions: order.delivery.instructions,
+    delivery_latitude: order.delivery.latitude,
+    delivery_longitude: order.delivery.longitude,
     goods_description: goodsDescription || primaryItem?.description || "General goods",
     trackpod_goods: goodsDescription || primaryItem?.description || "General goods",
     quantity: String(primaryItem?.quantity ?? 0),
@@ -333,6 +362,9 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     room_of_choice: String(Boolean(primaryItem?.roomOfChoice)),
     assembly: String(Boolean(primaryItem?.assembly)),
     photos_required: String(Boolean(primaryItem?.photosRequired)),
+    tail_lift_required: String(Boolean(primaryItem?.tailLiftRequired)),
+    dedicated_vehicle: String(Boolean(primaryItem?.dedicatedVehicle)),
+    northern_ireland_delivery: String(Boolean(primaryItem?.northernIrelandDelivery)),
     purchase_order: order.commercial.purchaseOrder,
     net_amount: order.commercial.net,
     vat_amount: order.commercial.vat,
@@ -346,5 +378,7 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     shipper_name: order.operations.shipper || order.collection.company,
     service_type: order.operations.serviceType,
     ready_for_trackpod: String(order.operations.readyForTrackPod),
+    route_distance_km: order.operations.distanceKm,
+    journey_time_minutes: order.operations.journeyMinutes,
   };
 }

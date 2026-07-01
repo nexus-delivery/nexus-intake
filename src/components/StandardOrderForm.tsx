@@ -239,11 +239,11 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                         productCode: "",
                         catalogueItemId: "",
                         itemType: "product",
-                      quantity: 1,
-                      packages: 0,
-                      palletCount: 0,
-                      weightKg: 0,
-                      dimensions: "",
+                        quantity: 1,
+                        packages: 0,
+                        palletCount: 0,
+                        weightKg: 0,
+                        dimensions: "",
                         unitPrice: 0,
                         vatRate: 0,
                         lineTotal: 0,
@@ -252,6 +252,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                       roomOfChoice: false,
                       assembly: false,
                       photosRequired: false,
+                        tailLiftRequired: false,
+                        dedicatedVehicle: false,
+                        northernIrelandDelivery: false,
                     },
                   ],
                 }))
@@ -309,7 +312,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             <div><label className="text-sm font-medium text-slate-700">Net</label><input className={inputClass} value={order.commercial.net} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, net: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">VAT</label><input className={inputClass} value={order.commercial.vat} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, vat: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Total</label><input className={inputClass} value={order.commercial.total} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, total: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">COD</label><input className={inputClass} value={order.commercial.cod} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, cod: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Card Collection on Delivery</label><input className={inputClass} value={order.commercial.cod} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, cod: e.target.value } }))} /></div>
             <label className="flex items-center gap-2 self-end text-sm text-slate-700"><input type="checkbox" checked={order.commercial.invoiceRequired} onChange={(e) => setOrder((prev) => ({ ...prev, commercial: { ...prev.commercial, invoiceRequired: e.target.checked } }))} />Invoice required</label>
           </div>
         </section>

@@ -23,6 +23,21 @@ type GoodsLine = {
   notes: string;
 };
 
+type PriceItLookup = {
+  net: number;
+  vatRate: number;
+  total: number;
+};
+
+type RouteValidationPayload = {
+  valid: boolean;
+  collection: { latitude: string; longitude: string };
+  delivery: { latitude: string; longitude: string };
+  distanceKm: string;
+  journeyMinutes: string;
+  message?: string;
+};
+
 type Props = {
   sourceSystem: IntakeSourceSystem;
   modeLabel: string;
@@ -65,6 +80,24 @@ function buildLineTotal(quantity: string, unitPrice: string): number {
   return Number((toPositiveNumber(quantity) * toMoney(unitPrice)).toFixed(2));
 }
 
+function stripLeadingZerosInput(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const numeric = Number.parseFloat(trimmed);
+  if (!Number.isFinite(numeric)) return trimmed;
+  return String(numeric);
+}
+
+async function fetchPriceItCommercial(merchantId: string, catalogueItemId: string): Promise<PriceItLookup | null> {
+  if (!merchantId || !catalogueItemId) return null;
+  const response = await fetch(
+    `/api/price-it/commercial?merchant_id=${encodeURIComponent(merchantId)}&catalogue_item_id=${encodeURIComponent(catalogueItemId)}`
+  );
+  const payload = (await response.json().catch(() => ({}))) as { item?: PriceItLookup };
+  if (!response.ok || !payload.item) return null;
+  return payload.item;
+}
+
 export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: Props) {
   const [jobNumber, setJobNumber] = useState("");
   const [jobReference, setJobReference] = useState("");
@@ -79,13 +112,28 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
   const [deliveryEmail, setDeliveryEmail] = useState("");
   const [collectionDate, setCollectionDate] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
+  const [collectionTime, setCollectionTime] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [twoMan, setTwoMan] = useState(false);
+  const [tailLiftRequired, setTailLiftRequired] = useState(false);
+  const [dedicatedVehicle, setDedicatedVehicle] = useState(false);
+  const [northernIrelandDelivery, setNorthernIrelandDelivery] = useState(false);
+  const [cardCollectionOnDelivery, setCardCollectionOnDelivery] = useState(false);
   const [goodsLines, setGoodsLines] = useState<GoodsLine[]>([emptyGoodsLine()]);
   const [merchantId, setMerchantId] = useState("");
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
   const [catalogueSuggestions, setCatalogueSuggestions] = useState<Record<number, CatalogueItem[]>>({});
   const [busy, setBusy] = useState(false);
+  const [routeBusy, setRouteBusy] = useState(false);
+  const [routeMessage, setRouteMessage] = useState("");
+  const [collectionLatitude, setCollectionLatitude] = useState("");
+  const [collectionLongitude, setCollectionLongitude] = useState("");
+  const [deliveryLatitude, setDeliveryLatitude] = useState("");
+  const [deliveryLongitude, setDeliveryLongitude] = useState("");
+  const [distanceKm, setDistanceKm] = useState("");
+  const [journeyMinutes, setJourneyMinutes] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
@@ -105,6 +153,21 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
       salesChannelName.trim()
     );
   }, [deliveryAddress, deliveryContact, invoiceAddress, invoiceContact, orderReference, salesChannelName]);
+
+  const commercialSummary = useMemo(() => {
+    const net = goodsLines.reduce((sum, line) => sum + toMoney(line.lineTotal), 0);
+    const vat = goodsLines.reduce((sum, line) => {
+      const lineNet = toMoney(line.lineTotal);
+      const lineVatRate = toMoney(line.vatRate);
+      return sum + (lineNet * lineVatRate) / 100;
+    }, 0);
+    const total = net + vat;
+    return {
+      net: net.toFixed(2),
+      vat: vat.toFixed(2),
+      total: total.toFixed(2),
+    };
+  }, [goodsLines]);
 
   const updateGoodsLine = (index: number, next: Partial<GoodsLine>) => {
     setGoodsLines((current) =>
@@ -168,7 +231,11 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
     return () => window.clearTimeout(timer);
   }, [goodsLines, merchantId]);
 
-  const selectCatalogueItem = (index: number, item: CatalogueItem) => {
+  const selectCatalogueItem = async (index: number, item: CatalogueItem) => {
+    const priceItCommercial = await fetchPriceItCommercial(merchantId, item.id);
+    const resolvedUnitPrice = priceItCommercial ? priceItCommercial.net : Number(item.default_price);
+    const resolvedVatRate = priceItCommercial ? priceItCommercial.vatRate : Number(item.vat_rate);
+
     setGoodsLines((current) =>
       current.map((line, lineIndex) =>
         lineIndex === index
@@ -178,13 +245,48 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
               productCode: item.sku ?? "",
               itemType: item.item_type,
               description: item.name,
-              unitPrice: Number(item.default_price).toFixed(2),
-              vatRate: Number(item.vat_rate).toFixed(2),
-              lineTotal: buildLineTotal(line.quantity, Number(item.default_price).toFixed(2)).toFixed(2),
+              unitPrice: resolvedUnitPrice.toFixed(2),
+              vatRate: resolvedVatRate.toFixed(2),
+              lineTotal: buildLineTotal(line.quantity, resolvedUnitPrice.toFixed(2)).toFixed(2),
             }
           : line
       )
     );
+  };
+
+  const validateRoute = async () => {
+    if (!invoiceAddress.trim() || !deliveryAddress.trim()) {
+      setRouteMessage("Enter both collection and delivery addresses before route validation.");
+      return;
+    }
+
+    setRouteBusy(true);
+    setRouteMessage("");
+
+    const response = await fetch("/api/maps/route", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collectionAddress: invoiceAddress,
+        deliveryAddress,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as RouteValidationPayload;
+    if (!response.ok || !payload.valid) {
+      setRouteMessage(payload.message ?? "Unable to validate route.");
+      setRouteBusy(false);
+      return;
+    }
+
+    setCollectionLatitude(payload.collection.latitude);
+    setCollectionLongitude(payload.collection.longitude);
+    setDeliveryLatitude(payload.delivery.latitude);
+    setDeliveryLongitude(payload.delivery.longitude);
+    setDistanceKm(payload.distanceKm);
+    setJourneyMinutes(payload.journeyMinutes);
+    setRouteMessage(payload.message ?? "Route validated.");
+    setRouteBusy(false);
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -235,8 +337,10 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         phone: invoicePhone,
         email: invoiceEmail,
         date: collectionDate,
-        time: "",
+        time: collectionTime,
         instructions,
+        latitude: collectionLatitude,
+        longitude: collectionLongitude,
       },
       delivery: {
         ...createEmptyStandardOrder(sourceSystem).delivery,
@@ -250,8 +354,10 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         phone: deliveryPhone,
         email: deliveryEmail,
         date: deliveryDate,
-        time: "",
+        time: deliveryTime,
         instructions,
+        latitude: deliveryLatitude,
+        longitude: deliveryLongitude,
       },
       goods: goodsLines.map((line) => ({
         catalogueItemId: line.catalogueItemId,
@@ -267,11 +373,21 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         vatRate: toMoney(line.vatRate),
         lineTotal: toMoney(line.lineTotal),
         fragile: false,
-        twoMan: false,
+        twoMan,
         roomOfChoice: false,
         assembly: false,
         photosRequired: false,
+        tailLiftRequired,
+        dedicatedVehicle,
+        northernIrelandDelivery,
       })),
+      commercial: {
+        ...createEmptyStandardOrder(sourceSystem).commercial,
+        net: commercialSummary.net,
+        vat: commercialSummary.vat,
+        total: commercialSummary.total,
+        cod: cardCollectionOnDelivery ? "Card Collection on Delivery" : "",
+      },
       operations: {
         ...createEmptyStandardOrder(sourceSystem).operations,
         depot: "Doorway",
@@ -280,6 +396,8 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         shipper: "Doorway Group LTD",
         serviceType: "Doorway Booking Form",
         readyForTrackPod: false,
+        distanceKm,
+        journeyMinutes,
       },
     };
 
@@ -317,7 +435,21 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
       setDeliveryEmail("");
       setCollectionDate("");
       setDeliveryDate("");
+      setCollectionTime("");
+      setDeliveryTime("");
       setInstructions("");
+      setTwoMan(false);
+      setTailLiftRequired(false);
+      setDedicatedVehicle(false);
+      setNorthernIrelandDelivery(false);
+      setCardCollectionOnDelivery(false);
+      setCollectionLatitude("");
+      setCollectionLongitude("");
+      setDeliveryLatitude("");
+      setDeliveryLongitude("");
+      setDistanceKm("");
+      setJourneyMinutes("");
+      setRouteMessage("");
       setGoodsLines([emptyGoodsLine()]);
       setSalesChannelId("");
       setSalesChannelName("");
@@ -435,16 +567,69 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
 
         <section className={sectionClass}>
           <h2 className="text-lg font-semibold text-slate-950">Dates</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="mt-4 grid gap-4 md:grid-cols-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Collection Date</label>
               <input type="date" className={inputClass} value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} />
             </div>
             <div>
+              <label className="text-sm font-medium text-slate-700">Collection Time</label>
+              <input type="time" className={inputClass} value={collectionTime} onChange={(e) => setCollectionTime(e.target.value)} />
+            </div>
+            <div>
               <label className="text-sm font-medium text-slate-700">Delivery Date</label>
               <input type="date" className={inputClass} value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
             </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Delivery Time</label>
+              <input type="time" className={inputClass} value={deliveryTime} onChange={(e) => setDeliveryTime(e.target.value)} />
+            </div>
           </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-lg font-semibold text-slate-950">Delivery Requirements</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <input type="checkbox" checked={twoMan} onChange={(e) => setTwoMan(e.target.checked)} />
+              Two-man
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <input type="checkbox" checked={tailLiftRequired} onChange={(e) => setTailLiftRequired(e.target.checked)} />
+              Tail-lift Required
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <input type="checkbox" checked={dedicatedVehicle} onChange={(e) => setDedicatedVehicle(e.target.checked)} />
+              Dedicated Vehicle
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <input type="checkbox" checked={northernIrelandDelivery} onChange={(e) => setNorthernIrelandDelivery(e.target.checked)} />
+              Northern Ireland Delivery
+            </label>
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-slate-950">Google Maps Foundation</h2>
+            <button
+              type="button"
+              onClick={() => {
+                void validateRoute();
+              }}
+              disabled={routeBusy}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 disabled:opacity-60"
+            >
+              {routeBusy ? "Validating..." : "Validate Route"}
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <p className="text-sm text-slate-600">Collection Coordinates: {collectionLatitude || "-"}, {collectionLongitude || "-"}</p>
+            <p className="text-sm text-slate-600">Delivery Coordinates: {deliveryLatitude || "-"}, {deliveryLongitude || "-"}</p>
+            <p className="text-sm text-slate-600">Distance: {distanceKm || "-"} km</p>
+            <p className="text-sm text-slate-600">Journey Time: {journeyMinutes || "-"} mins</p>
+          </div>
+          {routeMessage ? <p className="mt-3 text-sm text-slate-600">{routeMessage}</p> : null}
         </section>
 
         <section className={sectionClass}>
@@ -489,15 +674,30 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Quantity</label>
-                    <input className={inputClass} value={line.quantity} onChange={(e) => updateGoodsLine(index, { quantity: e.target.value })} />
+                    <input
+                      className={inputClass}
+                      value={line.quantity}
+                      onChange={(e) => updateGoodsLine(index, { quantity: e.target.value })}
+                      onBlur={(e) => updateGoodsLine(index, { quantity: stripLeadingZerosInput(e.target.value) || "0" })}
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Packages</label>
-                    <input className={inputClass} value={line.packages} onChange={(e) => updateGoodsLine(index, { packages: e.target.value })} />
+                    <input
+                      className={inputClass}
+                      value={line.packages}
+                      onChange={(e) => updateGoodsLine(index, { packages: e.target.value })}
+                      onBlur={(e) => updateGoodsLine(index, { packages: stripLeadingZerosInput(e.target.value) || "0" })}
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Weight</label>
-                    <input className={inputClass} value={line.weight} onChange={(e) => updateGoodsLine(index, { weight: e.target.value })} />
+                    <input
+                      className={inputClass}
+                      value={line.weight}
+                      onChange={(e) => updateGoodsLine(index, { weight: e.target.value })}
+                      onBlur={(e) => updateGoodsLine(index, { weight: stripLeadingZerosInput(e.target.value) || "0" })}
+                    />
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-sm font-medium text-slate-700">Dimensions</label>
@@ -505,11 +705,21 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Unit Price</label>
-                    <input className={inputClass} value={line.unitPrice} onChange={(e) => updateGoodsLine(index, { unitPrice: e.target.value })} />
+                    <input
+                      className={inputClass}
+                      value={line.unitPrice}
+                      onChange={(e) => updateGoodsLine(index, { unitPrice: e.target.value })}
+                      onBlur={(e) => updateGoodsLine(index, { unitPrice: stripLeadingZerosInput(e.target.value) || "0" })}
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">VAT %</label>
-                    <input className={inputClass} value={line.vatRate} onChange={(e) => updateGoodsLine(index, { vatRate: e.target.value })} />
+                    <input
+                      className={inputClass}
+                      value={line.vatRate}
+                      onChange={(e) => updateGoodsLine(index, { vatRate: e.target.value })}
+                      onBlur={(e) => updateGoodsLine(index, { vatRate: stripLeadingZerosInput(e.target.value) || "0" })}
+                    />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Line Total</label>
@@ -523,6 +733,38 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
                 <p className="mt-3 text-xs text-slate-500">Free text is allowed. When a line matches Catalogue it, you can pick it or let the booking learn it automatically.</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-lg font-semibold text-slate-950">Commercial</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Net</label>
+              <input className={inputClass} value={commercialSummary.net} readOnly />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">VAT</label>
+              <input className={inputClass} value={commercialSummary.vat} readOnly />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Total</label>
+              <input className={inputClass} value={commercialSummary.total} readOnly />
+            </div>
+          </div>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <label className="flex items-center gap-2 font-semibold">
+              <input
+                type="checkbox"
+                checked={cardCollectionOnDelivery}
+                onChange={(e) => setCardCollectionOnDelivery(e.target.checked)}
+              />
+              Card Collection on Delivery
+            </label>
+            <p className="mt-2">NEXUS does not collect cash.</p>
+            <p>Card payments only.</p>
+            <p>A handling fee of 5% applies.</p>
+            <p>The fee is deducted before settlement or charged via the merchant account.</p>
           </div>
         </section>
 

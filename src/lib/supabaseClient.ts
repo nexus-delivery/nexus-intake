@@ -39,6 +39,11 @@ const SUPPORTED_MIME_TYPES: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
+  "image/webp": "webp",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
 };
 
 function getFileTypeFromMime(mimeType: string): string | null {
@@ -158,7 +163,7 @@ export function generateMockJobId(): string {
 }
 
 /**
- * Upload a multi-format document (PDF, PNG, JPG, JPEG) to the
+ * Upload a multi-format document (PDF, images, Word, Excel) to the
  * merchant-documents Supabase Storage bucket.
  *
  * Path structure: /{company_id}/uploads/{timestamp}-{filename}
@@ -179,7 +184,7 @@ export async function uploadMultiFormatFile(
   if (!fileType) {
     return {
       success: false,
-      error: "Unsupported file type. Please upload a PDF, PNG, JPG, or JPEG.",
+      error: "Unsupported file type. Please upload PDF, image, Word, or Excel files.",
     };
   }
 
@@ -313,12 +318,14 @@ export type UploadedDocumentMetadata = {
   fileType: string;
   fileSize: number;
   filePath: string;
+  permanentUrl: string;
+  secureUrl: string;
   uploadedAt: string;
 };
 
 /**
  * Complete multi-format document upload flow:
- * 1. Validate file type (PDF, PNG, JPG, JPEG)
+ * 1. Validate file type (PDF, image, Word, Excel)
  * 2. Upload file to merchant-documents storage bucket
  * 3. Create uploaded_documents record
  * 4. Create draft_jobs record linked to the document
@@ -341,7 +348,7 @@ export async function uploadMultiFormatDocument(
   if (!fileType) {
     return {
       success: false,
-      error: "Unsupported file type. Please upload a PDF, PNG, JPG, or JPEG.",
+      error: "Unsupported file type. Please upload PDF, image, Word, or Excel files.",
     };
   }
 
@@ -401,6 +408,8 @@ export async function uploadMultiFormatDocument(
       fileType,
       fileSize: file.size,
       filePath: storageResult.filePath!,
+      permanentUrl: `/portal/documents/${docResult.documentId!}`,
+      secureUrl: `/api/merchant-documents/signed-url?document_id=${encodeURIComponent(docResult.documentId!)}`,
       uploadedAt,
     },
   };

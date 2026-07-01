@@ -159,6 +159,16 @@ export async function POST(request: NextRequest) {
         status: "job_created",
         sales_channel_id: salesChannelId,
         sales_channel_name: salesChannelName,
+        requested_collection_date: order.collection.date || null,
+        requested_collection_time: order.collection.time || null,
+        requested_delivery_date: order.delivery.date || null,
+        requested_delivery_time: order.delivery.time || null,
+        collection_latitude: order.collection.latitude || null,
+        collection_longitude: order.collection.longitude || null,
+        delivery_latitude: order.delivery.latitude || null,
+        delivery_longitude: order.delivery.longitude || null,
+        route_distance_km: order.operations.distanceKm || null,
+        journey_time_minutes: order.operations.journeyMinutes || null,
         lifecycle_status: order.operations.readyForTrackPod
           ? "READY_FOR_TRACKPOD"
           : "REVIEW_REQUIRED",

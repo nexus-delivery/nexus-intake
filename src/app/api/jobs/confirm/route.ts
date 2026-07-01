@@ -79,6 +79,11 @@ function cleanString(value: string | null | undefined): string {
   return (value ?? "").trim();
 }
 
+function toBoolString(value: string | null | undefined): boolean {
+  const normalized = cleanString(value).toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
 function parseCurrencyToNumber(value: string | null | undefined): number {
   const numeric = Number.parseFloat((value ?? "").replace(/[^0-9.-]/g, ""));
   return Number.isFinite(numeric) ? numeric : 0;
@@ -122,6 +127,13 @@ function buildTrackPodPayload(
     filePath: string;
   } | null
 ) {
+  const tags: string[] = [];
+  if (toBoolString(mapping.two_man)) tags.push("2 MAN");
+  if (toBoolString(mapping.northern_ireland_delivery)) tags.push("NI");
+  if (toBoolString(mapping.tail_lift_required)) tags.push("TAIL LIFT");
+  if (toBoolString(mapping.dedicated_vehicle)) tags.push("DEDICATED VEHICLE");
+
+  const tagBlock = tags.length ? `Service Flags: ${tags.join(" | ")}` : "";
   const baseNotes = cleanString(mapping.delivery_notes);
   const documentNotes = documentInfo
     ? [
@@ -132,19 +144,19 @@ function buildTrackPodPayload(
       ].join("\n")
     : "";
 
-  const mergedNotes = [baseNotes, documentNotes].filter(Boolean).join("\n\n");
+  const mergedNotes = [tagBlock, baseNotes, documentNotes].filter(Boolean).join("\n\n");
 
   const client = cleanString(mapping.customer);
   const shipper = cleanString(mapping.merchant_shipper) || cleanString(mapping.collection_name);
   const depotShipFrom = cleanString(mapping.collection_name);
 
   return {
-    Number: masterReference,
-    Id: masterReference,
+    Number: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
+    Id: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
     Type: orderType,
-    reference: masterReference,
-    collectionOrderNumber: masterReference,
-    deliveryOrderNumber: masterReference,
+    reference: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
+    collectionOrderNumber: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
+    deliveryOrderNumber: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
     orderType: cleanString(mapping.order_type),
     collectionDate: cleanString(mapping.collection_date),
     deliveryDate: cleanString(mapping.delivery_date),
@@ -342,24 +354,26 @@ async function resolveDocumentInfo(
 
   const { data: document, error: documentError } = await privilegedClient
     .from("uploaded_documents")
-    .select("file_name, file_type, file_path")
+    .select("id, file_name, file_type, file_path")
     .eq("id", documentId)
     .eq("company_id", companyId)
     .maybeSingle();
 
   const resolvedDocument = document as
-    | { file_name: string; file_type: string; file_path: string }
+    | { id: string; file_name: string; file_type: string; file_path: string }
     | null;
 
   if (documentError || !resolvedDocument) {
     return null;
   }
 
-  const publicUrlResult = privilegedClient.storage
+  const signedResult = await privilegedClient.storage
     .from("merchant-documents")
-    .getPublicUrl(resolvedDocument.file_path);
+    .createSignedUrl(resolvedDocument.file_path, 60 * 60 * 24 * 14);
 
-  const documentUrl = publicUrlResult?.data?.publicUrl ?? "";
+  const documentUrl =
+    signedResult?.data?.signedUrl ??
+    `/api/merchant-documents/signed-url?document_id=${encodeURIComponent(resolvedDocument.id)}`;
 
   return {
     documentUrl,
@@ -466,41 +480,6 @@ export async function POST(request: NextRequest) {
       hasDocument: Boolean(draftJob.primary_document_id),
     });
 
-    let deliveryOrder: TrackPodOrderResult;
-    try {
-      deliveryOrder = await createTrackPodOrder(
-        mapping,
-        masterReference,
-        0,
-        documentInfo
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-
-      await privilegedClient
-        .from("draft_jobs")
-        .update({
-          lifecycle_status: "TRACKPOD_ERROR",
-          trackpod_error_detail: {
-            step: "delivery_order",
-            message,
-            reference: masterReference,
-            payload: buildTrackPodPayload(mapping, masterReference, 0, documentInfo),
-          },
-          trackpod_error_at: new Date().toISOString(),
-        })
-        .eq("id", draftJob.id)
-        .eq("company_id", profile.company_id);
-
-      return NextResponse.json(
-        {
-          error: `Delivery order failed: ${message}`,
-          step: "delivery_order",
-        },
-        { status: 502 }
-      );
-    }
-
     let collectionOrder: TrackPodOrderResult;
     try {
       collectionOrder = await createTrackPodOrder(
@@ -515,14 +494,12 @@ export async function POST(request: NextRequest) {
       await privilegedClient
         .from("draft_jobs")
         .update({
-          trackpod_delivery_order_id: deliveryOrder.orderId,
           lifecycle_status: "TRACKPOD_ERROR",
           trackpod_error_detail: {
             step: "collection_order",
             message,
             reference: masterReference,
             payload: buildTrackPodPayload(mapping, masterReference, 1, documentInfo),
-            deliveryOrderAlreadyCreated: deliveryOrder.orderId,
           },
           trackpod_error_at: new Date().toISOString(),
         })
@@ -531,10 +508,47 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         {
-          error: `Collection order failed (delivery order was created): ${message}`,
+          error: `Collection order failed: ${message}`,
           step: "collection_order",
+        },
+        { status: 502 }
+      );
+    }
+
+    let deliveryOrder: TrackPodOrderResult;
+    try {
+      deliveryOrder = await createTrackPodOrder(
+        mapping,
+        masterReference,
+        0,
+        documentInfo
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+
+      await privilegedClient
+        .from("draft_jobs")
+        .update({
+          trackpod_collection_order_id: collectionOrder.orderId,
+          lifecycle_status: "TRACKPOD_ERROR",
+          trackpod_error_detail: {
+            step: "delivery_order",
+            message,
+            reference: masterReference,
+            payload: buildTrackPodPayload(mapping, masterReference, 0, documentInfo),
+            collectionOrderAlreadyCreated: collectionOrder.orderId,
+          },
+          trackpod_error_at: new Date().toISOString(),
+        })
+        .eq("id", draftJob.id)
+        .eq("company_id", profile.company_id);
+
+      return NextResponse.json(
+        {
+          error: `Delivery order failed (collection order was created): ${message}`,
+          step: "delivery_order",
           partialSuccess: {
-            trackPodDeliveryOrderId: deliveryOrder.orderId,
+            trackPodCollectionOrderId: collectionOrder.orderId,
           },
         },
         { status: 502 }

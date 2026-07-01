@@ -40,6 +40,11 @@ const FILE_TYPE_LABELS: Record<string, string> = {
   png: "PNG",
   jpg: "JPG",
   jpeg: "JPEG",
+  webp: "WEBP",
+  doc: "DOC",
+  docx: "DOCX",
+  xls: "XLS",
+  xlsx: "XLSX",
 };
 
 export default function DocumentUploadCard({
@@ -276,8 +281,21 @@ export default function DocumentUploadCard({
                     <span>{formatTimestamp(metadata.uploadedAt)}</span>
                   </div>
                   <div className="border-t border-slate-100 pt-2">
+                    <div>
+                      <span className="text-xs text-slate-400">Document ID: </span>
+                      <span className="font-mono text-xs text-slate-600">{metadata.documentId}</span>
+                    </div>
                     <span className="text-xs text-slate-400">Draft Job: </span>
                     <span className="font-mono text-xs text-slate-600">{metadata.jobId}</span>
+                    <div className="mt-1">
+                      <span className="text-xs text-slate-400">Permanent URL: </span>
+                      <a
+                        href={metadata.permanentUrl}
+                        className="text-xs font-medium text-sky-700 hover:text-sky-800"
+                      >
+                        {metadata.permanentUrl}
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -309,12 +327,12 @@ export default function DocumentUploadCard({
             <input
               id="file-upload"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
               onChange={handleFileInputChange}
               className="hidden"
             />
 
-            <p className="text-xs text-slate-400">Supported formats: PDF, PNG, JPG, JPEG</p>
+            <p className="text-xs text-slate-400">Supported formats: PDF, Images, Word, Excel</p>
           </>
         )}
 
@@ -344,7 +362,7 @@ export default function DocumentUploadCard({
             <input
               id="file-upload-retry"
               type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
               onChange={handleFileInputChange}
               className="hidden"
             />

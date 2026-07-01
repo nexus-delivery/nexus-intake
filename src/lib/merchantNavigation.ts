@@ -6,7 +6,7 @@ export interface NavItem {
 
 export const merchantNavItems: NavItem[] = [
   {
-    label: "Manage it",
+    label: "Dashboard",
     href: "/portal",
     icon: "Home",
   },
@@ -36,14 +36,29 @@ export const merchantNavItems: NavItem[] = [
     icon: "BarChart3",
   },
   {
-    label: "Addresses",
-    href: "/portal/addresses",
+    label: "Catalogue it",
+    href: "/portal/catalogue-it",
+    icon: "FileCheck",
+  },
+  {
+    label: "Price it",
+    href: "/portal/price-it",
     icon: "Box",
   },
   {
-    label: "Products",
-    href: "/portal/products",
-    icon: "FileCheck",
+    label: "Market it",
+    href: "/portal/market-it",
+    icon: "Upload",
+  },
+  {
+    label: "Notify it",
+    href: "/portal/notify-it",
+    icon: "FileText",
+  },
+  {
+    label: "Discuss it",
+    href: "/portal/discuss-it",
+    icon: "Truck",
   },
   {
     label: "Settings",

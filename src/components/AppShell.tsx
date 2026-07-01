@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
+import NotifyItPanel from "@/components/NotifyItPanel";
 import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
@@ -65,9 +66,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <Header title={pageTitle} subtitle="Everything you need to build, operate and grow your transport business." />
           </div>
 
-          <main className="bg-transparent px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">
-            <div className="mx-auto max-w-7xl">{children}</div>
-          </main>
+          <div className="flex h-full">
+            <main className="min-w-0 flex-1 bg-transparent px-4 py-6 sm:px-6 lg:px-8 lg:pb-10">
+              <div className="mx-auto max-w-7xl">{children}</div>
+            </main>
+            {showManageIt ? <NotifyItPanel /> : null}
+          </div>
         </div>
       </div>
     </div>
