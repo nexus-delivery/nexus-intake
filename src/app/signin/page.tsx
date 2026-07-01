@@ -7,6 +7,32 @@ import { mapAuthError, resolvePostSignInPath, validateEmail } from "@/lib/authOn
 import { syncManageItSession } from "@/lib/manageIt";
 import { supabase } from "@/lib/supabaseClient";
 
+const SIGNIN_HERO_IMAGE =
+  "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?auto=format&fit=crop&w=2200&q=80";
+
+const SIGNIN_GALLERY = [
+  {
+    label: "Road Freight",
+    image:
+      "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    label: "Warehouse",
+    image:
+      "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    label: "Air Cargo",
+    image:
+      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    label: "Containers",
+    image:
+      "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1200&q=80",
+  },
+];
+
 export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -89,6 +115,10 @@ export default function SignInPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-16">
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-35"
+        style={{ backgroundImage: `url(${SIGNIN_HERO_IMAGE})` }}
+      />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_18%,rgba(167,139,250,0.3),transparent_42%),radial-gradient(circle_at_86%_20%,rgba(96,165,250,0.24),transparent_38%),linear-gradient(150deg,#050714_0%,#0a1026_44%,#121a38_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-55 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:56px_56px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(124,58,237,0.28),transparent_33%),radial-gradient(circle_at_28%_76%,rgba(59,130,246,0.2),transparent_33%)]" />
@@ -96,13 +126,21 @@ export default function SignInPage() {
       <div className="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr]">
         <div className="hidden border-r border-white/10 p-8 lg:block">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
-          <h2 className="mt-2 text-4xl font-semibold text-white">Nexus Intelligent Transport Operating System.</h2>
+          <h2 className="mt-2 text-4xl font-semibold text-white">Nexus Intelligent Transport system</h2>
           <p className="mt-3 max-w-lg text-sm text-slate-300">Operations-ready workflows for freight, warehouse and delivery teams.</p>
-          <div className="mt-8 grid grid-cols-2 gap-3 text-xs font-semibold text-slate-200">
-            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Heavy trucks</div>
-            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Warehouse docks</div>
-            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Freight aircraft</div>
-            <div className="rounded-xl border border-white/20 bg-white/5 px-3 py-2">Shipping containers</div>
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            {SIGNIN_GALLERY.map((tile) => (
+              <div key={tile.label} className="relative h-24 overflow-hidden rounded-xl border border-white/25">
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url(${tile.image})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <span className="absolute bottom-2 left-2 text-[11px] font-semibold tracking-[0.08em] text-slate-100">
+                  {tile.label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -113,8 +151,8 @@ export default function SignInPage() {
           </div>
           <p className="nexus-kicker">Nexus it Today</p>
           <div>
-            <h1 className="text-3xl font-semibold text-white">Sign in to Nexus it</h1>
-            <p className="mt-2 text-sm text-slate-300">Access your transport business operating system.</p>
+            <h1 className="text-3xl font-semibold text-white">Sign in to Nexus it today.</h1>
+            <p className="mt-2 text-sm text-slate-300">Nexus Intelligent Transport system</p>
           </div>
         </div>
 

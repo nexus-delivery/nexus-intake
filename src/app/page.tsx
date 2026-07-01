@@ -126,6 +126,32 @@ const RECENT_ACTIVITY = [
   { label: "Driver check-in: John D.", time: "32m ago", dot: "bg-emerald-500" },
 ];
 
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?auto=format&fit=crop&w=2200&q=80";
+
+const HERO_GALLERY = [
+  {
+    title: "Road Freight",
+    image:
+      "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    title: "Warehouse Ops",
+    image:
+      "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    title: "Air Cargo",
+    image:
+      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
+    title: "Container Freight",
+    image:
+      "https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=1200&q=80",
+  },
+];
+
 type AccessSetupIssue = { title: string; details: string };
 
 export default function HubPage() {
@@ -263,6 +289,10 @@ export default function HubPage() {
 
         {/* Workspace heading bar */}
         <div className="sticky top-0 z-10 overflow-hidden border-b border-violet-500/20 bg-[#070916] px-8 py-6 text-white">
+          <div
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-45"
+            style={{ backgroundImage: `url(${HERO_IMAGE})` }}
+          />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(124,58,237,0.34),transparent_44%),radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.24),transparent_38%),linear-gradient(140deg,#060913_0%,#11122b_45%,#131738_100%)]" />
           <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] [background-size:42px_42px]" />
           <div className="relative flex items-start justify-between gap-6">
@@ -309,13 +339,22 @@ export default function HubPage() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
-              <div className="hidden grid-cols-3 gap-2 lg:grid">
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Trucks</span>
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Warehouses</span>
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Freight Aircraft</span>
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Containers</span>
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Pallets</span>
-                <span className="rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-xs text-slate-100">Logistics</span>
+              <div className="hidden grid-cols-2 gap-2 lg:grid">
+                {HERO_GALLERY.map((tile) => (
+                  <div
+                    key={tile.title}
+                    className="relative h-20 w-40 overflow-hidden rounded-xl border border-white/25"
+                  >
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${tile.image})` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <span className="absolute bottom-1.5 left-2 text-[11px] font-semibold tracking-[0.08em] text-slate-100">
+                      {tile.title}
+                    </span>
+                  </div>
+                ))}
               </div>
               <div className="flex items-center gap-2">
                 <button type="button" className="flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-slate-100 shadow-sm transition hover:border-white/35">
