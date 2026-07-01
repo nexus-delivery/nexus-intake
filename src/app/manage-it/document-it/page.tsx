@@ -527,7 +527,7 @@ export default function DocumentItPage() {
           </div>
           <div className="flex gap-2">
             <Link
-              href="/portal/intake"
+              href="/portal/documents"
               className="rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6D28D9] transition"
             >
               Upload Document

@@ -60,19 +60,19 @@ export default function RouteItPage() {
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/portal/intake"
+              href="/portal/book-it"
               className="rounded-lg bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6D28D9]"
             >
               Review Job
             </Link>
             <Link
-              href="/portal/intake"
+              href="/portal/book-it"
               className="rounded-lg bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6D28D9]"
             >
               Create Job
             </Link>
             <Link
-              href="/portal/intake"
+              href="/portal/book-it"
               className="rounded-lg bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white hover:bg-[#6D28D9]"
             >
               Send to Track-POD

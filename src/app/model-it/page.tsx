@@ -76,8 +76,8 @@ export default function ModelItPage() {
       </section>
 
       <div className="flex flex-wrap gap-2 text-xs font-semibold">
-        <Link href="/portal/intake" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">
-          Upload It
+        <Link href="/portal/book-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">
+          Book It
         </Link>
         <Link href="/portal/documents" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">
           Documents

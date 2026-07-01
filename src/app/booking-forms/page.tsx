@@ -3,6 +3,11 @@ import Link from "next/link";
 
 const channels = [
   {
+    title: "Doorway Booking Demo",
+    path: "/booking-forms/doorway",
+    detail: "A public-facing Doorway demonstration using the same standard order schema.",
+  },
+  {
     title: "Merchant Booking Form",
     path: "/create-it",
     detail: "Portal booking flow for merchants using the standard order schema.",

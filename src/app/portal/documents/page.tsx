@@ -232,12 +232,12 @@ export default function MerchantDocumentsPage() {
           Documents
         </h1>
         <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-          Upload inbox for review and job creation. Documents remain accessible until you choose to process them.
+          Merchant document store for uploads, support files, and POD evidence. Documents remain accessible from orders, customers, and Track it.
         </p>
         <div className="flex flex-wrap gap-2 text-xs font-semibold">
-          <Link href="/create-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Create It</Link>
-          <Link href="/portal/intake" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Upload It</Link>
-          <Link href="/process-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Process It</Link>
+          <Link href="/portal/book-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Book It</Link>
+          <Link href="/portal/orders" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Orders</Link>
+          <Link href="/portal/track-it" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Track It</Link>
           <Link href="/" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:border-slate-300">Workspace</Link>
         </div>
       </header>
