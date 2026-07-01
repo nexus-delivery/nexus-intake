@@ -106,15 +106,11 @@ function formatCompressedValue(value: string): string {
   const expanded = value
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/([0-9])([A-Za-z])/g, "$1 $2")
     .replace(/([a-z])(to|of|and|for|at|in)([A-Z])/g, "$1 $2 $3")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 
-  return expanded.replace(
-    /\b([A-Z]{1,2}\d[A-Z\d]?)(\d[A-Z]{2})\b/g,
-    "$1 $2"
-  );
+  return expanded;
 }
 
 function lineLooksLikeLabel(line: string): boolean {
@@ -241,7 +237,12 @@ function toTitleCase(value: string): string {
   return value
     .split(/\s+/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .map((part) => {
+      if (/^[A-Z0-9&]{2,6}$/.test(part)) {
+        return part;
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
     .join(" ");
 }
 
@@ -635,16 +636,117 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
 }
 
 function buildDoorwayDeliveryNoteData(context: OcrModelContext): OcrReviewData {
-  const defaultData = buildDefaultReviewData(context);
+  const text = context.rawText;
+
+  const deliveryNoteReference =
+    findLabelValue(text, [
+      "Delivery\\s*Note\\s*(?:No\\.?|Number)",
+      "DN\\s*No\\.?",
+      "Order\\s*Reference",
+      "Order\\s*No\\.?",
+    ]) ||
+    pickFirst(text, [
+      /(?:delivery\s*note\s*(?:no\.?|number)|dn\s*no\.?|order\s*reference|order\s*no\.?)\s*[:\-]?\s*([^\n]+)/i,
+    ]);
+
+  const collectionDate = normalizeDate(
+    findLabelValue(text, ["Collection\\s*Date", "Collected\\s*On", "Pickup\\s*Date"]) ||
+      pickFirst(text, [
+        /(?:collection\s*date|collected\s*on|pickup\s*date)\s*[:\-]?\s*([^\n]+)/i,
+      ])
+  );
+
+  const deliveryDate = normalizeDate(
+    findLabelValue(text, ["Delivery\\s*Date", "Delivered\\s*On", "Delivery\\s*By"]) ||
+      pickFirst(text, [
+        /(?:delivery\s*date|delivered\s*on|delivery\s*by)\s*[:\-]?\s*([^\n]+)/i,
+      ])
+  );
+
+  const customer =
+    findLabelValue(text, ["Consignee", "Customer", "Deliver\\s*To", "Delivery\\s*Name"]) ||
+    pickFirst(text, [
+      /(?:consignee|customer|deliver\s*to|delivery\s*name)\s*[:\-]?\s*([^\n]+)/i,
+    ]);
+
+  const collectionName =
+    findLabelValue(text, ["Collection\\s*Name", "Collect\\s*From", "Shipper"]) || "";
+
+  const collectionAddress =
+    findMultilineValue(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
+    pickFirst(text, [/(?:collection\s*address|collect\s*from\s*address)\s*[:\-]?\s*([^\n]+)/i]);
+
+  const deliveryName =
+    findLabelValue(text, ["Delivery\\s*Name", "Deliver\\s*To", "Consignee"]) || customer;
+
+  const deliveryAddress =
+    findMultilineValue(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address", "Ship\\s*To\\s*Address"]) ||
+    pickFirst(text, [
+      /(?:delivery\s*address|deliver\s*to\s*address|ship\s*to\s*address)\s*[:\-]?\s*([^\n]+)/i,
+    ]);
+
+  const phone = normalizePhone(
+    pickFirst(text, [/(?:telephone|phone|tel|mobile)\s*[:\-]?\s*([+()0-9\s-]{6,})/i])
+  );
+  const email = pickFirst(text, [/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i]);
+
+  const goodsDescription =
+    findMultilineValue(text, ["Goods\\s*Description", "Description", "Items"]) ||
+    pickFirst(text, [/(?:goods\s*description|description|items?)\s*[:\-]?\s*([^\n]+)/i]);
+
+  const netAmount = normalizeCurrency(
+    pickFirst(text, [/(?:net\s*amount|subtotal|net)\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+  const vatAmount = normalizeCurrency(
+    pickFirst(text, [/(?:vat\s*amount|vat|tax)\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+  const grossTotal = normalizeCurrency(
+    pickFirst(text, [/(?:gross\s*total|total\s*amount|total)\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+
+  const notes =
+    findLabelValue(text, ["Delivery\\s*Notes", "Special\\s*Instructions", "Notes"]) ||
+    pickFirst(text, [/(?:delivery\s*notes?|special\s*instructions?|notes?)\s*[:\-]?\s*([^\n]+)/i]);
+
   return {
-    ...defaultData,
     documentType: "delivery_note",
-    notes: [
-      defaultData.notes,
-      "Doorway model awaiting sample document for layout-specific extraction rules.",
-    ]
-      .filter(Boolean)
-      .join(" | "),
+    orderReference: normalizeOrderReference(deliveryNoteReference),
+    tradingName: "",
+    orderType: "Delivery",
+    collectionDate,
+    collectionDateConfidence: collectionDate ? "high" : "low",
+    deliveryDate,
+    deliveryDateConfidence: deliveryDate ? "high" : "low",
+    merchantShipper:
+      findLabelValue(text, ["Merchant\\s*\/\\s*Shipper", "Merchant", "Shipper"]) || "",
+    customer,
+    collectionName,
+    collectionAddress: stripLeadingLabelArtifacts(collectionAddress),
+    deliveryName: stripLeadingLabelArtifacts(deliveryName),
+    deliveryAddress: stripLeadingLabelArtifacts(deliveryAddress),
+    contactName: findLabelValue(text, ["Contact\\s*Name", "Contact", "Attn"]) || "",
+    deliveryPhone: phone,
+    telephone: phone,
+    deliveryEmail: email,
+    email,
+    goodsDescription: stripLeadingLabelArtifacts(goodsDescription),
+    packages: pickFirst(text, [/(?:packages?|pallets?|pkgs?)\s*[:\-]?\s*(\d+)/i]),
+    quantity: pickFirst(text, [/(?:qty|quantity)\s*[:\-]?\s*(\d+)/i]),
+    weight: pickFirst(text, [
+      /weight\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?\s*(?:kg|kgs|t|tonnes?)?)/i,
+    ]),
+    volume: pickFirst(text, [
+      /(?:volume|cbm|m3)\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?\s*(?:cbm|m3)?)/i,
+    ]),
+    priority: parsePriority(text),
+    cashOnDelivery: normalizeCurrency(
+      pickFirst(text, [/(?:cash\s*on\s*delivery|cod)\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+    ),
+    netAmount,
+    vatAmount,
+    grossTotal,
+    vatRate: inferVatRate(netAmount, vatAmount),
+    notes,
   };
 }
 
