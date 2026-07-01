@@ -117,7 +117,6 @@ type CreateJobFormData = {
   deliveryDate: string;
   notes: string;
   trackpodPhotoNote: string;
-  sendImmediately: boolean;
 };
 
 const EMPTY_FORM: CreateJobFormData = {
@@ -135,7 +134,6 @@ const EMPTY_FORM: CreateJobFormData = {
   deliveryDate: "",
   notes: "",
   trackpodPhotoNote: "",
-  sendImmediately: true,
 };
 
 function CreateJobForm({
@@ -148,12 +146,6 @@ function CreateJobForm({
   const [form, setForm] = useState<CreateJobFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [trackPodResult, setTrackPodResult] = useState<{
-    deliveryId: string;
-    collectionId: string;
-    deliveryTrackLink: string | null;
-    collectionTrackLink: string | null;
-  } | null>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -169,7 +161,6 @@ function CreateJobForm({
     if (!supabase) return;
     setSaving(true);
     setError(null);
-    setTrackPodResult(null);
 
     try {
       const {
@@ -215,45 +206,7 @@ function CreateJobForm({
 
       const { jobId, jobReference } = createJson;
 
-      // Step 2 — optionally send to Track-POD immediately
-      if (form.sendImmediately) {
-        const sendRes = await fetch("/api/process-it/send", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ draftJobId: jobId, sourceSystem: "Wodely" }),
-        });
-
-        const sendJson = (await sendRes.json()) as {
-          success?: boolean;
-          trackpodDeliveryOrderId?: string;
-          trackpodCollectionOrderId?: string;
-          trackpodDeliveryTrackingUrl?: string | null;
-          trackpodCollectionTrackingUrl?: string | null;
-          error?: string;
-        };
-
-        if (!sendRes.ok) {
-          // Job was created but Track-POD failed — still report partial success
-          setError(`Job created (${jobReference}) but Track-POD error: ${sendJson.error ?? "unknown"}`);
-          onCreated(jobId!, jobReference!, false);
-          return;
-        }
-
-        setTrackPodResult({
-          deliveryId: sendJson.trackpodDeliveryOrderId ?? "",
-          collectionId: sendJson.trackpodCollectionOrderId ?? "",
-          deliveryTrackLink: sendJson.trackpodDeliveryTrackingUrl ?? null,
-          collectionTrackLink: sendJson.trackpodCollectionTrackingUrl ?? null,
-        });
-
-        // Keep form visible briefly to show success, then notify parent
-        setTimeout(() => onCreated(jobId!, jobReference!, true), 2500);
-      } else {
-        onCreated(jobId!, jobReference!, false);
-      }
+      onCreated(jobId!, jobReference!, false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -280,43 +233,6 @@ function CreateJobForm({
             </svg>
           </button>
         </div>
-
-        {/* Track-POD success banner */}
-        {trackPodResult && (
-          <div className="border-b border-emerald-200 bg-emerald-50 px-6 py-4">
-            <p className="text-sm font-semibold text-emerald-800">Track-POD orders created</p>
-            <div className="mt-2 space-y-1 text-xs text-emerald-700">
-              <div>
-                <span className="font-medium">Delivery:</span>{" "}
-                <span className="font-mono">{trackPodResult.deliveryId}</span>
-                {trackPodResult.deliveryTrackLink && (
-                  <a
-                    href={trackPodResult.deliveryTrackLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 underline"
-                  >
-                    Track ↗
-                  </a>
-                )}
-              </div>
-              <div>
-                <span className="font-medium">Collection:</span>{" "}
-                <span className="font-mono">{trackPodResult.collectionId}</span>
-                {trackPodResult.collectionTrackLink && (
-                  <a
-                    href={trackPodResult.collectionTrackLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 underline"
-                  >
-                    Track ↗
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Error banner */}
         {error && (
@@ -468,22 +384,6 @@ function CreateJobForm({
             </div>
           </fieldset>
 
-          {/* Send immediately toggle */}
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <input
-              type="checkbox"
-              checked={form.sendImmediately}
-              onChange={(e) => setForm((p) => ({ ...p, sendImmediately: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 accent-[#7C3AED]"
-            />
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Send to Track-POD immediately</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Creates both Collection and Delivery orders in Track-POD right now.
-              </p>
-            </div>
-          </label>
-
           {/* Submit */}
           <div className="flex gap-3 border-t border-slate-100 pt-4">
             <button
@@ -491,13 +391,7 @@ function CreateJobForm({
               disabled={saving}
               className="flex-1 rounded-xl bg-[#7C3AED] px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-violet-200 hover:bg-violet-700 disabled:opacity-60"
             >
-              {saving
-                ? form.sendImmediately
-                  ? "Creating job and sending to Track-POD…"
-                  : "Creating job…"
-                : form.sendImmediately
-                  ? "Create Job + Send to Track-POD"
-                  : "Create Job"}
+              {saving ? "Creating job…" : "Create Job"}
             </button>
             <button
               type="button"

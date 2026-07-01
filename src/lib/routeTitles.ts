@@ -31,6 +31,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/report-it": "Report it",
   "/build-it": "Build it",
   "/improve-it": "Improve it",
+  "/model-it": "Model it",
   "/tell-it": "Tell it",
   "/need-it": "Need it",
   "/portal/intake": "Upload it",

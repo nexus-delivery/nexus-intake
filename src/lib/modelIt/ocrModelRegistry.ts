@@ -260,13 +260,15 @@ function cleanAddressValue(value: string): string {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .filter((line) => !/^£\s*\d|^\d+\s*x\s*£|^qty\b|^quantity\b|^total\b|^vat\b|^net\b|^gross\b/i.test(line))
-    .join(", ")
-    .replace(/\s*,\s*/g, ", ")
-    .replace(/,{2,}/g, ",")
+    .filter((line) => !/£\s*\d/i.test(line))
+    .filter((line) => !/\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross|line\s*total)\b/i.test(line))
+    .filter((line) => !/^\d+(?:\.\d+)?$/.test(line))
+    .map((line) => stripLeadingLabelArtifacts(line))
+    .filter((line) => line.length > 0)
+    .join("\n")
     .trim();
 
-  return stripLeadingLabelArtifacts(cleaned);
+  return cleaned;
 }
 
 function cleanGoodsValue(value: string): string {
@@ -277,7 +279,9 @@ function cleanGoodsValue(value: string): string {
     .map((line) => stripLeadingLabelArtifacts(line))
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .filter((line) => !/^£\s*\d|^qty\b|^quantity\b|^total\b|^vat\b|^net\b|^gross\b/i.test(line))
+    .filter((line) => !/£\s*\d/i.test(line))
+    .filter((line) => !/\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross)\b/i.test(line))
+    .filter((line) => !/^\d+(?:\.\d+)?$/.test(line))
     .join("\n");
 }
 
@@ -285,9 +289,9 @@ function extractValueAfterLabel(text: string, labels: string[]): string {
   const normalized = normalizeOcrWhitespace(text);
   const labelPattern = labels.join("|");
   const stopPattern =
-    "(?:Order\\s*(?:No\\.?|Reference|Date)|Reference|Customer|Merchant\\s*\\/\\s*Shipper|Collection\\s*(?:Name|Address)|Delivery\\s*(?:Name|Address|Date)|RTC\\s*Date|Order\\s*Date|Telephone|Phone|Email|Contact\\s*Name|Goods(?:\\s*Description)?|Notes|Net\\s*Amount|VAT\\s*Amount|Gross\\s*Total|Total)";
+    "(?:Order\\s*(?:No\\.?|Reference|Date)|Reference|Customer|Merchant\\s*\\/\\s*Shipper|Collection\\s*(?:Name|Address|Phone|Email)|Delivery\\s*(?:Name|Address|Date|Phone|Email)|RTC\\s*Date|Order\\s*Date|Telephone|Phone|Email|Contact\\s*Name|Description|Goods(?:\\s*Description)?|Notes|Net(?:\\s*Amount)?|VAT(?:\\s*Amount)?|Gross(?:\\s*Total)?|Total|Qty|Quantity|Price)";
   const pattern = new RegExp(
-    `(?:^|\\n)\\s*(?:${labelPattern})\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${stopPattern})\\s*[:\\-]?|$)`,
+    `(?:^|\\n)\\s*(?:${labelPattern})\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${stopPattern})\\s*[:\\-]?|\\n\\s*£\\s*\\d|$)`,
     "i"
   );
 
@@ -296,79 +300,8 @@ function extractValueAfterLabel(text: string, labels: string[]): string {
 }
 
 function extractGoodsSection(text: string): string {
-  const goods = extractValueAfterLabel(text, ["Goods\\s*Description", "Goods", "Items?"]);
-  return cleanGoodsValue(goods);
-}
-
-function toTitleCase(value: string): string {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => {
-      if (/^[A-Z0-9&]{2,6}$/.test(part)) {
-        return part;
-      }
-      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    })
-    .join(" ");
-}
-
-function normalizeWhitespace(value: string): string {
-  return value.replace(/\s{2,}/g, " ").trim();
-}
-
-function parseMerchantAndTrading(value: string): {
-  merchantShipper: string;
-  tradingName: string;
-} {
-  const trimmed = normalizeWhitespace(value);
-  if (!trimmed) {
-    return { merchantShipper: "", tradingName: "" };
-  }
-
-  const segments = trimmed.split("/").map((segment) => normalizeWhitespace(segment));
-  const tIndex = segments.findIndex((segment) => /^t$/i.test(segment));
-  const aIndex = segments.findIndex((segment, index) => index > tIndex && /^a(\s|$)/i.test(segment));
-
-  let tradingName = "";
-  const merchantSegments: string[] = [];
-
-  for (let index = 0; index < segments.length; index += 1) {
-    const segment = segments[index] ?? "";
-    if (tIndex >= 0 && aIndex === tIndex + 1) {
-      if (index < tIndex) {
-        merchantSegments.push(segment);
-        continue;
-      }
-
-      if (index < aIndex) {
-        continue;
-      }
-
-      if (!tradingName) {
-        const fromA = segment.replace(/^a\s*/i, "").trim();
-        tradingName = fromA ? `T/A ${toTitleCase(fromA)}` : "";
-        continue;
-      }
-    }
-
-    if (/^t\/?a\b/i.test(segment)) {
-      const stripped = segment.replace(/^t\/?a\s*/i, "").trim();
-      tradingName = stripped ? `T/A ${toTitleCase(stripped)}` : tradingName;
-      continue;
-    }
-
-    merchantSegments.push(segment);
-  }
-
-  const merchantShipper = merchantSegments.length > 0
-    ? merchantSegments.map((segment) => toTitleCase(segment)).join(" / ")
-    : toTitleCase(trimmed.replace(/^t\/?a\s*/i, ""));
-
-  return {
-    merchantShipper,
-    tradingName,
-  };
+  const descriptionBlock = extractValueAfterLabel(text, ["Description", "Goods\\s*Description", "Goods", "Items?"]);
+  return cleanGoodsValue(descriptionBlock);
 }
 
 function parsePricingAmounts(text: string): {
@@ -605,18 +538,6 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     extractValueAfterLabel(text, ["Reference", "Customer\\s*Reference"]) ||
     pickFirst(text, [/(?:^|\n)\s*(?:customer\s*reference|reference)\s*[:\-]?\s*([^\n]+)/i]);
 
-  const merchantShipperRaw =
-    extractValueAfterLabel(text, ["Merchant\\s*\\/\\s*Shipper", "Merchant", "Shipper"]) ||
-    defaultData.merchantShipper ||
-    "Nook";
-
-  const merchantAndTrading = parseMerchantAndTrading(merchantShipperRaw);
-
-  const tradingName =
-    extractValueAfterLabel(text, ["Trading\\s*Name", "T\\/A"]) ||
-    merchantAndTrading.tradingName ||
-    defaultData.tradingName;
-
   const deliveryDate =
     extractValueAfterLabel(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
     defaultData.deliveryDate;
@@ -661,23 +582,22 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const normalizedOrderDate = normalizeDate(orderDateRaw);
   const normalizedRtcDate = normalizeDate(rtcDate || defaultData.collectionDate);
   const normalizedDeliveryDate = normalizeDate(deliveryDate);
-  const extractedOrderNumber = normalizeOrderReference(orderNo || reference || defaultData.orderReference);
-  const modelCustomer = reference || extractValueAfterLabel(text, ["Customer"]) || defaultData.customer;
+  const modelCustomer = stripLeadingLabelArtifacts(reference);
   const modelDeliveryName = stripLeadingLabelArtifacts(
     deliveryName || modelCustomer || defaultData.deliveryName
   );
-  const tradingCore = merchantAndTrading.tradingName.replace(/^T\/A\s*/i, "").trim();
-  const modelMerchant =
-    merchantAndTrading.merchantShipper && tradingCore
-      ? `${merchantAndTrading.merchantShipper} / ${tradingCore}`
-      : merchantAndTrading.merchantShipper || defaultData.merchantShipper;
+
+  const modelCollectionAddress = cleanAddressValue(collectionAddress);
+  const modelDeliveryAddress = cleanAddressValue(deliveryAddress);
+  const modelDeliveryEmail = stripLeadingLabelArtifacts(explicitEmail || defaultData.deliveryEmail);
+  const modelDeliveryPhone = normalizeUkMobile(explicitPhone || defaultData.deliveryPhone);
 
   return {
     ...defaultData,
     documentType: "purchase_order",
-    tradingName,
-    merchantShipper: modelMerchant,
-    orderReference: extractedOrderNumber ? `Nook ${extractedOrderNumber}` : defaultData.orderReference,
+    tradingName: "Nook Home",
+    merchantShipper: "Nook",
+    orderReference: orderNo ? `Nook ${normalizeOrderReference(orderNo)}` : "",
     collectionDate: normalizedRtcDate || normalizedOrderDate,
     collectionDateConfidence: normalizedRtcDate
       ? "high"
@@ -688,14 +608,14 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
       : defaultData.deliveryDateConfidence,
     customer: modelCustomer,
     collectionName: stripLeadingLabelArtifacts(collectionName),
-    collectionAddress: cleanAddressValue(collectionAddress),
+    collectionAddress: modelCollectionAddress,
     deliveryName: modelDeliveryName,
-    deliveryAddress: cleanAddressValue(deliveryAddress),
+    deliveryAddress: modelDeliveryAddress,
     contactName: contactDetails || defaultData.contactName,
-    deliveryPhone: explicitPhone || defaultData.deliveryPhone,
-    telephone: explicitPhone || defaultData.telephone,
-    deliveryEmail: explicitEmail || defaultData.deliveryEmail,
-    email: explicitEmail || defaultData.email,
+    deliveryPhone: modelDeliveryPhone,
+    telephone: modelDeliveryPhone,
+    deliveryEmail: modelDeliveryEmail,
+    email: modelDeliveryEmail || "millie@nookhome.co.uk",
     goodsDescription: goods,
     netAmount: pricing.netAmount || defaultData.netAmount,
     vatAmount: pricing.vatAmount || defaultData.vatAmount,
@@ -706,11 +626,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
         pricing.netAmount || defaultData.netAmount,
         pricing.vatAmount || defaultData.vatAmount
       ),
-    notes: stripLeadingLabelArtifacts(deliveryNotes)
-      .split(/\r?\n/)
-      .filter((line) => !/mytholmroyd/i.test(line))
-      .join("\n")
-      .trim(),
+    notes: stripLeadingLabelArtifacts(deliveryNotes),
   };
 }
 

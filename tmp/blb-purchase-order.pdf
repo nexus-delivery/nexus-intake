@@ -1,0 +1,64 @@
+%PDF-1.1
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1120 >>
+stream
+BT
+/F1 10 Tf
+40 760 Td
+(Purchase Order) Tj
+0 -16 Td
+(Order Reference: UKLH 405D) Tj
+0 -16 Td
+(Merchant / Shipper: BLB home Group / T/A Nook Home) Tj
+0 -16 Td
+(Customer: Mary Deely) Tj
+0 -16 Td
+(Collection Name: Aged to Perfection Upholstery Ltd) Tj
+0 -16 Td
+(Collection Address: Unit 18 Habergham Mill, Coal Clough Ln, Burnley, BB11 5BS) Tj
+0 -16 Td
+(Delivery Name: Mary Deely) Tj
+0 -16 Td
+(Delivery Address: 15 Firecrest Way, Edinburgh, Scotland, EH4 8GP) Tj
+0 -16 Td
+(Contact Name: Mary Deely) Tj
+0 -16 Td
+(Telephone: 7552975261) Tj
+0 -16 Td
+(Email: mdeely1@gmail.com) Tj
+0 -16 Td
+(RTC Date: 07/08/2026) Tj
+0 -16 Td
+(Delivery Date: 21/08/2026) Tj
+0 -16 Td
+(Goods Description: Malham Medium Bench) Tj
+0 -16 Td
+(Notes: STANDARD 1 MAN DELIVERY) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000010 00000 n 
+0000000062 00000 n 
+0000000120 00000 n 
+0000000246 00000 n 
+0000001420 00000 n 
+trailer
+<< /Root 1 0 R /Size 6 >>
+startxref
+1490
+%%EOF
