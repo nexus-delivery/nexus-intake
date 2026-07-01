@@ -6,7 +6,7 @@ export default function PublicBookingFormPage() {
       <StandardOrderForm
         sourceSystem="public_webform"
         title="Public Booking Form"
-        subtitle="Public web intake that creates exactly the same standard order object as merchant and internal channels."
+        subtitle="Public web intake using the same standard order object. Submissions require a live merchant profile linked to an authenticated company account."
       />
     </main>
   );

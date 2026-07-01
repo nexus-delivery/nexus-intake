@@ -32,7 +32,7 @@ export default function MerchantPortalPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        Merchant defaults for the demo: Doorway Group LTD, Depot Doorway, Source NEXUS Booking Form, Sales Channel Doorway Booking Form.
+        Merchant defaults are loaded from the current company. Sales channels are learned over time and reused in future bookings.
       </div>
     </section>
   );

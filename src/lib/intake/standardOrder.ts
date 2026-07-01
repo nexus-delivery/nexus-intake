@@ -11,6 +11,7 @@ export type IntakeSourceSystem =
 
 export type StandardGoodsItem = {
   description: string;
+  productCode: string;
   quantity: number;
   packages: number;
   palletCount: number;
@@ -21,6 +22,11 @@ export type StandardGoodsItem = {
   roomOfChoice: boolean;
   assembly: boolean;
   photosRequired: boolean;
+  catalogueItemId: string;
+  itemType: string;
+  unitPrice: number;
+  vatRate: number;
+  lineTotal: number;
 };
 
 export type StandardStop = {
@@ -135,6 +141,7 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
     goods: [
       {
         description: "",
+        productCode: "",
         quantity: 1,
         packages: 0,
         palletCount: 0,
@@ -145,6 +152,11 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
         roomOfChoice: false,
         assembly: false,
         photosRequired: false,
+        catalogueItemId: "",
+        itemType: "product",
+        unitPrice: 0,
+        vatRate: 0,
+        lineTotal: 0,
       },
     ],
     commercial: {
@@ -223,6 +235,7 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
     goods: Array.isArray(source.goods) && source.goods.length > 0
       ? source.goods.map((item) => ({
           description: toText(item.description),
+          productCode: toText(item.productCode),
           quantity: toNumber(item.quantity),
           packages: toNumber(item.packages),
           palletCount: toNumber(item.palletCount),
@@ -231,6 +244,11 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
           fragile: toBool(item.fragile),
           twoMan: toBool(item.twoMan),
           roomOfChoice: toBool(item.roomOfChoice),
+          catalogueItemId: toText(item.catalogueItemId),
+          itemType: toText(item.itemType) || "product",
+          unitPrice: toNumber(item.unitPrice),
+          vatRate: toNumber(item.vatRate),
+          lineTotal: toNumber(item.lineTotal),
           assembly: toBool(item.assembly),
           photosRequired: toBool(item.photosRequired),
         }))

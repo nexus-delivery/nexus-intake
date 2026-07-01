@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createEmptyStandardOrder,
   type IntakeSourceSystem,
   type StandardGoodsItem,
   type StandardOrder,
 } from "@/lib/intake/standardOrder";
+import { fetchCurrentProfile } from "@/lib/supabaseClient";
+import { resolveSalesChannel } from "@/lib/salesChannels";
+import SalesChannelField from "@/components/SalesChannelField";
 
 type Props = {
   sourceSystem: IntakeSourceSystem;
@@ -28,35 +31,83 @@ function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partia
 
 export default function StandardOrderForm({ sourceSystem, title, subtitle }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
+  const [profileCompanyId, setProfileCompanyId] = useState("");
+  const [salesChannelId, setSalesChannelId] = useState("");
+  const [salesChannelName, setSalesChannelName] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
+  const effectiveCompanyId = profileCompanyId;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchCurrentProfile().then((result) => {
+      if (!cancelled && result.success) {
+        setProfileCompanyId(result.data.companyId);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const canSubmit = useMemo(() => {
     return (
-      order.collection.company.trim().length > 0 &&
+      order.collection.contact.trim().length > 0 &&
       order.collection.addressLine1.trim().length > 0 &&
-      order.delivery.company.trim().length > 0 &&
+      order.delivery.contact.trim().length > 0 &&
       order.delivery.addressLine1.trim().length > 0 &&
-      order.goods.some((item) => item.description.trim().length > 0)
+      order.goods.some((item) => item.description.trim().length > 0) &&
+      salesChannelName.trim().length > 0
     );
-  }, [order]);
+  }, [order, salesChannelName]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) {
       setSubmitState("error");
-      setSubmitMessage("Complete collection, delivery and at least one goods description.");
+      setSubmitMessage("Complete contact names, addresses, sales channel and at least one goods description.");
       return;
     }
 
     setSubmitState("submitting");
     setSubmitMessage("");
 
+    let resolvedSalesChannelId = salesChannelId;
+    let resolvedSalesChannelName = salesChannelName.trim();
+
+    if (!effectiveCompanyId) {
+      setSubmitState("error");
+      setSubmitMessage("No merchant profile found. Sign in and complete onboarding to create a company profile.");
+      return;
+    }
+
     try {
+      if (resolvedSalesChannelName) {
+        const resolved = await resolveSalesChannel({
+          companyId: effectiveCompanyId,
+          name: resolvedSalesChannelName,
+          sourceType: sourceSystem,
+        });
+        if (resolved) {
+          resolvedSalesChannelId = resolved.id;
+          resolvedSalesChannelName = resolved.name;
+          setSalesChannelId(resolved.id);
+          setSalesChannelName(resolved.name);
+        }
+      }
+
       const response = await fetch("/api/intake/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order }),
+        body: JSON.stringify({
+          order: { ...order, salesChannel: resolvedSalesChannelName },
+          company_id: effectiveCompanyId,
+          sales_channel_id: resolvedSalesChannelId || undefined,
+          sales_channel_name: resolvedSalesChannelName,
+        }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
@@ -73,6 +124,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
       setSubmitState("success");
       setSubmitMessage(`Order created: ${payload.jobReference ?? "reference pending"}`);
       setOrder(createEmptyStandardOrder(sourceSystem));
+      setSalesChannelId("");
+      setSalesChannelName("");
     } catch {
       setSubmitState("error");
       setSubmitMessage("Network error. Please try again.");
@@ -100,15 +153,24 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
               <input id="externalOrderId" className={inputClass} value={order.externalOrderId} onChange={(e) => setOrder((prev) => ({ ...prev, externalOrderId: e.target.value }))} />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="salesChannel">Sales Channel</label>
-              <input id="salesChannel" className={inputClass} value={order.salesChannel} onChange={(e) => setOrder((prev) => ({ ...prev, salesChannel: e.target.value }))} />
+              <SalesChannelField
+                companyId={effectiveCompanyId}
+                value={salesChannelName}
+                selectedId={salesChannelId}
+                onChange={({ id, name }) => {
+                  setSalesChannelId(id);
+                  setSalesChannelName(name);
+                  setOrder((prev) => ({ ...prev, salesChannel: name }));
+                }}
+                helperText="Pick an existing source or create a new company-specific sales channel."
+              />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="merchant">Merchant</label>
-              <input id="merchant" className={inputClass} value={order.merchant} onChange={(e) => setOrder((prev) => ({ ...prev, merchant: e.target.value }))} />
+              <label className="text-sm font-medium text-slate-700" htmlFor="merchant">Business / Organisation (optional)</label>
+              <input id="merchant" className={inputClass} value={order.merchant} onChange={(e) => setOrder((prev) => ({ ...prev, merchant: e.target.value }))} placeholder="Optional" />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="customer">Customer</label>
+              <label className="text-sm font-medium text-slate-700" htmlFor="customer">Contact Name</label>
               <input id="customer" className={inputClass} value={order.customer} onChange={(e) => setOrder((prev) => ({ ...prev, customer: e.target.value }))} />
             </div>
             <div>
@@ -129,8 +191,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Collection</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Company</label><input className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Contact</label><input className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} placeholder="Optional" /></div>
+            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Phone</label><input className={inputClass} value={order.collection.phone} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, phone: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input className={inputClass} value={order.collection.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine1: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input className={inputClass} value={order.collection.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine2: e.target.value } }))} /></div>
@@ -147,8 +209,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Delivery</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Company</label><input className={inputClass} value={order.delivery.company} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, company: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Contact</label><input className={inputClass} value={order.delivery.contact} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, contact: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input className={inputClass} value={order.delivery.company} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, company: e.target.value } }))} placeholder="Optional" /></div>
+            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input className={inputClass} value={order.delivery.contact} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, contact: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Phone</label><input className={inputClass} value={order.delivery.phone} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, phone: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input className={inputClass} value={order.delivery.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine1: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input className={inputClass} value={order.delivery.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine2: e.target.value } }))} /></div>
@@ -174,11 +236,17 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                     ...prev.goods,
                     {
                       description: "",
+                        productCode: "",
+                        catalogueItemId: "",
+                        itemType: "product",
                       quantity: 1,
                       packages: 0,
                       palletCount: 0,
                       weightKg: 0,
                       dimensions: "",
+                        unitPrice: 0,
+                        vatRate: 0,
+                        lineTotal: 0,
                       fragile: false,
                       twoMan: false,
                       roomOfChoice: false,

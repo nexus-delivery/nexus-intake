@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import type { StandardOrder } from "@/lib/intake/standardOrder";
 
 type ConfirmJobRequest = {
   draftJobId?: string;
@@ -28,6 +29,14 @@ type TrackPodResult = {
 type XeroResult = {
   draftInvoiceId: string;
   raw: unknown;
+};
+
+type CommercialLine = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;
+  lineTotal: number;
 };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -164,12 +173,31 @@ function buildTrackPodPayload(
 
 function buildXeroDraftInvoicePayload(
   mapping: Record<string, string | null>,
-  jobReference: string
+  jobReference: string,
+  commercialLines: CommercialLine[] = []
 ) {
   const netAmount = parseCurrencyToNumber(mapping.net_amount);
   const vatAmount = parseCurrencyToNumber(mapping.vat_amount);
   const grossAmount = parseCurrencyToNumber(mapping.gross_total);
   const effectiveGross = grossAmount > 0 ? grossAmount : netAmount + vatAmount;
+
+  const lineItems = commercialLines.length > 0
+    ? commercialLines.map((line) => ({
+        Description: line.description || "Delivery job",
+        Quantity: line.quantity > 0 ? line.quantity : 1,
+        UnitAmount: line.unitPrice > 0 ? line.unitPrice : line.lineTotal,
+        TaxAmount: Number((line.lineTotal * (line.vatRate / 100)).toFixed(2)),
+        LineAmount: line.lineTotal > 0 ? line.lineTotal : line.unitPrice,
+      }))
+    : [
+        {
+          Description: cleanString(mapping.goods_description) || "Delivery job",
+          Quantity: Number.parseFloat(cleanString(mapping.quantity)) || 1,
+          UnitAmount: netAmount > 0 ? netAmount : effectiveGross,
+          TaxAmount: vatAmount,
+          LineAmount: netAmount > 0 ? netAmount : effectiveGross,
+        },
+      ];
 
   return {
     Type: "ACCREC",
@@ -182,15 +210,7 @@ function buildXeroDraftInvoicePayload(
     Date: cleanString(mapping.delivery_date) || undefined,
     DueDate: cleanString(mapping.delivery_date) || undefined,
     LineAmountTypes: "Exclusive",
-    LineItems: [
-      {
-        Description: cleanString(mapping.goods_description) || "Delivery job",
-        Quantity: Number.parseFloat(cleanString(mapping.quantity)) || 1,
-        UnitAmount: netAmount > 0 ? netAmount : effectiveGross,
-        TaxAmount: vatAmount,
-        LineAmount: netAmount > 0 ? netAmount : effectiveGross,
-      },
-    ],
+    LineItems: lineItems,
   };
 }
 
@@ -264,7 +284,8 @@ async function createTrackPodOrder(
 
 async function createXeroDraftInvoice(
   mapping: Record<string, string | null>,
-  jobReference: string
+  jobReference: string,
+  commercialLines: CommercialLine[] = []
 ): Promise<XeroResult> {
   if (!xeroAccessToken || !xeroTenantId) {
     throw new Error("Xero credentials are not configured");
@@ -279,7 +300,7 @@ async function createXeroDraftInvoice(
       Accept: "application/json",
     },
     body: JSON.stringify({
-      Invoices: [buildXeroDraftInvoicePayload(mapping, jobReference)],
+      Invoices: [buildXeroDraftInvoicePayload(mapping, jobReference, commercialLines)],
     }),
   });
 
@@ -388,7 +409,7 @@ export async function POST(request: NextRequest) {
 
     const { data: draftJob, error: draftJobError } = await privilegedClient
       .from("draft_jobs")
-      .select("id, company_id, status, primary_document_id")
+      .select("id, company_id, status, primary_document_id, integration_metadata")
       .eq("id", body.draftJobId)
       .eq("company_id", profile.company_id)
       .maybeSingle();
@@ -427,6 +448,17 @@ export async function POST(request: NextRequest) {
       profile.company_id,
       draftJob.primary_document_id
     );
+
+    const standardOrder = (draftJob.integration_metadata as { standardOrder?: StandardOrder } | null | undefined)?.standardOrder ?? null;
+    const commercialLines: CommercialLine[] = Array.isArray(standardOrder?.goods)
+      ? standardOrder.goods.map((item) => ({
+          description: item.description.trim(),
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          unitPrice: item.unitPrice > 0 ? item.unitPrice : item.lineTotal,
+          vatRate: item.vatRate,
+          lineTotal: item.lineTotal > 0 ? item.lineTotal : item.unitPrice,
+        }))
+      : [];
 
     console.info("[jobs/confirm] Starting Track-POD order creation", {
       draftJobId: draftJob.id,
@@ -520,7 +552,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const xeroResult = await createXeroDraftInvoice(mapping, jobReference);
+    const xeroResult = await createXeroDraftInvoice(mapping, jobReference, commercialLines);
 
     const integrationMetadata = {
       masterReference,

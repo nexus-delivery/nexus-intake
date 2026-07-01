@@ -1,16 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { IntakeSourceSystem, StandardOrder } from "@/lib/intake/standardOrder";
 import { createEmptyStandardOrder } from "@/lib/intake/standardOrder";
+import { fetchCurrentProfile } from "@/lib/supabaseClient";
+import type { CatalogueItem } from "@/lib/catalogue";
+import SalesChannelField from "@/components/SalesChannelField";
+import { resolveSalesChannel } from "@/lib/salesChannels";
 
 type GoodsLine = {
+  catalogueItemId: string;
   productCode: string;
+  itemType: string;
   description: string;
   quantity: string;
   packages: string;
   weight: string;
   dimensions: string;
+  unitPrice: string;
+  vatRate: string;
+  lineTotal: string;
   notes: string;
 };
 
@@ -27,12 +36,17 @@ const sectionClass = "rounded-[28px] border border-slate-200 bg-white p-6 shadow
 
 function emptyGoodsLine(): GoodsLine {
   return {
+    catalogueItemId: "",
     productCode: "",
+    itemType: "product",
     description: "",
     quantity: "1",
     packages: "0",
     weight: "0",
     dimensions: "",
+    unitPrice: "0",
+    vatRate: "0",
+    lineTotal: "0",
     notes: "",
   };
 }
@@ -40,6 +54,15 @@ function emptyGoodsLine(): GoodsLine {
 function toPositiveNumber(value: string): number {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function toMoney(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function buildLineTotal(quantity: string, unitPrice: string): number {
+  return Number((toPositiveNumber(quantity) * toMoney(unitPrice)).toFixed(2));
 }
 
 export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: Props) {
@@ -58,6 +81,10 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
   const [deliveryDate, setDeliveryDate] = useState("");
   const [instructions, setInstructions] = useState("");
   const [goodsLines, setGoodsLines] = useState<GoodsLine[]>([emptyGoodsLine()]);
+  const [merchantId, setMerchantId] = useState("");
+  const [salesChannelId, setSalesChannelId] = useState("");
+  const [salesChannelName, setSalesChannelName] = useState("");
+  const [catalogueSuggestions, setCatalogueSuggestions] = useState<Record<number, CatalogueItem[]>>({});
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -69,18 +96,102 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
   }, [jobNumber, jobReference]);
 
   const canSubmit = useMemo(() => {
-    return Boolean(customer.trim() && invoiceAddress.trim() && deliveryAddress.trim() && orderReference.trim());
-  }, [customer, deliveryAddress, invoiceAddress, orderReference]);
+    return Boolean(
+      invoiceContact.trim() &&
+      deliveryContact.trim() &&
+      invoiceAddress.trim() &&
+      deliveryAddress.trim() &&
+      orderReference.trim() &&
+      salesChannelName.trim()
+    );
+  }, [deliveryAddress, deliveryContact, invoiceAddress, invoiceContact, orderReference, salesChannelName]);
 
   const updateGoodsLine = (index: number, next: Partial<GoodsLine>) => {
-    setGoodsLines((current) => current.map((line, lineIndex) => (lineIndex === index ? { ...line, ...next } : line)));
+    setGoodsLines((current) =>
+      current.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              ...next,
+              lineTotal:
+                next.quantity !== undefined || next.unitPrice !== undefined
+                  ? buildLineTotal(next.quantity ?? line.quantity, next.unitPrice ?? line.unitPrice).toFixed(2)
+                  : line.lineTotal,
+            }
+          : line
+      )
+    );
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetchCurrentProfile().then((result) => {
+      if (!cancelled && result.success) {
+        setMerchantId(result.data.companyId);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!merchantId) return;
+
+    const timer = window.setTimeout(() => {
+      void Promise.all(
+        goodsLines.map(async (line, index) => {
+          if (line.description.trim().length < 2) {
+            return { index, items: [] as CatalogueItem[] };
+          }
+
+          const response = await fetch(
+            `/api/catalogue/items?merchant_id=${encodeURIComponent(merchantId)}&query=${encodeURIComponent(line.description)}`
+          );
+          const payload = (await response.json().catch(() => ({}))) as { items?: CatalogueItem[] };
+          return { index, items: Array.isArray(payload.items) ? payload.items.slice(0, 5) : [] };
+        })
+      ).then((entries) => {
+        if (entries.length === 0) return;
+        setCatalogueSuggestions((current) => {
+          const nextSuggestions: Record<number, CatalogueItem[]> = {};
+          for (const entry of entries) {
+            nextSuggestions[entry.index] = entry.items;
+          }
+          return { ...current, ...nextSuggestions };
+        });
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [goodsLines, merchantId]);
+
+  const selectCatalogueItem = (index: number, item: CatalogueItem) => {
+    setGoodsLines((current) =>
+      current.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              catalogueItemId: item.id,
+              productCode: item.sku ?? "",
+              itemType: item.item_type,
+              description: item.name,
+              unitPrice: Number(item.default_price).toFixed(2),
+              vatRate: Number(item.vat_rate).toFixed(2),
+              lineTotal: buildLineTotal(line.quantity, Number(item.default_price).toFixed(2)).toFixed(2),
+            }
+          : line
+      )
+    );
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) {
       setStatus("error");
-      setMessage("Enter the order reference, customer, invoice address and delivery address.");
+      setMessage("Enter the order reference, contact names, addresses and sales channel.");
       return;
     }
 
@@ -88,11 +199,28 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
     setStatus("idle");
     setMessage("");
 
+    let resolvedSalesChannelId = salesChannelId;
+    let resolvedSalesChannelName = salesChannelName.trim();
+
+    if (merchantId && resolvedSalesChannelName) {
+      const resolved = await resolveSalesChannel({
+        companyId: merchantId,
+        name: resolvedSalesChannelName,
+        sourceType: sourceSystem,
+      });
+      if (resolved) {
+        resolvedSalesChannelId = resolved.id;
+        resolvedSalesChannelName = resolved.name;
+        setSalesChannelId(resolved.id);
+        setSalesChannelName(resolved.name);
+      }
+    }
+
     const standardOrder: StandardOrder = {
       ...createEmptyStandardOrder(sourceSystem),
       orderReference,
       merchant: "Doorway Group LTD",
-      salesChannel: modeLabel,
+      salesChannel: resolvedSalesChannelName,
       sourceSystem,
       customer,
       notes: instructions,
@@ -126,12 +254,18 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         instructions,
       },
       goods: goodsLines.map((line) => ({
-        description: [line.productCode, line.description].filter(Boolean).join(" - "),
+        catalogueItemId: line.catalogueItemId,
+        description: line.description.trim(),
+        productCode: line.productCode.trim(),
+        itemType: line.itemType,
         quantity: toPositiveNumber(line.quantity) || 1,
         packages: toPositiveNumber(line.packages),
         palletCount: 0,
         weightKg: toPositiveNumber(line.weight),
         dimensions: line.dimensions,
+        unitPrice: toMoney(line.unitPrice),
+        vatRate: toMoney(line.vatRate),
+        lineTotal: toMoney(line.lineTotal),
         fragile: false,
         twoMan: false,
         roomOfChoice: false,
@@ -153,7 +287,12 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
       const response = await fetch("/api/intake/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ order: standardOrder }),
+        body: JSON.stringify({
+          order: standardOrder,
+          merchant_id: merchantId || undefined,
+          sales_channel_id: resolvedSalesChannelId || undefined,
+          sales_channel_name: resolvedSalesChannelName,
+        }),
       });
       const payload = (await response.json().catch(() => ({}))) as { success?: boolean; jobReference?: string; error?: string };
       if (!response.ok || !payload.success) {
@@ -180,6 +319,8 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
       setDeliveryDate("");
       setInstructions("");
       setGoodsLines([emptyGoodsLine()]);
+      setSalesChannelId("");
+      setSalesChannelName("");
     } catch {
       setStatus("error");
       setMessage("Network error.");
@@ -199,7 +340,8 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
             <p><span className="font-semibold">Merchant:</span> Doorway Group LTD</p>
             <p><span className="font-semibold">Depot:</span> Doorway</p>
             <p><span className="font-semibold">Source:</span> NEXUS Booking Form</p>
-            <p><span className="font-semibold">Sales Channel:</span> Doorway Booking Form</p>
+            <p><span className="font-semibold">Sales Channel:</span> {salesChannelName || "Not selected"}</p>
+            <p><span className="font-semibold">Mode:</span> {modeLabel}</p>
           </div>
         </div>
       </header>
@@ -208,6 +350,18 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         <section className={sectionClass}>
           <h2 className="text-lg font-semibold text-slate-950">Order</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="md:col-span-3">
+              <SalesChannelField
+                companyId={merchantId}
+                value={salesChannelName}
+                selectedId={salesChannelId}
+                onChange={({ id, name }) => {
+                  setSalesChannelId(id);
+                  setSalesChannelName(name);
+                }}
+                helperText="Pick an existing channel or create a new company-specific source."
+              />
+            </div>
             <div>
               <label className="text-sm font-medium text-slate-700">Job Number</label>
               <input className={inputClass} value={jobNumber} onChange={(e) => setJobNumber(e.target.value)} />
@@ -221,7 +375,7 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
               <input className={inputClass} value={orderReference} readOnly />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700">Customer</label>
+              <label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label>
               <input className={inputClass} value={customer} onChange={(e) => setCustomer(e.target.value)} />
             </div>
             <div className="md:col-span-2">
@@ -235,12 +389,12 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
           <h2 className="text-lg font-semibold text-slate-950">Invoice Address</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-slate-700">Invoice Address</label>
+              <label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label>
               <textarea className={inputClass} rows={4} value={invoiceAddress} onChange={(e) => setInvoiceAddress(e.target.value)} />
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-slate-700">Invoice Contact</label>
+                <label className="text-sm font-medium text-slate-700">Contact Name</label>
                 <input className={inputClass} value={invoiceContact} onChange={(e) => setInvoiceContact(e.target.value)} />
               </div>
               <div>
@@ -259,12 +413,12 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
           <h2 className="text-lg font-semibold text-slate-950">Delivery Address</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-slate-700">Delivery Address</label>
+              <label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label>
               <textarea className={inputClass} rows={4} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-slate-700">Delivery Contact</label>
+                <label className="text-sm font-medium text-slate-700">Contact Name</label>
                 <input className={inputClass} value={deliveryContact} onChange={(e) => setDeliveryContact(e.target.value)} />
               </div>
               <div>
@@ -308,13 +462,30 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
             {goodsLines.map((line, index) => (
               <div key={`${index}-${line.description}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="grid gap-3 md:grid-cols-3">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700">Goods Description</label>
+                    <input className={inputClass} value={line.description} onChange={(e) => updateGoodsLine(index, { description: e.target.value, catalogueItemId: "" })} />
+                    {catalogueSuggestions[index]?.length ? (
+                      <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-white p-2">
+                        {catalogueSuggestions[index].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => selectCatalogueItem(index, item)}
+                            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                          >
+                            <div className="font-medium text-slate-900">{item.name}</div>
+                            <div className="text-xs text-slate-500">
+                              {item.sku ? `${item.sku} · ` : ""}{item.item_type} · £{Number(item.default_price).toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Product Code</label>
-                    <input className={inputClass} value={line.productCode} onChange={(e) => updateGoodsLine(index, { productCode: e.target.value })} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-sm font-medium text-slate-700">Description</label>
-                    <input className={inputClass} value={line.description} onChange={(e) => updateGoodsLine(index, { description: e.target.value })} />
+                    <input className={inputClass} value={line.productCode} onChange={(e) => updateGoodsLine(index, { productCode: e.target.value })} placeholder="Optional" />
                   </div>
                   <div>
                     <label className="text-sm font-medium text-slate-700">Quantity</label>
@@ -332,11 +503,24 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
                     <label className="text-sm font-medium text-slate-700">Dimensions</label>
                     <input className={inputClass} value={line.dimensions} onChange={(e) => updateGoodsLine(index, { dimensions: e.target.value })} />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Unit Price</label>
+                    <input className={inputClass} value={line.unitPrice} onChange={(e) => updateGoodsLine(index, { unitPrice: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">VAT %</label>
+                    <input className={inputClass} value={line.vatRate} onChange={(e) => updateGoodsLine(index, { vatRate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Line Total</label>
+                    <input className={inputClass} value={line.lineTotal} readOnly />
+                  </div>
                   <div className="md:col-span-3">
                     <label className="text-sm font-medium text-slate-700">Notes</label>
                     <input className={inputClass} value={line.notes} onChange={(e) => updateGoodsLine(index, { notes: e.target.value })} />
                   </div>
                 </div>
+                <p className="mt-3 text-xs text-slate-500">Free text is allowed. When a line matches Catalogue it, you can pick it or let the booking learn it automatically.</p>
               </div>
             ))}
           </div>

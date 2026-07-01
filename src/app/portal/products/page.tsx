@@ -1,18 +1,17 @@
-import PortalSectionPage from "@/components/PortalSectionPage";
+import CatalogueItPanel from "@/components/CatalogueItPanel";
 
 export default function PortalProductsPage() {
   return (
-    <PortalSectionPage
-      kicker="Workspace access"
-      title="Products"
-      description="Product and service foundations live here. The Doorway booking form accepts whatever the user enters and does not hardcode products."
-      primaryAction={{ label: "Book it", href: "/portal/book-it" }}
-      secondaryAction={{ label: "Orders", href: "/portal/orders" }}
-      cards={[
-        { title: "Custom goods lines", detail: "Unlimited line items with code, description, quantity, packages, weight, dimensions, and notes.", status: "live" },
-        { title: "No hardcoded catalog", detail: "Booking input is merchant-driven and future-proof.", status: "live" },
-        { title: "Xero-ready commercial fields", detail: "Commercial values feed invoice drafts without duplication.", status: "future" },
-      ]}
-    />
+    <div className="space-y-6">
+      <section className="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Workspace access</p>
+        <h1 className="mt-2 text-3xl font-semibold text-slate-950">Catalogue It</h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-600">
+          The commercial engine for products, delivery services, labour, storage, surcharges, and future subscription products.
+        </p>
+      </section>
+
+      <CatalogueItPanel />
+    </div>
   );
 }
