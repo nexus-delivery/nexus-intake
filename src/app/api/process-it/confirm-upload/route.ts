@@ -122,6 +122,12 @@ export async function POST(request: NextRequest) {
       generateRef(draftJob.id as string);
 
     const now = new Date().toISOString();
+    console.info("[confirm-upload] saving-trackpod-mapping", {
+      draft_job_id: draftJob.id,
+      document_id: body.documentId,
+      mapped_fields: mapping,
+    });
+
     const { error: updateError } = await privilegedClient
       .from("draft_jobs")
       .update({
@@ -142,6 +148,12 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
+
+    console.info("[confirm-upload] saved-trackpod-mapping", {
+      draft_job_id: draftJob.id,
+      document_id: body.documentId,
+      saved_fields: mapping,
+    });
 
     return NextResponse.json({
       success: true,

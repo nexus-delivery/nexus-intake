@@ -151,6 +151,12 @@ export default function DocumentReviewPage() {
 
       const signedUrlResult = await requestMerchantDocumentSignedUrl(documentId);
 
+      console.info("[review] loaded-fields", {
+        draft_job_id: draftJobResult.data.id,
+        document_id: documentId,
+        loaded_fields: mapToTrackPodPayload(extraction.data),
+      });
+
       if (!cancelled) {
         setMetadata(builtMetadata);
         setReviewData(extraction.data);
