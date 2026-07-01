@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BookingMethodSelector, {
   type BookingMethod,
 } from "@/components/BookingMethodSelector";
@@ -23,6 +24,7 @@ import {
 type Step = "select_method" | "upload" | "enter_details" | "review" | "confirmed";
 
 export default function MerchantIntakePage() {
+  const router = useRouter();
   const companyId = useRuntimeCompanyId();
   const [step, setStep] = useState<Step>("select_method");
   const [method, setMethod] = useState<BookingMethod | null>(null);
@@ -135,20 +137,12 @@ export default function MerchantIntakePage() {
       return;
     }
 
-    setOcrExtracting(true);
-    setOcrError(null);
+    console.info("Upload review navigation draft_job_id:", uploadData.jobId);
+    console.info("Upload review navigation document_id:", uploadData.documentId);
 
-    const extraction = await extractUploadToOcrReviewData(uploadData);
-
-    if (!extraction.success) {
-      setOcrError(extraction.error);
-      setOcrExtracting(false);
-      return;
-    }
-
-    setOcrReviewData(extraction.data);
-    setOcrExtracting(false);
-    setStep("review");
+    router.push(
+      `/portal/documents/${encodeURIComponent(uploadData.documentId)}/review?draftJobId=${encodeURIComponent(uploadData.jobId)}`
+    );
   };
 
   const handleFormReview = (data: JobFormData) => {
