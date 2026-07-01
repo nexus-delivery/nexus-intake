@@ -286,6 +286,28 @@ function cleanGoodsValue(value: string): string {
     .join("\n");
 }
 
+function cleanBlbOcrArtifacts(value: string): string {
+  if (!value) return "";
+  return value
+    .replace(/[!"#$%]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cleanBlbNotesValue(value: string): string {
+  if (!value) return "";
+
+  return value
+    .split(/\r?\n/)
+    .map((line) => stripLeadingLabelArtifacts(line))
+    .map((line) => cleanBlbOcrArtifacts(line))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/£\s*\d/i.test(line))
+    .filter((line) => !/^\d+(?:\.\d+)?$/.test(line))
+    .join("\n");
+}
+
 function isLikelyHeaderLine(line: string): boolean {
   return /\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross|code|\/?each)\b/i.test(line);
 }
@@ -418,15 +440,19 @@ function extractNameAddressFromSectionBlock(sectionText: string): {
   if (!sectionText) return { name: "", address: "" };
 
   const sanitizeSectionLine = (line: string): string =>
-    line
+    cleanBlbOcrArtifacts(
+      line
+      .replace(/^collection\s*:?$/i, "")
+      .replace(/^delivery\s*:?$/i, "")
       .replace(/^collection\s*name\s*[:\-]?\s*/i, "")
       .replace(/^collection\s*address\s*[:\-]?\s*/i, "")
       .replace(/^delivery\s*name\s*[:\-]?\s*/i, "")
       .replace(/^delivery\s*address\s*[:\-]?\s*/i, "")
-      .trim();
+      .trim()
+    );
 
   const isNonAddressFieldLine = (line: string): boolean =>
-    /^(contact\s*name|telephone|phone|email|rtc\s*date|delivery\s*date|order\s*date|goods\s*description|description|notes?|nett?|vat|gross|total)\b/i.test(line);
+    /^(collection|delivery|contact\s*name|telephone|phone|email|rtc\s*date|delivery\s*date|order\s*date|goods\s*description|description|del\s*notes?|notes?|nett?|vat|gross|total)\b/i.test(line);
 
   const lines = splitNormalizedLines(sectionText)
     .map((line) => sanitizeSectionLine(stripLeadingLabelArtifacts(line)))
@@ -741,7 +767,6 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     getBlbRowValue(text, ["Order No", "Order Number", "PO Number", "PO #"]) ||
     pickFirst(text, [
       /(?:^|\n)\s*order\s*no\.?\s*[:\-]?\s*(\d{3,})\b/i,
-      /(?:^|\n)\s*order\s*reference\s*[:\-]?\s*[^\n]*?\b(\d{3,})[A-Za-z]?\b/i,
     ]);
 
   const orderDateRaw =
@@ -803,7 +828,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     ]);
 
   const goodsFromSection = cleanGoodsValue(segmented.goodsSection);
-  const notesAsGoods = stripLeadingLabelArtifacts(segmented.notesSection)
+  const notesAsGoods = cleanBlbNotesValue(segmented.notesSection)
     .replace(/^del\s*notes?\s*[:\-]?\s*/i, "")
     .trim();
   const goods = [goodsFromSection, notesAsGoods]
@@ -814,7 +839,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const pricing = parsePricingAmounts(text);
 
   const deliveryNotes =
-    stripLeadingLabelArtifacts(segmented.notesSection) ||
+    cleanBlbNotesValue(segmented.notesSection) ||
     extractValueAfterLabel(text, ["Delivery\\s*Notes", "Notes", "Special\\s*Instructions"]) ||
     defaultData.notes;
 
@@ -832,8 +857,8 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     deliveryName || modelCustomer || defaultData.deliveryName
   );
 
-  const modelCollectionAddress = cleanAddressValue(collectionAddress);
-  const modelDeliveryAddress = cleanAddressValue(deliveryAddress);
+  const modelCollectionAddress = cleanAddressValue(cleanBlbOcrArtifacts(collectionAddress));
+  const modelDeliveryAddress = cleanAddressValue(cleanBlbOcrArtifacts(deliveryAddress));
   const modelDeliveryEmail = stripLeadingLabelArtifacts(explicitEmail || defaultData.deliveryEmail);
   const modelDeliveryPhone = normalizeUkMobile(explicitPhone || defaultData.deliveryPhone);
 
@@ -873,6 +898,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
       ),
     notes: stripLeadingLabelArtifacts(deliveryNotes)
       .replace(/^del\s*notes?\s*[:\-]?\s*/i, "")
+      .replace(/£\s*\d+(?:[.,]\d{1,2})?/gi, "")
       .trim(),
   };
 }
