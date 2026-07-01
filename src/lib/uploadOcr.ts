@@ -600,6 +600,28 @@ export function mapToTrackPodPayload(data: OcrReviewData): TrackPodMappedPayload
 export async function extractUploadToOcrReviewData(
   metadata: UploadedDocumentMetadata
 ): Promise<OcrExtractionResult> {
+  const debugPayload: {
+    draft_job_id: string;
+    document_id: string;
+    filename: string;
+    extraction_method: string;
+    raw_text_length: number;
+    raw_text_preview_500: string;
+    parsed_fields: OcrReviewData | null;
+    mapped_fields: TrackPodMappedPayload | null;
+    parser_errors: string[];
+  } = {
+    draft_job_id: metadata.jobId,
+    document_id: metadata.documentId,
+    filename: metadata.fileName,
+    extraction_method: "unresolved",
+    raw_text_length: 0,
+    raw_text_preview_500: "",
+    parsed_fields: null,
+    mapped_fields: null,
+    parser_errors: [],
+  };
+
   console.info("[upload-ocr] extraction-start", {
     draft_job_id: metadata.jobId,
     document_id: metadata.documentId,
@@ -609,6 +631,9 @@ export async function extractUploadToOcrReviewData(
 
   const fallbackDocType = detectSupportedDocumentType(metadata.fileName, "");
   if (!fallbackDocType) {
+    debugPayload.extraction_method = "unsupported-document-type-from-filename";
+    debugPayload.parser_errors.push("unsupported-document-type-from-filename");
+    console.info("NEXUS_OCR_DEBUG", debugPayload);
     console.info("[upload-ocr] extraction-failure", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -623,6 +648,8 @@ export async function extractUploadToOcrReviewData(
 
   const signedUrlResult = await requestMerchantDocumentSignedUrl(metadata.documentId);
   if (!signedUrlResult.success) {
+    debugPayload.extraction_method = "filename-fallback";
+    debugPayload.parser_errors.push(`signed-url-request-failed: ${signedUrlResult.error}`);
     console.info("[upload-ocr] extraction-fallback", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -630,6 +657,9 @@ export async function extractUploadToOcrReviewData(
       signed_url_error: signedUrlResult.error,
     });
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
+    debugPayload.parsed_fields = fallbackData;
+    debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
+    console.info("NEXUS_OCR_DEBUG", debugPayload);
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -642,6 +672,8 @@ export async function extractUploadToOcrReviewData(
   try {
     const response = await fetch(signedUrlResult.signedUrl);
     if (!response.ok) {
+      debugPayload.extraction_method = "filename-fallback";
+      debugPayload.parser_errors.push(`signed-url-fetch-non-200: ${response.status}`);
       console.info("[upload-ocr] extraction-fallback", {
         draft_job_id: metadata.jobId,
         document_id: metadata.documentId,
@@ -649,6 +681,9 @@ export async function extractUploadToOcrReviewData(
         status: response.status,
       });
       const fallbackData = buildReviewData(metadata, "", fallbackDocType);
+      debugPayload.parsed_fields = fallbackData;
+      debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
+      console.info("NEXUS_OCR_DEBUG", debugPayload);
       console.info("[upload-ocr] mapped-trackpod-fields", {
         draft_job_id: metadata.jobId,
         document_id: metadata.documentId,
@@ -660,6 +695,9 @@ export async function extractUploadToOcrReviewData(
 
     const buffer = await response.arrayBuffer();
     const text = await decodeVisibleText(buffer);
+    debugPayload.extraction_method = "signed-url";
+    debugPayload.raw_text_length = text.length;
+    debugPayload.raw_text_preview_500 = text.slice(0, 500);
     console.info("[upload-ocr] raw-ocr-text", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -668,7 +706,19 @@ export async function extractUploadToOcrReviewData(
     });
 
     const docType = detectSupportedDocumentType(metadata.fileName, text) ?? fallbackDocType;
-    const data = buildReviewData(metadata, text, docType);
+    let data: OcrReviewData;
+    try {
+      data = buildReviewData(metadata, text, docType);
+    } catch (error) {
+      debugPayload.parser_errors.push(
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+    const mapped = mapToTrackPodPayload(data);
+    debugPayload.parsed_fields = data;
+    debugPayload.mapped_fields = mapped;
+    console.info("NEXUS_OCR_DEBUG", debugPayload);
     console.info("[upload-ocr] parsed-review-data", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -678,7 +728,7 @@ export async function extractUploadToOcrReviewData(
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
-      mapped_fields: mapToTrackPodPayload(data),
+      mapped_fields: mapped,
       source: "signed-url",
     });
 
@@ -687,13 +737,20 @@ export async function extractUploadToOcrReviewData(
       data,
       source: "signed-url",
     };
-  } catch {
+  } catch (error) {
+    debugPayload.extraction_method = debugPayload.extraction_method === "unresolved" ? "filename-fallback" : debugPayload.extraction_method;
+    debugPayload.parser_errors.push(
+      error instanceof Error ? error.message : String(error)
+    );
     console.info("[upload-ocr] extraction-fallback", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
       failure_point: "signed-url-fetch-exception",
     });
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
+    debugPayload.parsed_fields = fallbackData;
+    debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
+    console.info("NEXUS_OCR_DEBUG", debugPayload);
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
