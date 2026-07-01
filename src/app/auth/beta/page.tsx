@@ -10,7 +10,7 @@ export default function BetaAccessPage() {
         </div>
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">
-            Nexus IT
+            Nexus it
           </p>
           <h1 className="mt-1 text-3xl font-semibold text-white">Welcome to IT</h1>
           <p className="mt-2 text-sm text-slate-400">
@@ -47,7 +47,7 @@ export default function BetaAccessPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          By accessing IT you agree to the Nexus IT{" "}
+          By accessing IT you agree to the Nexus it{" "}
           <button className="text-[#A78BFA] hover:underline">Terms of Service</button>{" "}
           and{" "}
           <button className="text-[#A78BFA] hover:underline">Privacy Policy</button>.

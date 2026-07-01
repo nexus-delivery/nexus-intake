@@ -452,7 +452,7 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
     <SectionShell
       eyebrow="Spotlight"
       title="Manage IT"
-      description="NEXUS Operations Centre for platform operators. Permissions, operational oversight and platform control live here in the same dark-purple Spotlight language as The Hub."
+      description="Nexus Operations Centre for platform operators. Permissions, operational oversight and platform control live here in the same dark-purple Spotlight language as The Hub."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Platform operator" value={accessProfile.email ?? "Signed in"} helper={accessProfile.roles.join(", ") || "Role pending"} />

@@ -42,7 +42,7 @@ const trackingInfo = {
 // TODO: Import delivery status and ETA
 // TODO: Import POD
 // TODO: Notify customer, merchant, collection point
-// TODO: Generate branded NEXUS tracking emails
+// TODO: Generate branded Nexus tracking emails
 
 const trackingEvents = [
   { label: "Driver allocated", time: "3 min ago" },
@@ -164,7 +164,7 @@ export default function DiDesignsPage() {
                 <div>
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Delivery tracking</p>
                   <h2 className="mt-3 text-2xl font-semibold text-slate-950">Live Delivery Status</h2>
-                  <p className="mt-2 text-sm text-slate-600">Operations staff will paste or import a NEXUS tracking link here.</p>
+                  <p className="mt-2 text-sm text-slate-600">Operations staff will paste or import a Nexus tracking link here.</p>
                 </div>
                 <span className="inline-flex items-center rounded-full bg-[#ede9fe] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#7C3AED]">
                   Track Delivery

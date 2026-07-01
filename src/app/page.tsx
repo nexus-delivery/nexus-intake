@@ -299,10 +299,10 @@ export default function HubPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
               <h1 className="mt-1 text-4xl font-semibold tracking-tight text-white lg:text-5xl">
-                Sign In to Nexus It
+                How do you want to Nexus it today?
               </h1>
               <p className="mt-2 max-w-2xl text-base text-slate-200">
-                NEXUS Intelligent Transport System.
+                Nexus Intelligent Transport System.
               </p>
 
               {/* ── Workspace role switcher ────────────────────── */}

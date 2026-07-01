@@ -339,7 +339,7 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
           <div className="grid gap-2 sm:grid-cols-2">
             <p><span className="font-semibold">Merchant:</span> Doorway Group LTD</p>
             <p><span className="font-semibold">Depot:</span> Doorway</p>
-            <p><span className="font-semibold">Source:</span> NEXUS Booking Form</p>
+            <p><span className="font-semibold">Source:</span> Nexus Booking Form</p>
             <p><span className="font-semibold">Sales Channel:</span> {salesChannelName || "Not selected"}</p>
             <p><span className="font-semibold">Mode:</span> {modeLabel}</p>
           </div>
@@ -536,7 +536,7 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
             >
               {busy ? "Creating Booking..." : "Create Booking"}
             </button>
-            <p className="text-sm text-slate-600">Creates one standard order for NEXUS intake.</p>
+            <p className="text-sm text-slate-600">Creates one standard order for Nexus intake.</p>
           </div>
           {message ? (
             <p className={`mt-3 text-sm ${status === "success" ? "text-emerald-700" : "text-red-700"}`}>{message}</p>

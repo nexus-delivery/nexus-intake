@@ -4,7 +4,7 @@ import AppShell from "@/components/AppShell";
 const sections = [
   {
     title: "Talk About IT",
-    description: "Live chat with the NEXUS support team for immediate assistance.",
+    description: "Live chat with the Nexus support team for immediate assistance.",
     href: "/need-it/talk-about-it",
     status: "coming-soon",
     icon: (
@@ -40,7 +40,7 @@ const sections = [
   },
   {
     title: "Contact IT",
-    description: "Get in touch with the NEXUS team by phone, email or scheduled call.",
+    description: "Get in touch with the Nexus team by phone, email or scheduled call.",
     href: "/need-it/contact-it",
     status: "coming-soon",
     icon: (

@@ -48,7 +48,7 @@ const sourceDocuments = [
 // Track-POD note preview
 // Internal: trackpodGoodsNote
 const trackpodGoodsNotePreview = (sourceDocumentUrl: string) => `
-NEXUS source document:
+Nexus source document:
 ${sourceDocumentUrl}
 `;
 
@@ -350,7 +350,7 @@ export default function DoorwayGroupPage() {
                 <ol className="mt-3 space-y-2 text-sm text-slate-600">
                   <li>1. Complete delivery with Track-POD mobile app</li>
                   <li>2. Driver captures photos and signature</li>
-                  <li>3. NEXUS generates merchant-branded POD</li>
+                  <li>3. Nexus generates merchant-branded POD</li>
                   <li>4. Documents automatically available here</li>
                   <li>5. Tracking link updated for customer visibility</li>
                 </ol>

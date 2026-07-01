@@ -7,7 +7,7 @@ export default function ShopifyIntakePage() {
       <StandardOrderForm
         sourceSystem="shopify"
         title="Shopify-Compatible Intake"
-        subtitle="Map Shopify order data into the same NEXUS standard order object with no channel-specific variance."
+        subtitle="Map Shopify order data into the same Nexus standard order object with no channel-specific variance."
       />
     </AppShell>
   );

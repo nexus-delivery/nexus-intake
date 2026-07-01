@@ -44,7 +44,7 @@ export default function BookingFormsPage() {
     <AppShell>
       <section className="space-y-6 rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm shadow-slate-200/40">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">NEXUS Intake</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Nexus Intake</p>
           <h1 className="text-3xl font-semibold text-slate-950">Unified Booking Channels</h1>
           <p className="max-w-3xl text-sm text-slate-600">
             Every channel below creates exactly the same standard order object before review and Track-POD.

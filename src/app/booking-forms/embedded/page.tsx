@@ -6,7 +6,7 @@ export default function EmbeddedBookingFormPage() {
       <StandardOrderForm
         sourceSystem="embedded_webform"
         title="Embedded Booking Form"
-        subtitle="Use this route inside iframe embeds for customer websites while preserving the NEXUS standard schema."
+        subtitle="Use this route inside iframe embeds for customer websites while preserving the Nexus standard schema."
       />
     </main>
   );

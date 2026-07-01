@@ -101,7 +101,7 @@ export default function ProductHubPage() {
           <p className="text-sm font-semibold uppercase tracking-widest text-purple-200">
             Internal · Product Control Room
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-white">NEXUS Product Hub</h1>
+          <h1 className="mt-1 text-3xl font-bold text-white">Nexus Product Hub</h1>
           <p className="mt-2 text-purple-200">
             Product control room for roadmap, releases, backlog and agent work.
           </p>
@@ -120,7 +120,7 @@ export default function ProductHubPage() {
                   Active Initiative
                 </p>
                 <h3 className="mt-1 text-lg font-bold text-slate-900">
-                  NEXUS Booking + NEXUS Transport
+                  Nexus Booking + Nexus Transport
                 </h3>
                 <span className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                   Active Build
@@ -305,7 +305,7 @@ export default function ProductHubPage() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-400">
-        NEXUS Product Hub · Internal only · No backend connections
+        Nexus Product Hub · Internal only · No backend connections
       </footer>
     </div>
   );

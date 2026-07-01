@@ -159,8 +159,8 @@ export default function SignUpPage() {
           N
         </div>
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus IT</p>
-          <h1 className="mt-1 text-2xl font-semibold text-white">Create your Nexus IT account</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus it</p>
+          <h1 className="mt-1 text-2xl font-semibold text-white">Create your Nexus it account</h1>
           <p className="mt-1 text-sm text-slate-400">Intelligent Transport by Nexus</p>
         </div>
       </div>

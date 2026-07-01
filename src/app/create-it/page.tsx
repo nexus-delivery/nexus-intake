@@ -7,7 +7,7 @@ export default function CreateItPage() {
       <StandardOrderForm
         sourceSystem="merchant_portal"
         title="Merchant Booking Form"
-        subtitle="Create bookings in NEXUS and push jobs into one standard order object."
+        subtitle="Create bookings in Nexus and push jobs into one standard order object."
       />
     </AppShell>
   );
