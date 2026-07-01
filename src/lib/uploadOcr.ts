@@ -166,17 +166,136 @@ function detectSupportedDocumentType(
   return null;
 }
 
-function decodeVisibleText(buffer: ArrayBuffer): string {
-  const raw = new TextDecoder("latin1").decode(new Uint8Array(buffer));
+function uint8ToLatin1(bytes: Uint8Array): string {
+  let output = "";
+  const chunk = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunk) {
+    const slice = bytes.subarray(index, Math.min(index + chunk, bytes.length));
+    output += String.fromCharCode(...slice);
+  }
+  return output;
+}
+
+function normalizeExtractedText(raw: string): string {
   return raw
     .replace(/\\[rn]/g, "\n")
-    .replace(/[^\x20-\x7E\n\r]/g, " ")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ")
     .replace(/[ \t]{2,}/g, " ")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line.length > 2)
-    .slice(0, 1200)
+    .filter((line) => line.length > 0)
     .join("\n");
+}
+
+async function inflateStream(streamBytes: Uint8Array): Promise<string> {
+  if (typeof DecompressionStream === "undefined") {
+    return "";
+  }
+
+  try {
+    const stream = new Response(streamBytes).body;
+    if (!stream) return "";
+
+    const decompressed = stream.pipeThrough(new DecompressionStream("deflate"));
+    const buffer = await new Response(decompressed).arrayBuffer();
+    return uint8ToLatin1(new Uint8Array(buffer));
+  } catch {
+    return "";
+  }
+}
+
+async function decodePdfStreams(buffer: ArrayBuffer): Promise<string> {
+  const bytes = new Uint8Array(buffer);
+  const rawPdf = uint8ToLatin1(bytes);
+  const extractedChunks: string[] = [];
+
+  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = streamRegex.exec(rawPdf)) !== null) {
+    const rawChunk = match[1] ?? "";
+    if (!rawChunk) continue;
+
+    const encodedBytes = Uint8Array.from(rawChunk, (char) => char.charCodeAt(0));
+    const inflated = await inflateStream(encodedBytes);
+    if (inflated) {
+      extractedChunks.push(inflated);
+      continue;
+    }
+
+    extractedChunks.push(rawChunk);
+  }
+
+  return extractedChunks.join("\n");
+}
+
+async function decodeVisibleText(buffer: ArrayBuffer): Promise<string> {
+  const directRaw = uint8ToLatin1(new Uint8Array(buffer));
+  const streamRaw = await decodePdfStreams(buffer);
+  const merged = `${directRaw}\n${streamRaw}`;
+  return normalizeExtractedText(merged).slice(0, 12000);
+}
+
+function findLabelValue(text: string, labels: string[]): string {
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    for (const label of labels) {
+      const pattern = new RegExp(`^${label}\\s*[:\\-]\\s*(.+)$`, "i");
+      const match = line.match(pattern);
+      if (match?.[1]?.trim()) {
+        return match[1].trim();
+      }
+    }
+  }
+  return "";
+}
+
+function lineLooksLikeLabel(line: string): boolean {
+  return /^[A-Za-z][A-Za-z0-9 /&()\-]{1,40}\s*[:\-]\s*/.test(line.trim());
+}
+
+function findMultilineValue(text: string, labels: string[]): string {
+  const lines = text.split(/\r?\n/).map((line) => line.trim());
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const matchedLabel = labels.find((label) => {
+      const pattern = new RegExp(`^${label}\\s*[:\\-]\\s*(.*)$`, "i");
+      return pattern.test(line);
+    });
+
+    if (!matchedLabel) continue;
+
+    const pattern = new RegExp(`^${matchedLabel}\\s*[:\\-]\\s*(.*)$`, "i");
+    const first = (line.match(pattern)?.[1] ?? "").trim();
+    const parts: string[] = first ? [first] : [];
+
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const next = (lines[cursor] ?? "").trim();
+      if (!next) {
+        if (parts.length > 0) break;
+        continue;
+      }
+      if (lineLooksLikeLabel(next)) break;
+      parts.push(next);
+      if (parts.length >= 4) break;
+    }
+
+    if (parts.length > 0) {
+      return parts.join("\n");
+    }
+  }
+
+  return "";
+}
+
+function normalizeOrderReference(rawValue: string): string {
+  if (!rawValue) return "";
+  const numberMatch = rawValue.match(/\b(\d{3,})\b/);
+  if (numberMatch?.[1]) {
+    return numberMatch[1];
+  }
+  return rawValue.trim();
 }
 
 function buildReviewData(
@@ -184,6 +303,13 @@ function buildReviewData(
   text: string,
   docType: SupportedDocumentType
 ): OcrReviewData {
+  const orderReferenceRaw =
+    findLabelValue(text, ["Order\\s*Reference", "Order\\s*Ref", "Order\\s*No\\.?", "PO\\s*(?:Number|No\\.?|#)?"]) ||
+    pickFirst(text, [
+      /order\s*(?:reference|ref|number|no\.?|#)\s*[:\-]\s*([^\n]+)/i,
+      /po\s*(?:number|no\.?|#)?\s*[:\-]?\s*([^\n]+)/i,
+    ]);
+
   const orderTypeText = pickFirst(text, [
     /order\s*type\s*[:\-]\s*(collection|delivery)/i,
     /(collection|delivery)\s+order/i,
@@ -243,13 +369,29 @@ function buildReviewData(
     /vat\s*[:\-]?\s*([0-9]+(?:[.,][0-9]+)?\s*%)/i,
   ]).replace(/\s+/g, "");
 
+  const customerValue =
+    findLabelValue(text, ["Customer", "Consignee", "Delivery\\s*Name", "Deliver\\s*To", "Ship\\s*To"]) ||
+    pickFirst(text, [
+      /(?:customer|consignee|delivery\s*name|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
+    ]);
+
+  const collectionAddressValue =
+    findMultilineValue(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address", "Collect\\s*From"]) ||
+    pickFirst(text, [
+      /collection\s*address\s*[:\-]\s*([^\n]+)/i,
+      /collect\s*from\s*[:\-]\s*([^\n]+)/i,
+    ]);
+
+  const deliveryAddressValue =
+    findMultilineValue(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address", "Deliver\\s*To"]) ||
+    pickFirst(text, [
+      /delivery\s*address\s*[:\-]\s*([^\n]+)/i,
+      /deliver\s*to\s*[:\-]\s*([^\n]+)/i,
+    ]);
+
   return {
     documentType: docType,
-    orderReference:
-      pickFirst(text, [
-        /order\s*(?:reference|ref|number|no\.?|#)\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i,
-        /po\s*(?:number|no\.?|#)?\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
-      ]),
+    orderReference: normalizeOrderReference(orderReferenceRaw),
     orderType:
       orderTypeText.toLowerCase() === "collection"
         ? "Collection"
@@ -263,21 +405,13 @@ function buildReviewData(
     merchantShipper: pickFirst(text, [
       /(?:merchant|shipper|sender|from)\s*[:\-]\s*([^\n]+)/i,
     ]),
-    customer: pickFirst(text, [
-      /(?:customer|consignee|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
-    ]),
+    customer: customerValue,
     collectionName: pickFirst(text, [
       /(?:collection\s*name|collect\s*from\s*name|pickup\s*name)\s*[:\-]\s*([^\n]+)/i,
       /(?:collection\s*from)\s*[:\-]\s*([^\n]+)/i,
     ]),
-    collectionAddress: pickFirst(text, [
-      /collection\s*address\s*[:\-]\s*([^\n]+)/i,
-      /collect\s*from\s*[:\-]\s*([^\n]+)/i,
-    ]),
-    deliveryAddress: pickFirst(text, [
-      /delivery\s*address\s*[:\-]\s*([^\n]+)/i,
-      /deliver\s*to\s*[:\-]\s*([^\n]+)/i,
-    ]),
+    collectionAddress: collectionAddressValue,
+    deliveryAddress: deliveryAddressValue,
     contactName: pickFirst(text, [
       /contact\s*(?:name)?\s*[:\-]\s*([^\n]+)/i,
     ]),
@@ -412,7 +546,7 @@ export async function extractUploadToOcrReviewData(
     }
 
     const buffer = await response.arrayBuffer();
-    const text = decodeVisibleText(buffer);
+    const text = await decodeVisibleText(buffer);
     console.info("[upload-ocr] raw-ocr-text", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -422,6 +556,12 @@ export async function extractUploadToOcrReviewData(
 
     const docType = detectSupportedDocumentType(metadata.fileName, text) ?? fallbackDocType;
     const data = buildReviewData(metadata, text, docType);
+    console.info("[upload-ocr] parsed-review-data", {
+      draft_job_id: metadata.jobId,
+      document_id: metadata.documentId,
+      parsed_fields: data,
+      source: "signed-url",
+    });
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
