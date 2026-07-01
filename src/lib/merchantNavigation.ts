@@ -6,7 +6,7 @@ export interface NavItem {
 
 export const merchantNavItems: NavItem[] = [
   {
-    label: "Workspace",
+    label: "Manage it",
     href: "/portal",
     icon: "Home",
   },

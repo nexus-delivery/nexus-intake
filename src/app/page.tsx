@@ -299,7 +299,7 @@ export default function HubPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
               <h1 className="mt-1 text-4xl font-semibold tracking-tight text-white lg:text-5xl">
-                How do you want to Nexus it today?
+                Manage it
               </h1>
               <p className="mt-2 max-w-2xl text-base text-slate-200">
                 Nexus Intelligent Transport System.

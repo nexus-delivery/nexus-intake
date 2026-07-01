@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import MerchantSidebar from "@/components/MerchantSidebar";
 
@@ -31,11 +32,17 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
                   Workspace access
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">
-                  Dashboard
+                  Manage it
                 </h1>
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/portal"
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--nexus-graphite)] shadow-sm transition hover:bg-slate-50"
+                >
+                  Back to Manage it
+                </Link>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-[var(--nexus-graphite)] shadow-sm">
                   <span className="font-semibold">Live</span> • updated now
                 </div>

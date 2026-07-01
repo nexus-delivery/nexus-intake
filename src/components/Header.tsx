@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 type HeaderProps = {
   title: string;
   subtitle: string;
@@ -13,6 +15,12 @@ export default function Header({ title, subtitle }: HeaderProps) {
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Link
+          href="/"
+          className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--nexus-graphite)] shadow-sm shadow-slate-300/30 transition hover:bg-slate-50"
+        >
+          Back to Manage it
+        </Link>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-[var(--nexus-graphite)] shadow-sm shadow-slate-300/30">
           <span className="font-semibold">Live</span> • updated 2m ago
         </div>
