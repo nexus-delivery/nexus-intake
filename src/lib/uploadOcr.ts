@@ -291,6 +291,47 @@ async function decodePdfStreams(buffer: ArrayBuffer): Promise<string> {
   return extractedChunks.join("\n");
 }
 
+function decodePdfStringLiteral(value: string): string {
+  return value
+    .replace(/\\([\\()])/g, "$1")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\b/g, "\b")
+    .replace(/\\f/g, "\f")
+    .replace(/\\([0-7]{1,3})/g, (_, octal: string) =>
+      String.fromCharCode(Number.parseInt(octal, 8))
+    );
+}
+
+function extractPdfTextOperators(streamText: string): string {
+  const lines: string[] = [];
+
+  const textArrayRegex = /\[((?:[^\]\\]|\\.|\[[^\]]*\])*)\]\s*TJ/g;
+  const textShowRegex = /\(((?:[^\\()]|\\.)*)\)\s*Tj/g;
+
+  let arrayMatch: RegExpExecArray | null;
+  while ((arrayMatch = textArrayRegex.exec(streamText)) !== null) {
+    const segment = arrayMatch[1] ?? "";
+    const parts = Array.from(segment.matchAll(/\(((?:[^\\()]|\\.)*)\)/g))
+      .map((match) => decodePdfStringLiteral(match[1] ?? "").trim())
+      .filter(Boolean);
+    if (parts.length > 0) {
+      lines.push(parts.join(""));
+    }
+  }
+
+  let textMatch: RegExpExecArray | null;
+  while ((textMatch = textShowRegex.exec(streamText)) !== null) {
+    const value = decodePdfStringLiteral(textMatch[1] ?? "").trim();
+    if (value) {
+      lines.push(value);
+    }
+  }
+
+  return normalizeExtractedText(lines.join("\n"));
+}
+
 async function decodeVisibleText(buffer: ArrayBuffer): Promise<string> {
   const pdfJsText = await extractPdfTextWithPdfJs(buffer);
   if (pdfJsText) {
@@ -299,6 +340,11 @@ async function decodeVisibleText(buffer: ArrayBuffer): Promise<string> {
 
   const directRaw = uint8ToLatin1(new Uint8Array(buffer));
   const streamRaw = await decodePdfStreams(buffer);
+  const operatorText = extractPdfTextOperators(streamRaw);
+  if (operatorText) {
+    return operatorText.slice(0, 12000);
+  }
+
   const merged = `${directRaw}\n${streamRaw}`;
   return normalizeExtractedText(merged).slice(0, 12000);
 }
