@@ -336,38 +336,161 @@ function extractSectionLines(text: string, sectionName: "Collection" | "Delivery
   return sectionLines;
 }
 
-function extractNameAndAddressFromSection(
-  text: string,
-  sectionName: "Collection" | "Delivery"
-): { name: string; address: string } {
-  const sectionLines = extractSectionLines(text, sectionName)
-    .map((line) => stripLeadingLabelArtifacts(line))
-    .filter((line) => !isLikelyHeaderLine(line))
-    .filter((line) => !/£\s*\d/i.test(line));
-
-  if (sectionLines.length === 0) {
-    return { name: "", address: "" };
-  }
-
-  const filtered = sectionLines.filter((line) => !isPhoneLine(line) && !isEmailLine(line));
-  const name = filtered[0] ?? "";
-  const address = cleanAddressValue(filtered.slice(1).join("\n"));
-  return { name, address };
+function splitNormalizedLines(text: string): string[] {
+  return normalizeOcrWhitespace(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
-function extractPhoneAndEmailFromDeliverySection(text: string): {
+function findBoundaryIndex(lines: string[], patterns: RegExp[]): number {
+  return lines.findIndex((line) => patterns.some((pattern) => pattern.test(line)));
+}
+
+function extractSectionBetweenBoundaries(
+  text: string,
+  startPatterns: RegExp[],
+  stopPatterns: RegExp[],
+  includeStartLine = false
+): string {
+  const lines = splitNormalizedLines(text);
+  const startIndex = findBoundaryIndex(lines, startPatterns);
+  if (startIndex < 0) return "";
+
+  let stopIndex = lines.length;
+  for (let index = startIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (stopPatterns.some((pattern) => pattern.test(line))) {
+      stopIndex = index;
+      break;
+    }
+  }
+
+  const fromIndex = includeStartLine ? startIndex : startIndex + 1;
+  if (stopIndex <= fromIndex) return "";
+  return lines.slice(fromIndex, stopIndex).join("\n");
+}
+
+function extractBlbSegmentedSections(text: string): {
+  goodsSection: string;
+  collectionSection: string;
+  deliverySection: string;
+  notesSection: string;
+  commercialSection: string;
+} {
+  const goodsSection = extractSectionBetweenBoundaries(
+    text,
+    [/^manufacture\s+as\s+below\s*:?$/i, /^manufacture\b/i],
+    [/^collection\b/i]
+  );
+
+  const collectionSection = extractSectionBetweenBoundaries(
+    text,
+    [/^collection\b/i],
+    [/^delivery\b/i],
+    true
+  );
+
+  const deliverySection = extractSectionBetweenBoundaries(
+    text,
+    [/^delivery\b/i],
+    [/^del\s*notes?\b/i, /^delivery\s*notes?\b/i, /^notes?\b/i, /^nett?\b/i, /^net\b/i],
+    true
+  );
+
+  const notesSection = extractSectionBetweenBoundaries(
+    text,
+    [/^del\s*notes?\b/i, /^delivery\s*notes?\b/i],
+    [/^nett?\b/i, /^net\b/i],
+    true
+  );
+
+  const commercialSection = extractSectionBetweenBoundaries(
+    text,
+    [/^nett?\b/i, /^net\b/i],
+    [/^vat\s*rate\b/i, /^order\s*date\b/i, /^reference\b/i, /^$|^\s*$/i],
+    true
+  );
+
+  return {
+    goodsSection,
+    collectionSection,
+    deliverySection,
+    notesSection,
+    commercialSection,
+  };
+}
+
+function extractNameAddressFromSectionBlock(sectionText: string): {
+  name: string;
+  address: string;
+} {
+  if (!sectionText) return { name: "", address: "" };
+
+  const sanitizeSectionLine = (line: string): string =>
+    line
+      .replace(/^collection\s*name\s*[:\-]?\s*/i, "")
+      .replace(/^collection\s*address\s*[:\-]?\s*/i, "")
+      .replace(/^delivery\s*name\s*[:\-]?\s*/i, "")
+      .replace(/^delivery\s*address\s*[:\-]?\s*/i, "")
+      .trim();
+
+  const isNonAddressFieldLine = (line: string): boolean =>
+    /^(contact\s*name|telephone|phone|email|rtc\s*date|delivery\s*date|order\s*date|goods\s*description|description|notes?|nett?|vat|gross|total)\b/i.test(line);
+
+  const lines = splitNormalizedLines(sectionText)
+    .map((line) => sanitizeSectionLine(stripLeadingLabelArtifacts(line)))
+    .filter((line) => !isLikelyHeaderLine(line))
+    .filter((line) => !/£\s*\d/i.test(line))
+    .filter((line) => !isPhoneLine(line))
+    .filter((line) => !isEmailLine(line))
+    .filter((line) => !isNonAddressFieldLine(line));
+
+  if (lines.length === 0) return { name: "", address: "" };
+
+  return {
+    name: lines[0] ?? "",
+    address: cleanAddressValue(lines.slice(1).join("\n")),
+  };
+}
+
+function extractPhoneEmailFromSectionBlock(sectionText: string): {
   phone: string;
   email: string;
 } {
-  const lines = extractSectionLines(text, "Delivery");
+  if (!sectionText) return { phone: "", email: "" };
+
+  const lines = splitNormalizedLines(sectionText);
   const phoneLine = lines.find((line) => isPhoneLine(line) || /(^|\D)\d{10,11}(\D|$)/.test(line)) ?? "";
   const emailLine = lines.find((line) => isEmailLine(line)) ?? "";
 
-  const phone = normalizeUkMobile(pickFirst(phoneLine, [/([+()0-9\s-]{10,})/]));
-  const email =
-    pickFirst(emailLine, [/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i]) || "";
+  return {
+    phone: normalizeUkMobile(pickFirst(phoneLine, [/([+()0-9\s-]{10,})/])),
+    email:
+      pickFirst(emailLine, [/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i]) || "",
+  };
+}
 
-  return { phone, email };
+function extractCommercialTotals(sectionText: string): {
+  netAmount: string;
+  vatAmount: string;
+  grossTotal: string;
+} {
+  if (!sectionText) {
+    return { netAmount: "", vatAmount: "", grossTotal: "" };
+  }
+
+  const netAmount = normalizeCurrency(
+    pickFirst(sectionText, [/(?:^|\n)\s*nett?\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+  const vatAmount = normalizeCurrency(
+    pickFirst(sectionText, [/(?:^|\n)\s*vat\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+  const grossTotal = normalizeCurrency(
+    pickFirst(sectionText, [/(?:^|\n)\s*total\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
+  );
+
+  return { netAmount, vatAmount, grossTotal };
 }
 
 function extractValueAfterLabel(text: string, labels: string[]): string {
@@ -622,6 +745,7 @@ function buildDefaultReviewData(context: OcrModelContext): OcrReviewData {
 function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const defaultData = buildDefaultReviewData(context);
   const text = normalizeOcrWhitespace(context.rawText);
+  const segmented = extractBlbSegmentedSections(text);
 
   const orderNo =
     extractValueAfterLabel(text, ["Order\\s*No\\.?", "Order\\s*Number", "PO\\s*Number", "PO\\s*#"]) ||
@@ -651,8 +775,8 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     extractValueAfterLabel(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
     defaultData.deliveryDate;
 
-  const collectionSection = extractNameAndAddressFromSection(text, "Collection");
-  const deliverySection = extractNameAndAddressFromSection(text, "Delivery");
+  const collectionSection = extractNameAddressFromSectionBlock(segmented.collectionSection);
+  const deliverySection = extractNameAddressFromSectionBlock(segmented.deliverySection);
 
   const collectionName =
     collectionSection.name ||
@@ -677,7 +801,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
 
   const contactDetails =
     extractValueAfterLabel(text, ["Contact\\s*Details", "Contact\\s*Name", "Contact"]);
-  const deliveryContactFromSection = extractPhoneAndEmailFromDeliverySection(text);
+  const deliveryContactFromSection = extractPhoneEmailFromSectionBlock(segmented.deliverySection);
   const explicitPhone = normalizeUkMobile(
     deliveryContactFromSection.phone ||
       extractValueAfterLabel(text, ["Delivery\\s*Phone", "Telephone", "Phone", "Tel", "Mobile"]) ||
@@ -690,11 +814,13 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
       /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i,
     ]);
 
-  const goods = extractGoodsSection(text) || defaultData.goodsDescription;
+  const goods = cleanGoodsValue(segmented.goodsSection) || extractGoodsSection(text) || defaultData.goodsDescription;
 
+  const commercialFromSegment = extractCommercialTotals(segmented.commercialSection);
   const pricing = parsePricingAmounts(text);
 
   const deliveryNotes =
+    stripLeadingLabelArtifacts(segmented.notesSection) ||
     extractValueAfterLabel(text, ["Delivery\\s*Notes", "Notes", "Special\\s*Instructions"]) ||
     defaultData.notes;
 
@@ -740,9 +866,9 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     deliveryEmail: modelDeliveryEmail,
     email: modelDeliveryEmail,
     goodsDescription: goods,
-    netAmount: pricing.netAmount || defaultData.netAmount,
-    vatAmount: pricing.vatAmount || defaultData.vatAmount,
-    grossTotal: pricing.grossTotal || defaultData.grossTotal,
+    netAmount: commercialFromSegment.netAmount || pricing.netAmount || defaultData.netAmount,
+    vatAmount: commercialFromSegment.vatAmount || pricing.vatAmount || defaultData.vatAmount,
+    grossTotal: commercialFromSegment.grossTotal || pricing.grossTotal || defaultData.grossTotal,
     vatRate:
       defaultData.vatRate ||
       inferVatRate(
