@@ -8,7 +8,7 @@ export type SupportedDocumentType =
   | "delivery_note"
   | "order_form";
 
-export type OrderType = "Collection" | "Delivery";
+export type OrderType = "Collection" | "Delivery" | "";
 
 export type PriorityLevel = "Not Set" | "High" | "Normal" | "Low";
 
@@ -91,10 +91,10 @@ function toTitleCase(input: string): string {
 }
 
 function normalizeCurrency(value: string | null | undefined): string {
-  if (!value) return "£0.00";
+  if (!value) return "";
   const cleaned = value.replace(/[^0-9.,-]/g, "").replace(/,/g, "");
   const amount = Number.parseFloat(cleaned);
-  if (!Number.isFinite(amount)) return "£0.00";
+  if (!Number.isFinite(amount)) return "";
   return `£${amount.toFixed(2)}`;
 }
 
@@ -166,56 +166,6 @@ function detectSupportedDocumentType(
   return null;
 }
 
-function isNookUklhPurchaseOrder(fileName: string, text: string): boolean {
-  const source = `${fileName} ${text}`.toLowerCase();
-  return (
-    source.includes("purchase order")
-    && source.includes("nook")
-    && (source.includes("uklh") || /\b402\b/.test(source))
-  );
-}
-
-function buildNookUklhReviewData(text: string): OcrReviewData {
-  const rtcDateRaw = pickFirst(text, [
-    /rtc\s*date\s*[:\-]\s*([^\n]+)/i,
-    /ready\s*to\s*collect\s*date\s*[:\-]\s*([^\n]+)/i,
-  ]);
-  const collectionDate = normalizeDate(rtcDateRaw || "07/08/2026");
-  const deliveryDate = normalizeDate(
-    pickFirst(text, [/delivery\s*date\s*[:\-]\s*([^\n]+)/i]) || "21/08/2026"
-  );
-
-  return {
-    documentType: "purchase_order",
-    orderReference: "402",
-    orderType: "Delivery",
-    collectionDate,
-    collectionDateConfidence: rtcDateRaw ? "high" : "low",
-    deliveryDate,
-    deliveryDateConfidence: "high",
-    merchantShipper: "BLB home Group / T/A Nook Home",
-    customer: "Mary Deely",
-    collectionName: "Aged to Perfection Upholstery Ltd",
-    collectionAddress: "Unit 18 Habergham Mill, Coal Clough Ln, Burnley, BB11 5BS",
-    deliveryAddress: "15 Firecrest Way, Edinburgh, Scotland, EH4 8GP",
-    contactName: "Mary Deely",
-    telephone: "7552975261",
-    email: "mdeely1@gmail.com",
-    goodsDescription: "Malham Medium Bench",
-    packages: "1",
-    quantity: "1",
-    weight: "",
-    volume: "",
-    priority: "Normal",
-    cashOnDelivery: "£0.00",
-    netAmount: "£60.00",
-    vatAmount: "£12.00",
-    grossTotal: "£72.00",
-    vatRate: "20%",
-    notes: "STANDARD 1 MAN DELIVERY",
-  };
-}
-
 function decodeVisibleText(buffer: ArrayBuffer): string {
   const raw = new TextDecoder("latin1").decode(new Uint8Array(buffer));
   return raw
@@ -229,28 +179,11 @@ function decodeVisibleText(buffer: ArrayBuffer): string {
     .join("\n");
 }
 
-function inferFromFileName(fileName: string): Pick<OcrReviewData, "orderReference" | "customer"> {
-  const base = fileName.replace(/\.[a-z0-9]+$/i, "");
-  const tokens = base.split(/[-_\s]+/).filter(Boolean);
-  const orderToken = tokens.find((token) => /^[A-Za-z0-9]{4,}$/.test(token));
-
-  return {
-    orderReference: orderToken ? orderToken.toUpperCase() : "",
-    customer: tokens.length > 1 ? toTitleCase(tokens.slice(0, 2).join(" ")) : "",
-  };
-}
-
 function buildReviewData(
   metadata: UploadedDocumentMetadata,
   text: string,
   docType: SupportedDocumentType
 ): OcrReviewData {
-  if (docType === "purchase_order" && isNookUklhPurchaseOrder(metadata.fileName, text)) {
-    return buildNookUklhReviewData(text);
-  }
-
-  const fileInference = inferFromFileName(metadata.fileName);
-
   const orderTypeText = pickFirst(text, [
     /order\s*type\s*[:\-]\s*(collection|delivery)/i,
     /(collection|delivery)\s+order/i,
@@ -316,19 +249,23 @@ function buildReviewData(
       pickFirst(text, [
         /order\s*(?:reference|ref|number|no\.?|#)\s*[:\-]\s*([A-Za-z0-9\-\/]+)/i,
         /po\s*(?:number|no\.?|#)?\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i,
-      ]) || fileInference.orderReference,
-    orderType: orderTypeText.toLowerCase() === "collection" ? "Collection" : "Delivery",
-      collectionDate: normalizedCollectionDate || normalizeDate(metadata.uploadedAt),
+      ]),
+    orderType:
+      orderTypeText.toLowerCase() === "collection"
+        ? "Collection"
+        : orderTypeText.toLowerCase() === "delivery"
+          ? "Delivery"
+          : "",
+      collectionDate: normalizedCollectionDate,
       collectionDateConfidence: normalizedCollectionDate ? "high" : "low",
       deliveryDate: normalizedDeliveryDate,
       deliveryDateConfidence: normalizedDeliveryDate ? "high" : "low",
     merchantShipper: pickFirst(text, [
       /(?:merchant|shipper|sender|from)\s*[:\-]\s*([^\n]+)/i,
     ]),
-    customer:
-      pickFirst(text, [
-        /(?:customer|consignee|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
-      ]) || fileInference.customer,
+    customer: pickFirst(text, [
+      /(?:customer|consignee|deliver\s*to|ship\s*to)\s*[:\-]\s*([^\n]+)/i,
+    ]),
     collectionName: pickFirst(text, [
       /(?:collection\s*name|collect\s*from\s*name|pickup\s*name)\s*[:\-]\s*([^\n]+)/i,
       /(?:collection\s*from)\s*[:\-]\s*([^\n]+)/i,
