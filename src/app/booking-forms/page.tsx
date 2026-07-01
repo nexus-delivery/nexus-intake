@@ -1,66 +1,63 @@
 import AppShell from "@/components/AppShell";
-import { MERCHANT_BOOKING_FORMS, MERCHANT_WEB_FORMS } from "@/lib/modelIt";
+import Link from "next/link";
+
+const channels = [
+  {
+    title: "Merchant Booking Form",
+    path: "/create-it",
+    detail: "Portal booking flow for merchants using the standard order schema.",
+  },
+  {
+    title: "Public Booking Form",
+    path: "/booking-forms/public",
+    detail: "Public website intake using the shared standard order object.",
+  },
+  {
+    title: "Embedded Booking Form",
+    path: "/booking-forms/embedded",
+    detail: "Embed-ready intake endpoint for customer websites.",
+  },
+  {
+    title: "Internal Order Entry",
+    path: "/order-input",
+    detail: "Ops, telephone, and email orders into one standard order.",
+  },
+  {
+    title: "WooCommerce-Compatible Intake",
+    path: "/booking-forms/woocommerce",
+    detail: "Standard schema intake for WooCommerce-originated orders.",
+  },
+  {
+    title: "Shopify-Compatible Intake",
+    path: "/booking-forms/shopify",
+    detail: "Standard schema intake for Shopify-originated orders.",
+  },
+];
 
 export default function BookingFormsPage() {
   return (
     <AppShell>
-      <section className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
+      <section className="space-y-6 rounded-[28px] border border-slate-200 bg-white p-7 shadow-sm shadow-slate-200/40">
         <div className="space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Booking Forms</p>
-          <h1 className="text-3xl font-semibold text-slate-950">Merchant booking and web form models</h1>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">NEXUS Intake</p>
+          <h1 className="text-3xl font-semibold text-slate-950">Unified Booking Channels</h1>
+          <p className="max-w-3xl text-sm text-slate-600">
+            Every channel below creates exactly the same standard order object before review and Track-POD.
+          </p>
         </div>
-        <p className="text-sm text-slate-600">
-          Merchant-specific form models are now active. BLB and Doorway each run independent booking and web form configurations.
-        </p>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          {MERCHANT_BOOKING_FORMS.map((form) => (
-            <article key={form.formKey} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Booking model</p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900">{form.merchantName}</h2>
-              <p className="text-xs text-slate-500">{form.formKey}</p>
-
-              <div className="mt-4 space-y-3 text-sm text-slate-700">
-                <div>
-                  <p className="font-semibold text-slate-900">Required fields</p>
-                  <p className="text-xs text-slate-600">{form.requiredFields.map((field) => field.label).join(" | ")}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Optional fields</p>
-                  <p className="text-xs text-slate-600">{form.optionalFields.map((field) => field.label).join(" | ")}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Collection workflow</p>
-                  <p className="text-xs text-slate-600">{form.collectionWorkflow}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Delivery workflow</p>
-                  <p className="text-xs text-slate-600">{form.deliveryWorkflow}</p>
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900">Defaults</p>
-                  <p className="text-xs text-slate-600">Services: {form.defaultServices.join(" | ")}</p>
-                  <p className="text-xs text-slate-600">Pricing: {form.defaultPricing}</p>
-                  <p className="text-xs text-slate-600">Warehouse: {form.defaultWarehouse}</p>
-                </div>
-              </div>
-            </article>
+        <div className="grid gap-4 md:grid-cols-2">
+          {channels.map((channel) => (
+            <Link
+              key={channel.path}
+              href={channel.path}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#7C3AED] hover:bg-white"
+            >
+              <p className="text-lg font-semibold text-slate-900">{channel.title}</p>
+              <p className="mt-1 text-xs text-slate-500">{channel.path}</p>
+              <p className="mt-3 text-sm text-slate-600">{channel.detail}</p>
+            </Link>
           ))}
-        </div>
-
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-slate-900">Public web forms</h2>
-          <div className="grid gap-3 lg:grid-cols-3">
-            {MERCHANT_WEB_FORMS.map((form) => (
-              <article key={form.formKey} className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-sm font-semibold text-slate-900">{form.merchantName}</p>
-                <p className="mt-0.5 text-xs text-slate-500">{form.publicPath}</p>
-                <p className="mt-2 text-xs text-slate-700">Status: {form.status}</p>
-                <p className="mt-2 text-xs text-slate-600">Required: {form.requiredFields.join(" | ")}</p>
-                <p className="mt-1 text-xs text-slate-600">Optional: {form.optionalFields.join(" | ")}</p>
-              </article>
-            ))}
-          </div>
         </div>
       </section>
     </AppShell>

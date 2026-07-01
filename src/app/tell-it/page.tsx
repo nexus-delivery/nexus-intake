@@ -146,7 +146,7 @@ export default function TellItPage() {
                 Chat with our team directly on WhatsApp for quick answers and real-time support.
               </p>
               <a
-                href="https://wa.me/44113479020"
+                href="https://wa.me/441134790208"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1fbd5a]"
@@ -157,7 +157,7 @@ export default function TellItPage() {
                 </svg>
                 Chat on WhatsApp
               </a>
-              <p className="mt-2 text-center text-xs text-slate-400">+44 113 479 0208</p>
+              <p className="mt-2 text-center text-xs text-slate-400">01134790208</p>
             </div>
 
             {/* Quick links */}

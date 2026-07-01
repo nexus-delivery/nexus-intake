@@ -138,7 +138,7 @@ export default function RightPanel() {
           Chat with our team on WhatsApp for quick support.
         </p>
         <a
-          href="https://wa.me/44113479020"
+          href="https://wa.me/441134790208"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1fbd5a]"
@@ -149,7 +149,7 @@ export default function RightPanel() {
           </svg>
           Chat on WhatsApp
         </a>
-        <p className="mt-2 text-center text-xs text-slate-500">+44 11 3479 0208</p>
+        <p className="mt-2 text-center text-xs text-slate-500">01134790208</p>
       </div>
 
       {/* ── Tell it ───────────────────────────────────────────── */}
