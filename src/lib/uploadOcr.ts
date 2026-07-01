@@ -166,6 +166,64 @@ function detectSupportedDocumentType(
   return null;
 }
 
+const PDFJS_MODULE_URL = "https://esm.sh/pdfjs-dist@4.5.136/build/pdf.mjs";
+
+async function extractPdfTextWithPdfJs(buffer: ArrayBuffer): Promise<string> {
+  try {
+    const pdfjs = (await import(
+      /* webpackIgnore: true */ PDFJS_MODULE_URL
+    )) as {
+      getDocument: (source: {
+        data: Uint8Array;
+        disableWorker?: boolean;
+        useWorkerFetch?: boolean;
+        isEvalSupported?: boolean;
+      }) => {
+        promise: Promise<{
+          numPages: number;
+          getPage: (pageNumber: number) => Promise<{
+            getTextContent: () => Promise<{
+              items: Array<{ str?: string; hasEOL?: boolean }>;
+            }>;
+          }>;
+        }>;
+      };
+    };
+
+    const loadingTask = pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+    });
+
+    const pdf = await loadingTask.promise;
+    const pageTexts: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const lineParts: string[] = [];
+
+      for (const item of textContent.items) {
+        const value = item.str?.trim();
+        if (value) {
+          lineParts.push(value);
+        }
+        if (item.hasEOL) {
+          lineParts.push("\n");
+        }
+      }
+
+      pageTexts.push(lineParts.join(" "));
+    }
+
+    return normalizeExtractedText(pageTexts.join("\n"));
+  } catch {
+    return "";
+  }
+}
+
 function uint8ToLatin1(bytes: Uint8Array): string {
   let output = "";
   const chunk = 0x8000;
@@ -234,6 +292,11 @@ async function decodePdfStreams(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function decodeVisibleText(buffer: ArrayBuffer): Promise<string> {
+  const pdfJsText = await extractPdfTextWithPdfJs(buffer);
+  if (pdfJsText) {
+    return pdfJsText.slice(0, 12000);
+  }
+
   const directRaw = uint8ToLatin1(new Uint8Array(buffer));
   const streamRaw = await decodePdfStreams(buffer);
   const merged = `${directRaw}\n${streamRaw}`;
@@ -555,7 +618,7 @@ export async function extractUploadToOcrReviewData(
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
       text_length: text.length,
-      text_preview: text.slice(0, 1200),
+      text_preview: text.slice(0, 500),
     });
 
     const docType = detectSupportedDocumentType(metadata.fileName, text) ?? fallbackDocType;
