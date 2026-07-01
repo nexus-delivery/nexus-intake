@@ -257,6 +257,7 @@ function cleanAddressValue(value: string): string {
   if (!value) return "";
 
   const cleaned = value
+    .replace(/,\s*/g, "\n")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
@@ -280,9 +281,93 @@ function cleanGoodsValue(value: string): string {
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .filter((line) => !/£\s*\d/i.test(line))
-    .filter((line) => !/\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross)\b/i.test(line))
+    .filter((line) => !/\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross|code|\/?each)\b/i.test(line))
     .filter((line) => !/^\d+(?:\.\d+)?$/.test(line))
     .join("\n");
+}
+
+function isLikelyHeaderLine(line: string): boolean {
+  return /\b(?:qty|quantity|price|amount|subtotal|total|vat|net|gross|code|\/?each)\b/i.test(line);
+}
+
+function isPhoneLine(line: string): boolean {
+  return /\b(?:telephone|phone|tel|mobile)\b/i.test(line);
+}
+
+function isEmailLine(line: string): boolean {
+  return /@/.test(line) || /\bemail\b/i.test(line);
+}
+
+function extractSectionLines(text: string, sectionName: "Collection" | "Delivery"): string[] {
+  const lines = normalizeOcrWhitespace(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const lower = sectionName.toLowerCase();
+  const startIndex = lines.findIndex((line) => {
+    const key = normalizeLabelKey(line);
+    return key === lower || key.startsWith(`${lower}name`) || key.startsWith(`${lower}address`);
+  });
+
+  if (startIndex < 0) {
+    return [];
+  }
+
+  const stopPattern = /^(delivery|collection|description|goods|notes|net|vat|gross|total|order\s*date|rtc\s*date|delivery\s*date|reference|order\s*no)/i;
+  const sectionLines: string[] = [];
+
+  for (let i = startIndex; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (i > startIndex && stopPattern.test(line)) {
+      break;
+    }
+
+    const stripped = line
+      .replace(new RegExp(`^${sectionName}\\s*Name\\s*[:\\-]?\\s*`, "i"), "")
+      .replace(new RegExp(`^${sectionName}\\s*Address\\s*[:\\-]?\\s*`, "i"), "")
+      .replace(new RegExp(`^${sectionName}\\s*[:\\-]?\\s*`, "i"), "")
+      .trim();
+
+    if (!stripped) continue;
+    sectionLines.push(stripped);
+  }
+
+  return sectionLines;
+}
+
+function extractNameAndAddressFromSection(
+  text: string,
+  sectionName: "Collection" | "Delivery"
+): { name: string; address: string } {
+  const sectionLines = extractSectionLines(text, sectionName)
+    .map((line) => stripLeadingLabelArtifacts(line))
+    .filter((line) => !isLikelyHeaderLine(line))
+    .filter((line) => !/£\s*\d/i.test(line));
+
+  if (sectionLines.length === 0) {
+    return { name: "", address: "" };
+  }
+
+  const filtered = sectionLines.filter((line) => !isPhoneLine(line) && !isEmailLine(line));
+  const name = filtered[0] ?? "";
+  const address = cleanAddressValue(filtered.slice(1).join("\n"));
+  return { name, address };
+}
+
+function extractPhoneAndEmailFromDeliverySection(text: string): {
+  phone: string;
+  email: string;
+} {
+  const lines = extractSectionLines(text, "Delivery");
+  const phoneLine = lines.find((line) => isPhoneLine(line) || /(^|\D)\d{10,11}(\D|$)/.test(line)) ?? "";
+  const emailLine = lines.find((line) => isEmailLine(line)) ?? "";
+
+  const phone = normalizeUkMobile(pickFirst(phoneLine, [/([+()0-9\s-]{10,})/]));
+  const email =
+    pickFirst(emailLine, [/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i]) || "";
+
+  return { phone, email };
 }
 
 function extractValueAfterLabel(text: string, labels: string[]): string {
@@ -300,8 +385,28 @@ function extractValueAfterLabel(text: string, labels: string[]): string {
 }
 
 function extractGoodsSection(text: string): string {
-  const descriptionBlock = extractValueAfterLabel(text, ["Description", "Goods\\s*Description", "Goods", "Items?"]);
-  return cleanGoodsValue(descriptionBlock);
+  const lines = normalizeOcrWhitespace(text)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const startIndex = lines.findIndex((line) => /^(description|goods\s*description|goods|items?)\b/i.test(line));
+  if (startIndex < 0) {
+    return cleanGoodsValue(
+      extractValueAfterLabel(text, ["Description", "Goods\\s*Description", "Goods", "Items?"])
+    );
+  }
+
+  const goodsLines: string[] = [];
+  for (let i = startIndex + 1; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    if (/^(notes?|net|vat|gross|total|delivery\s*notes|special\s*instructions)\b/i.test(line)) {
+      break;
+    }
+    goodsLines.push(line);
+  }
+
+  return cleanGoodsValue(goodsLines.join("\n"));
 }
 
 function parsePricingAmounts(text: string): {
@@ -524,6 +629,10 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
       /(?:order\s*(?:no\.?|number)|po\s*(?:number|#))\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
+  const orderReferenceFallback =
+    extractValueAfterLabel(text, ["Order\\s*Reference"]) ||
+    pickFirst(text, [/(?:order\s*reference)\s*[:\-]?\s*([^\n]+)/i]);
+
   const orderDateRaw =
     extractValueAfterLabel(text, ["Order\\s*Date"]) ||
     pickFirst(text, [/(?:order\s*date)\s*[:\-]?\s*([^\n]+)/i]);
@@ -542,30 +651,40 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     extractValueAfterLabel(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
     defaultData.deliveryDate;
 
-  const collectionAddress =
-    extractValueAfterLabel(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
-    defaultData.collectionAddress;
-
-  const deliveryAddress =
-    extractValueAfterLabel(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address"]) ||
-    defaultData.deliveryAddress;
+  const collectionSection = extractNameAndAddressFromSection(text, "Collection");
+  const deliverySection = extractNameAndAddressFromSection(text, "Delivery");
 
   const collectionName =
+    collectionSection.name ||
     extractValueAfterLabel(text, ["Collection\\s*Name", "Collect\\s*From\\s*Name", "Collect\\s*From"]) ||
     defaultData.collectionName;
 
+  const collectionAddress =
+    collectionSection.address ||
+    extractValueAfterLabel(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
+    defaultData.collectionAddress;
+
   const deliveryName =
+    deliverySection.name ||
     extractValueAfterLabel(text, ["Delivery\\s*Name", "Delivery\\s*To", "Deliver\\s*To"]) ||
     reference ||
     defaultData.customer;
 
+  const deliveryAddress =
+    deliverySection.address ||
+    extractValueAfterLabel(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address"]) ||
+    defaultData.deliveryAddress;
+
   const contactDetails =
     extractValueAfterLabel(text, ["Contact\\s*Details", "Contact\\s*Name", "Contact"]);
+  const deliveryContactFromSection = extractPhoneAndEmailFromDeliverySection(text);
   const explicitPhone = normalizeUkMobile(
-    extractValueAfterLabel(text, ["Telephone", "Phone", "Tel", "Mobile"]) ||
+    deliveryContactFromSection.phone ||
+      extractValueAfterLabel(text, ["Delivery\\s*Phone", "Telephone", "Phone", "Tel", "Mobile"]) ||
       pickFirst(text, [/(?:telephone|phone|tel|mobile)\s*[:\-]?\s*([+()0-9\s-]{6,})/i])
   );
   const explicitEmail =
+    deliveryContactFromSection.email ||
     extractValueAfterLabel(text, ["Delivery\\s*Email", "Email"]) ||
     pickFirst(text, [
       /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i,
@@ -596,8 +715,12 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     ...defaultData,
     documentType: "purchase_order",
     tradingName: "Nook Home",
-    merchantShipper: "Nook",
-    orderReference: orderNo ? `Nook ${normalizeOrderReference(orderNo)}` : "",
+    merchantShipper: "BLB Home Group",
+    orderReference: orderNo
+      ? `Nook ${normalizeOrderReference(orderNo)}`
+      : orderReferenceFallback
+        ? `Nook ${normalizeOrderReference(orderReferenceFallback)}`
+        : "",
     collectionDate: normalizedRtcDate || normalizedOrderDate,
     collectionDateConfidence: normalizedRtcDate
       ? "high"
@@ -615,7 +738,7 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     deliveryPhone: modelDeliveryPhone,
     telephone: modelDeliveryPhone,
     deliveryEmail: modelDeliveryEmail,
-    email: modelDeliveryEmail || "millie@nookhome.co.uk",
+    email: modelDeliveryEmail,
     goodsDescription: goods,
     netAmount: pricing.netAmount || defaultData.netAmount,
     vatAmount: pricing.vatAmount || defaultData.vatAmount,
