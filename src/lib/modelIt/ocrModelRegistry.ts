@@ -74,6 +74,18 @@ function normalizePhone(value: string | null | undefined): string {
   return value.replace(/[^0-9+]/g, "");
 }
 
+function normalizeUkMobile(value: string | null | undefined): string {
+  const normalized = normalizePhone(value);
+  if (!normalized) return "";
+  if (/^7\d{9}$/.test(normalized)) {
+    return `0${normalized}`;
+  }
+  if (/^447\d{9}$/.test(normalized)) {
+    return `+${normalized}`;
+  }
+  return normalized;
+}
+
 function toPercent(value: number): string {
   return `${value.toFixed(value % 1 === 0 ? 0 : 2)}%`;
 }
@@ -231,6 +243,61 @@ function stripLeadingLabelArtifacts(value: string): string {
   return value
     .replace(/^\s*(name|address|description|notes?)\s*[:\-]\s*/i, "")
     .trim();
+}
+
+function normalizeOcrWhitespace(text: string): string {
+  return text
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+function cleanAddressValue(value: string): string {
+  if (!value) return "";
+
+  const cleaned = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/^£\s*\d|^\d+\s*x\s*£|^qty\b|^quantity\b|^total\b|^vat\b|^net\b|^gross\b/i.test(line))
+    .join(", ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/,{2,}/g, ",")
+    .trim();
+
+  return stripLeadingLabelArtifacts(cleaned);
+}
+
+function cleanGoodsValue(value: string): string {
+  if (!value) return "";
+
+  return value
+    .split(/\r?\n/)
+    .map((line) => stripLeadingLabelArtifacts(line))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/^£\s*\d|^qty\b|^quantity\b|^total\b|^vat\b|^net\b|^gross\b/i.test(line))
+    .join("\n");
+}
+
+function extractValueAfterLabel(text: string, labels: string[]): string {
+  const normalized = normalizeOcrWhitespace(text);
+  const labelPattern = labels.join("|");
+  const stopPattern =
+    "(?:Order\\s*(?:No\\.?|Reference|Date)|Reference|Customer|Merchant\\s*\\/\\s*Shipper|Collection\\s*(?:Name|Address)|Delivery\\s*(?:Name|Address|Date)|RTC\\s*Date|Order\\s*Date|Telephone|Phone|Email|Contact\\s*Name|Goods(?:\\s*Description)?|Notes|Net\\s*Amount|VAT\\s*Amount|Gross\\s*Total|Total)";
+  const pattern = new RegExp(
+    `(?:^|\\n)\\s*(?:${labelPattern})\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${stopPattern})\\s*[:\\-]?|$)`,
+    "i"
+  );
+
+  const match = normalized.match(pattern);
+  return match?.[1]?.trim() ?? "";
+}
+
+function extractGoodsSection(text: string): string {
+  const goods = extractValueAfterLabel(text, ["Goods\\s*Description", "Goods", "Items?"]);
+  return cleanGoodsValue(goods);
 }
 
 function toTitleCase(value: string): string {
@@ -516,78 +583,86 @@ function buildDefaultReviewData(context: OcrModelContext): OcrReviewData {
 
 function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
   const defaultData = buildDefaultReviewData(context);
-  const text = context.rawText;
+  const text = normalizeOcrWhitespace(context.rawText);
 
   const orderNo =
-    findLabelValue(text, ["Order\\s*No\\.?", "Order\\s*Number", "PO\\s*Number", "PO\\s*#"]) ||
+    extractValueAfterLabel(text, ["Order\\s*No\\.?", "Order\\s*Number", "PO\\s*Number", "PO\\s*#"]) ||
     pickFirst(text, [
       /(?:order\s*(?:no\.?|number)|po\s*(?:number|#))\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
+  const orderDateRaw =
+    extractValueAfterLabel(text, ["Order\\s*Date"]) ||
+    pickFirst(text, [/(?:order\s*date)\s*[:\-]?\s*([^\n]+)/i]);
+
   const rtcDate =
-    findLabelValue(text, ["RTC\\s*Date", "Ready\\s*To\\s*Collect\\s*Date"]) ||
+    extractValueAfterLabel(text, ["RTC\\s*Date", "Ready\\s*To\\s*Collect\\s*Date"]) ||
     pickFirst(text, [
       /(?:rtc\s*date|ready\s*to\s*collect\s*date)\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
   const reference =
-    findLabelValue(text, ["Reference", "Customer\\s*Reference"]) ||
+    extractValueAfterLabel(text, ["Reference", "Customer\\s*Reference"]) ||
     pickFirst(text, [/(?:^|\n)\s*(?:customer\s*reference|reference)\s*[:\-]?\s*([^\n]+)/i]);
 
   const merchantShipperRaw =
-    findLabelValue(text, ["Merchant\\s*\\/\\s*Shipper", "Merchant", "Shipper"]) ||
-    defaultData.merchantShipper;
+    extractValueAfterLabel(text, ["Merchant\\s*\\/\\s*Shipper", "Merchant", "Shipper"]) ||
+    defaultData.merchantShipper ||
+    "Nook";
 
   const merchantAndTrading = parseMerchantAndTrading(merchantShipperRaw);
 
   const tradingName =
-    findLabelValue(text, ["Trading\\s*Name", "T\\/A"]) ||
+    extractValueAfterLabel(text, ["Trading\\s*Name", "T\\/A"]) ||
     merchantAndTrading.tradingName ||
     defaultData.tradingName;
 
   const deliveryDate =
-    findLabelValue(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
+    extractValueAfterLabel(text, ["Delivery\\s*Date", "Delivery\\s*By", "Delivery\\s*On"]) ||
     defaultData.deliveryDate;
 
   const collectionAddress =
-    findMultilineValue(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
+    extractValueAfterLabel(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
     defaultData.collectionAddress;
 
   const deliveryAddress =
-    findMultilineValue(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address"]) ||
+    extractValueAfterLabel(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address"]) ||
     defaultData.deliveryAddress;
 
   const collectionName =
-    findLabelValue(text, ["Collection\\s*Name", "Collect\\s*From\\s*Name", "Collect\\s*From"]) ||
+    extractValueAfterLabel(text, ["Collection\\s*Name", "Collect\\s*From\\s*Name", "Collect\\s*From"]) ||
     defaultData.collectionName;
 
   const deliveryName =
-    findLabelValue(text, ["Delivery\\s*Name", "Delivery\\s*To", "Deliver\\s*To"]) ||
+    extractValueAfterLabel(text, ["Delivery\\s*Name", "Delivery\\s*To", "Deliver\\s*To"]) ||
     reference ||
     defaultData.customer;
 
   const contactDetails =
-    findLabelValue(text, ["Contact\\s*Details", "Contact\\s*Name", "Contact"]);
-  const explicitPhone = normalizePhone(
-    pickFirst(text, [/(?:telephone|phone|tel|mobile)\s*[:\-]?\s*([+()0-9\s-]{6,})/i])
+    extractValueAfterLabel(text, ["Contact\\s*Details", "Contact\\s*Name", "Contact"]);
+  const explicitPhone = normalizeUkMobile(
+    extractValueAfterLabel(text, ["Telephone", "Phone", "Tel", "Mobile"]) ||
+      pickFirst(text, [/(?:telephone|phone|tel|mobile)\s*[:\-]?\s*([+()0-9\s-]{6,})/i])
   );
-  const explicitEmail = pickFirst(text, [
-    /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i,
-  ]);
+  const explicitEmail =
+    extractValueAfterLabel(text, ["Delivery\\s*Email", "Email"]) ||
+    pickFirst(text, [
+      /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i,
+    ]);
 
-  const goods =
-    findMultilineValue(text, ["Goods", "Goods\\s*Description", "Items"]) ||
-    defaultData.goodsDescription;
+  const goods = extractGoodsSection(text) || defaultData.goodsDescription;
 
   const pricing = parsePricingAmounts(text);
 
   const deliveryNotes =
-    findLabelValue(text, ["Delivery\\s*Notes", "Notes", "Special\\s*Instructions"]) ||
+    extractValueAfterLabel(text, ["Delivery\\s*Notes", "Notes", "Special\\s*Instructions"]) ||
     defaultData.notes;
 
+  const normalizedOrderDate = normalizeDate(orderDateRaw);
   const normalizedRtcDate = normalizeDate(rtcDate || defaultData.collectionDate);
   const normalizedDeliveryDate = normalizeDate(deliveryDate);
-  const modelCustomer = reference || defaultData.customer;
+  const extractedOrderNumber = normalizeOrderReference(orderNo || reference || defaultData.orderReference);
+  const modelCustomer = reference || extractValueAfterLabel(text, ["Customer"]) || defaultData.customer;
   const modelDeliveryName = stripLeadingLabelArtifacts(
     deliveryName || modelCustomer || defaultData.deliveryName
   );
@@ -602,8 +677,8 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
     documentType: "purchase_order",
     tradingName,
     merchantShipper: modelMerchant,
-    orderReference: normalizeOrderReference(orderNo || reference || defaultData.orderReference),
-    collectionDate: normalizedRtcDate,
+    orderReference: extractedOrderNumber ? `Nook ${extractedOrderNumber}` : defaultData.orderReference,
+    collectionDate: normalizedRtcDate || normalizedOrderDate,
     collectionDateConfidence: normalizedRtcDate
       ? "high"
       : defaultData.collectionDateConfidence,
@@ -613,15 +688,15 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
       : defaultData.deliveryDateConfidence,
     customer: modelCustomer,
     collectionName: stripLeadingLabelArtifacts(collectionName),
-    collectionAddress: stripLeadingLabelArtifacts(collectionAddress),
+    collectionAddress: cleanAddressValue(collectionAddress),
     deliveryName: modelDeliveryName,
-    deliveryAddress: stripLeadingLabelArtifacts(deliveryAddress),
+    deliveryAddress: cleanAddressValue(deliveryAddress),
     contactName: contactDetails || defaultData.contactName,
     deliveryPhone: explicitPhone || defaultData.deliveryPhone,
     telephone: explicitPhone || defaultData.telephone,
     deliveryEmail: explicitEmail || defaultData.deliveryEmail,
     email: explicitEmail || defaultData.email,
-    goodsDescription: stripLeadingLabelArtifacts(goods),
+    goodsDescription: goods,
     netAmount: pricing.netAmount || defaultData.netAmount,
     vatAmount: pricing.vatAmount || defaultData.vatAmount,
     grossTotal: pricing.grossTotal || defaultData.grossTotal,
@@ -631,7 +706,11 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
         pricing.netAmount || defaultData.netAmount,
         pricing.vatAmount || defaultData.vatAmount
       ),
-    notes: deliveryNotes,
+    notes: stripLeadingLabelArtifacts(deliveryNotes)
+      .split(/\r?\n/)
+      .filter((line) => !/mytholmroyd/i.test(line))
+      .join("\n")
+      .trim(),
   };
 }
 
