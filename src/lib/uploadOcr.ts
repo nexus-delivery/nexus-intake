@@ -193,7 +193,11 @@ async function inflateStream(streamBytes: Uint8Array): Promise<string> {
   }
 
   try {
-    const stream = new Response(new Blob([streamBytes])).body;
+    const inputBuffer = streamBytes.buffer.slice(
+      streamBytes.byteOffset,
+      streamBytes.byteOffset + streamBytes.byteLength
+    ) as ArrayBuffer;
+    const stream = new Response(inputBuffer).body;
     if (!stream) return "";
 
     const decompressed = stream.pipeThrough(new DecompressionStream("deflate"));
