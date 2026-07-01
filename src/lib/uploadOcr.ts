@@ -82,6 +82,39 @@ export type TrackPodMappedPayload = {
   delivery_notes: string;
 };
 
+export type OcrDebugPayload = {
+  draft_job_id: string;
+  document_id: string;
+  filename: string;
+  extraction_method: string;
+  raw_text_length: number;
+  raw_text_preview_500: string;
+  parsed_fields: OcrReviewData | null;
+  mapped_fields: TrackPodMappedPayload | null;
+  parser_errors: string[];
+};
+
+let lastOcrDebugPayload: OcrDebugPayload | null = null;
+
+function cloneDebugPayload(payload: OcrDebugPayload): OcrDebugPayload {
+  return {
+    ...payload,
+    parser_errors: [...payload.parser_errors],
+    parsed_fields: payload.parsed_fields ? { ...payload.parsed_fields } : null,
+    mapped_fields: payload.mapped_fields ? { ...payload.mapped_fields } : null,
+  };
+}
+
+function publishOcrDebugPayload(payload: OcrDebugPayload): void {
+  const snapshot = cloneDebugPayload(payload);
+  lastOcrDebugPayload = snapshot;
+  console.info("NEXUS_OCR_DEBUG", snapshot);
+}
+
+export function getLastOcrDebugPayload(): OcrDebugPayload | null {
+  return lastOcrDebugPayload ? cloneDebugPayload(lastOcrDebugPayload) : null;
+}
+
 function toTitleCase(input: string): string {
   return input
     .split(/\s+/)
@@ -600,17 +633,7 @@ export function mapToTrackPodPayload(data: OcrReviewData): TrackPodMappedPayload
 export async function extractUploadToOcrReviewData(
   metadata: UploadedDocumentMetadata
 ): Promise<OcrExtractionResult> {
-  const debugPayload: {
-    draft_job_id: string;
-    document_id: string;
-    filename: string;
-    extraction_method: string;
-    raw_text_length: number;
-    raw_text_preview_500: string;
-    parsed_fields: OcrReviewData | null;
-    mapped_fields: TrackPodMappedPayload | null;
-    parser_errors: string[];
-  } = {
+  const debugPayload: OcrDebugPayload = {
     draft_job_id: metadata.jobId,
     document_id: metadata.documentId,
     filename: metadata.fileName,
@@ -633,7 +656,7 @@ export async function extractUploadToOcrReviewData(
   if (!fallbackDocType) {
     debugPayload.extraction_method = "unsupported-document-type-from-filename";
     debugPayload.parser_errors.push("unsupported-document-type-from-filename");
-    console.info("NEXUS_OCR_DEBUG", debugPayload);
+    publishOcrDebugPayload(debugPayload);
     console.info("[upload-ocr] extraction-failure", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -659,7 +682,7 @@ export async function extractUploadToOcrReviewData(
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
     debugPayload.parsed_fields = fallbackData;
     debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
-    console.info("NEXUS_OCR_DEBUG", debugPayload);
+    publishOcrDebugPayload(debugPayload);
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -683,7 +706,7 @@ export async function extractUploadToOcrReviewData(
       const fallbackData = buildReviewData(metadata, "", fallbackDocType);
       debugPayload.parsed_fields = fallbackData;
       debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
-      console.info("NEXUS_OCR_DEBUG", debugPayload);
+      publishOcrDebugPayload(debugPayload);
       console.info("[upload-ocr] mapped-trackpod-fields", {
         draft_job_id: metadata.jobId,
         document_id: metadata.documentId,
@@ -718,7 +741,7 @@ export async function extractUploadToOcrReviewData(
     const mapped = mapToTrackPodPayload(data);
     debugPayload.parsed_fields = data;
     debugPayload.mapped_fields = mapped;
-    console.info("NEXUS_OCR_DEBUG", debugPayload);
+    publishOcrDebugPayload(debugPayload);
     console.info("[upload-ocr] parsed-review-data", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,
@@ -750,7 +773,7 @@ export async function extractUploadToOcrReviewData(
     const fallbackData = buildReviewData(metadata, "", fallbackDocType);
     debugPayload.parsed_fields = fallbackData;
     debugPayload.mapped_fields = mapToTrackPodPayload(fallbackData);
-    console.info("NEXUS_OCR_DEBUG", debugPayload);
+    publishOcrDebugPayload(debugPayload);
     console.info("[upload-ocr] mapped-trackpod-fields", {
       draft_job_id: metadata.jobId,
       document_id: metadata.documentId,

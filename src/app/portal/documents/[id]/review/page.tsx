@@ -14,7 +14,9 @@ import {
 } from "@/lib/supabaseClient";
 import {
   extractUploadToOcrReviewData,
+  getLastOcrDebugPayload,
   mapToTrackPodPayload,
+  type OcrDebugPayload,
   type OcrReviewData,
 } from "@/lib/uploadOcr";
 
@@ -63,6 +65,7 @@ export default function DocumentReviewPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [createdRef, setCreatedRef] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [ocrDebugPayload, setOcrDebugPayload] = useState<OcrDebugPayload | null>(null);
 
   const REVIEW_LOAD_ERROR = "This upload could not be loaded.";
 
@@ -140,6 +143,10 @@ export default function DocumentReviewPage() {
 
       const builtMetadata = toMetadata(documentResult.data, draftJobResult.data.id);
       const extraction = await extractUploadToOcrReviewData(builtMetadata);
+      const latestDebugPayload = getLastOcrDebugPayload();
+      if (!cancelled) {
+        setOcrDebugPayload(latestDebugPayload);
+      }
 
       if (!extraction.success) {
         if (!cancelled) {
@@ -296,6 +303,40 @@ export default function DocumentReviewPage() {
         isCreating={isCreating}
         error={createError}
       />
+
+      <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
+          Temporary OCR debug output
+        </h2>
+        <p className="mt-2 text-xs text-amber-900">
+          Copy this block and share it for OCR debugging. Remove after fault isolation.
+        </p>
+        <pre className="mt-3 max-h-[26rem] overflow-auto rounded-xl border border-amber-200 bg-white p-3 text-xs leading-relaxed text-slate-900">
+          {JSON.stringify(
+            ocrDebugPayload
+              ? {
+                  draft_job_id: ocrDebugPayload.draft_job_id,
+                  document_id: ocrDebugPayload.document_id,
+                  raw_text_length: ocrDebugPayload.raw_text_length,
+                  raw_text_preview_500: ocrDebugPayload.raw_text_preview_500,
+                  parsed_fields: ocrDebugPayload.parsed_fields,
+                  mapped_fields: ocrDebugPayload.mapped_fields,
+                  parser_errors: ocrDebugPayload.parser_errors,
+                }
+              : {
+                  draft_job_id: metadata?.jobId ?? "",
+                  document_id: metadata?.documentId ?? "",
+                  raw_text_length: 0,
+                  raw_text_preview_500: "",
+                  parsed_fields: null,
+                  mapped_fields: null,
+                  parser_errors: ["debug-payload-not-available"],
+                },
+            null,
+            2
+          )}
+        </pre>
+      </section>
     </div>
   );
 }
