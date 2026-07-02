@@ -460,6 +460,8 @@ export async function processIntake(
     );
 
     // 6. Update with reference + integration_metadata (full snapshot for TrackPOD push)
+    // Includes a standardOrder-compatible key for backward compatibility with
+    // jobs/confirm (which reads integration_metadata.standardOrder for Xero lines).
     const { error: updateError } = await privilegedClient
       .from("draft_jobs")
       .update({
@@ -471,6 +473,32 @@ export async function processIntake(
           goods: input.goods,
           commercial: input.commercial ?? {},
           operations: input.operations ?? {},
+          // Backward-compatible key read by jobs/confirm for Xero commercial lines
+          standardOrder: {
+            goods: input.goods.map((g) => ({
+              description: g.description,
+              quantity: g.quantity ?? 0,
+              unitPrice: g.unitPrice ?? 0,
+              lineTotal: g.lineTotal ?? 0,
+              vatRate: g.vatRate ?? 0,
+              productCode: g.productCode ?? "",
+              packages: g.packages ?? 0,
+              palletCount: g.palletCount ?? 0,
+              weightKg: g.weightKg ?? 0,
+              dimensions: g.dimensions ?? "",
+              fragile: g.fragile ?? false,
+              twoMan: g.twoMan ?? false,
+              roomOfChoice: g.roomOfChoice ?? false,
+              assembly: g.assembly ?? false,
+              tailLiftRequired: g.tailLiftRequired ?? false,
+              dedicatedVehicle: g.dedicatedVehicle ?? false,
+              northernIrelandDelivery: g.northernIrelandDelivery ?? false,
+              sameDay: g.sameDay ?? false,
+              catalogueItemId: g.catalogueItemId ?? "",
+              itemType: g.itemType ?? "product",
+              photosRequired: false,
+            })),
+          },
         },
       })
       .eq("id", jobId);
