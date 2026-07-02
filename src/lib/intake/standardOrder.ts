@@ -25,6 +25,7 @@ export type StandardGoodsItem = {
   tailLiftRequired: boolean;
   dedicatedVehicle: boolean;
   northernIrelandDelivery: boolean;
+  sameDay: boolean;
   catalogueItemId: string;
   itemType: string;
   unitPrice: number;
@@ -166,6 +167,7 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
         tailLiftRequired: false,
         dedicatedVehicle: false,
         northernIrelandDelivery: false,
+        sameDay: false,
         catalogueItemId: "",
         itemType: "product",
         unitPrice: 0,
@@ -274,6 +276,7 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
           tailLiftRequired: toBool(item.tailLiftRequired),
           dedicatedVehicle: toBool(item.dedicatedVehicle),
           northernIrelandDelivery: toBool(item.northernIrelandDelivery),
+          sameDay: toBool(item.sameDay),
         }))
       : empty.goods,
     commercial: {
@@ -365,6 +368,7 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     tail_lift_required: String(Boolean(primaryItem?.tailLiftRequired)),
     dedicated_vehicle: String(Boolean(primaryItem?.dedicatedVehicle)),
     northern_ireland_delivery: String(Boolean(primaryItem?.northernIrelandDelivery)),
+    same_day: String(Boolean(primaryItem?.sameDay)),
     purchase_order: order.commercial.purchaseOrder,
     net_amount: order.commercial.net,
     vat_amount: order.commercial.vat,

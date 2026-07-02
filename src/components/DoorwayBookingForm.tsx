@@ -380,6 +380,7 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
         tailLiftRequired,
         dedicatedVehicle,
         northernIrelandDelivery,
+        sameDay: false,
       })),
       commercial: {
         ...createEmptyStandardOrder(sourceSystem).commercial,

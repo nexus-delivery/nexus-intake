@@ -54,14 +54,67 @@ function generateRef(id: string): string {
 }
 
 function validate(order: StandardOrder): string | null {
-  if (!order.collection.contact.trim()) return "Collection contact name is required";
   if (!order.collection.addressLine1.trim()) return "Collection address line 1 is required";
-  if (!order.delivery.contact.trim()) return "Delivery contact name is required";
   if (!order.delivery.addressLine1.trim()) return "Delivery address line 1 is required";
   if (!order.goods.some((item) => item.description.trim().length > 0)) {
     return "At least one goods description is required";
   }
   return null;
+}
+
+async function resolveSalesChannelId(args: {
+  privilegedClient: ReturnType<typeof createPrivilegedClient>;
+  companyId: string;
+  salesChannelId: string | null;
+  salesChannelName: string | null;
+}) {
+  const { privilegedClient, companyId, salesChannelId, salesChannelName } = args;
+  if (!privilegedClient) return { id: salesChannelId, name: salesChannelName };
+
+  if (salesChannelId && salesChannelName) {
+    return { id: salesChannelId, name: salesChannelName };
+  }
+
+  const normalizedName = salesChannelName?.trim() ?? "";
+  if (!normalizedName) {
+    return { id: null, name: null };
+  }
+
+  const { data: existingByName, error: lookupError } = await privilegedClient
+    .from("sales_channels")
+    .select("id, name")
+    .eq("company_id", companyId)
+    .ilike("name", normalizedName)
+    .maybeSingle();
+
+  if (lookupError) {
+    throw new Error(`Sales channel lookup failed: ${lookupError.message}`);
+  }
+
+  if (existingByName?.id) {
+    return { id: existingByName.id as string, name: (existingByName.name as string) ?? normalizedName };
+  }
+
+  const { data: insertedChannel, error: insertChannelError } = await privilegedClient
+    .from("sales_channels")
+    .insert({
+      company_id: companyId,
+      merchant_id: null,
+      name: normalizedName,
+      source_type: null,
+      active: true,
+    })
+    .select("id, name")
+    .single();
+
+  if (insertChannelError) {
+    throw new Error(`Sales channel create failed: ${insertChannelError.message}`);
+  }
+
+  return {
+    id: insertedChannel.id as string,
+    name: (insertedChannel.name as string) ?? normalizedName,
+  };
 }
 
 function normaliseGoodsDescription(value: string): string {
@@ -148,14 +201,24 @@ export async function POST(request: NextRequest) {
     }
 
     const merchantId = body.merchant_id?.trim() || companyId;
-    const salesChannelId = body.sales_channel_id?.trim() || null;
-    const salesChannelName = body.sales_channel_name?.trim() || order.salesChannel.trim() || null;
+    const requestedSalesChannelId = body.sales_channel_id?.trim() || null;
+    const requestedSalesChannelName = body.sales_channel_name?.trim() || order.salesChannel.trim() || null;
+
+    const resolvedSalesChannel = await resolveSalesChannelId({
+      privilegedClient,
+      companyId,
+      salesChannelId: requestedSalesChannelId,
+      salesChannelName: requestedSalesChannelName,
+    });
+
+    const salesChannelId = resolvedSalesChannel.id ?? null;
+    const salesChannelName = resolvedSalesChannel.name ?? null;
 
     const { data: inserted, error: insertError } = await privilegedClient
       .from("draft_jobs")
       .insert({
         company_id: companyId,
-        created_by_user_id: userId,
+        created_by_user_id: userId ?? null,
         status: "job_created",
         sales_channel_id: salesChannelId,
         sales_channel_name: salesChannelName,
@@ -177,6 +240,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !inserted?.id) {
+      console.error("[intake/orders] draft_jobs insert failed", {
+        companyId,
+        userId,
+        salesChannelId,
+        salesChannelName,
+        error: insertError,
+      });
       return NextResponse.json(
         { error: insertError?.message ?? "Failed to create job" },
         { status: 500 }
@@ -219,6 +289,11 @@ export async function POST(request: NextRequest) {
             .maybeSingle();
 
       if (catalogueLookupError) {
+        console.error("[intake/orders] catalogue lookup failed", {
+          merchantId,
+          rawDescription: catalogueRow.raw_description,
+          error: catalogueLookupError,
+        });
         return NextResponse.json(
           { error: catalogueLookupError.message ?? "Failed to read catalogue item" },
           { status: 500 }
@@ -243,6 +318,11 @@ export async function POST(request: NextRequest) {
         });
 
       if (catalogueInsertError) {
+        console.error("[intake/orders] catalogue insert failed", {
+          merchantId,
+          rawDescription: catalogueRow.raw_description,
+          error: catalogueInsertError,
+        });
         return NextResponse.json(
           { error: catalogueInsertError.message ?? "Failed to create catalogue item" },
           { status: 500 }
@@ -275,6 +355,11 @@ export async function POST(request: NextRequest) {
       .eq("id", jobId);
 
     if (updateError) {
+      console.error("[intake/orders] draft_jobs metadata update failed", {
+        jobId,
+        companyId,
+        error: updateError,
+      });
       return NextResponse.json(
         { error: updateError.message ?? "Failed to update job metadata" },
         { status: 500 }
@@ -290,6 +375,7 @@ export async function POST(request: NextRequest) {
         : "REVIEW_REQUIRED",
     });
   } catch (error) {
+    console.error("[intake/orders] unhandled error", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal error" },
       { status: 500 }

@@ -14,6 +14,7 @@ export async function resolveSalesChannel(params: {
   name: string;
   merchantId?: string | null;
   sourceType?: string | null;
+  authHeaders?: Record<string, string>;
 }): Promise<SalesChannelRecord | null> {
   const companyId = params.companyId.trim();
   const name = params.name.trim();
@@ -23,7 +24,7 @@ export async function resolveSalesChannel(params: {
 
   const response = await fetch("/api/reference/sales-channels", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(params.authHeaders ?? {}) },
     body: JSON.stringify({
       company_id: companyId,
       merchant_id: params.merchantId ?? null,

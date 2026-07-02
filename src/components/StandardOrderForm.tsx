@@ -7,7 +7,7 @@ import {
   type StandardGoodsItem,
   type StandardOrder,
 } from "@/lib/intake/standardOrder";
-import { fetchCurrentProfile } from "@/lib/supabaseClient";
+import { fetchCurrentProfile, supabase } from "@/lib/supabaseClient";
 import { resolveSalesChannel } from "@/lib/salesChannels";
 import SalesChannelField from "@/components/SalesChannelField";
 
@@ -38,6 +38,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
   const [submitMessage, setSubmitMessage] = useState("");
 
   const effectiveCompanyId = profileCompanyId;
+  const isMerchantView = sourceSystem === "merchant_portal";
 
   useEffect(() => {
     let cancelled = false;
@@ -55,20 +56,34 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
 
   const canSubmit = useMemo(() => {
     return (
-      order.collection.contact.trim().length > 0 &&
       order.collection.addressLine1.trim().length > 0 &&
-      order.delivery.contact.trim().length > 0 &&
       order.delivery.addressLine1.trim().length > 0 &&
       order.goods.some((item) => item.description.trim().length > 0) &&
       salesChannelName.trim().length > 0
     );
   }, [order, salesChannelName]);
 
+  const getAuthHeaders = async () => {
+    if (!supabase) {
+      return {} as Record<string, string>;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return {} as Record<string, string>;
+    }
+
+    return { Authorization: `Bearer ${session.access_token}` };
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) {
       setSubmitState("error");
-      setSubmitMessage("Complete contact names, addresses, sales channel and at least one goods description.");
+      setSubmitMessage("Complete collection and delivery addresses, sales channel, and at least one goods description.");
       return;
     }
 
@@ -85,11 +100,14 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
     }
 
     try {
+      const authHeaders = await getAuthHeaders();
+
       if (resolvedSalesChannelName) {
         const resolved = await resolveSalesChannel({
           companyId: effectiveCompanyId,
           name: resolvedSalesChannelName,
           sourceType: sourceSystem,
+          authHeaders,
         });
         if (resolved) {
           resolvedSalesChannelId = resolved.id;
@@ -101,12 +119,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
 
       const response = await fetch("/api/intake/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           order: { ...order, salesChannel: resolvedSalesChannelName },
           company_id: effectiveCompanyId,
-          sales_channel_id: resolvedSalesChannelId || undefined,
-          sales_channel_name: resolvedSalesChannelName,
+          sales_channel_id: resolvedSalesChannelId || null,
+          sales_channel_name: resolvedSalesChannelName || null,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
@@ -126,9 +144,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
       setOrder(createEmptyStandardOrder(sourceSystem));
       setSalesChannelId("");
       setSalesChannelName("");
-    } catch {
+    } catch (error) {
       setSubmitState("error");
-      setSubmitMessage("Network error. Please try again.");
+      setSubmitMessage(error instanceof Error ? error.message : "Network error. Please try again.");
     }
   };
 
@@ -152,7 +170,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
               <label className="text-sm font-medium text-slate-700" htmlFor="externalOrderId">External Order ID</label>
               <input id="externalOrderId" className={inputClass} value={order.externalOrderId} onChange={(e) => setOrder((prev) => ({ ...prev, externalOrderId: e.target.value }))} />
             </div>
-            <div>
+            <div className="sm:col-span-2 lg:col-span-1">
               <SalesChannelField
                 companyId={effectiveCompanyId}
                 value={salesChannelName}
@@ -171,7 +189,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700" htmlFor="customer">Contact Name</label>
-              <input id="customer" className={inputClass} value={order.customer} onChange={(e) => setOrder((prev) => ({ ...prev, customer: e.target.value }))} />
+              <input id="customer" className={inputClass} value={order.customer} onChange={(e) => setOrder((prev) => ({ ...prev, customer: e.target.value }))} placeholder="Optional" />
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700" htmlFor="priority">Priority</label>
@@ -255,6 +273,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                         tailLiftRequired: false,
                         dedicatedVehicle: false,
                         northernIrelandDelivery: false,
+                        sameDay: false,
                     },
                   ],
                 }))
@@ -284,6 +303,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                     ["roomOfChoice", "Room of choice"],
                     ["assembly", "Assembly"],
                     ["photosRequired", "Photos required"],
+                    ["tailLiftRequired", "Tail-lift required"],
+                    ["dedicatedVehicle", "Dedicated van"],
+                    ["sameDay", "Same day"],
                   ].map(([key, label]) => (
                     <label key={`${index}-${key}`} className="flex items-center gap-2 text-sm text-slate-700">
                       <input
@@ -317,17 +339,19 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
           </div>
         </section>
 
-        <section className={sectionClass}>
-          <h2 className="text-base font-semibold text-slate-900">Operations</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Depot</label><input className={inputClass} value={order.operations.depot} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, depot: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Warehouse</label><input className={inputClass} value={order.operations.warehouse} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, warehouse: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Route</label><input className={inputClass} value={order.operations.route} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, route: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Shipper</label><input className={inputClass} value={order.operations.shipper} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, shipper: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Service Type</label><input className={inputClass} value={order.operations.serviceType} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, serviceType: e.target.value } }))} /></div>
-            <label className="flex items-center gap-2 self-end text-sm text-slate-700"><input type="checkbox" checked={order.operations.readyForTrackPod} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, readyForTrackPod: e.target.checked } }))} />Ready for Track-POD</label>
-          </div>
-        </section>
+        {!isMerchantView ? (
+          <section className={sectionClass}>
+            <h2 className="text-base font-semibold text-slate-900">Operations</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div><label className="text-sm font-medium text-slate-700">Depot</label><input className={inputClass} value={order.operations.depot} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, depot: e.target.value } }))} /></div>
+              <div><label className="text-sm font-medium text-slate-700">Warehouse</label><input className={inputClass} value={order.operations.warehouse} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, warehouse: e.target.value } }))} /></div>
+              <div><label className="text-sm font-medium text-slate-700">Route</label><input className={inputClass} value={order.operations.route} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, route: e.target.value } }))} /></div>
+              <div><label className="text-sm font-medium text-slate-700">Shipper</label><input className={inputClass} value={order.operations.shipper} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, shipper: e.target.value } }))} /></div>
+              <div><label className="text-sm font-medium text-slate-700">Service Type</label><input className={inputClass} value={order.operations.serviceType} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, serviceType: e.target.value } }))} /></div>
+              <label className="flex items-center gap-2 self-end text-sm text-slate-700"><input type="checkbox" checked={order.operations.readyForTrackPod} onChange={(e) => setOrder((prev) => ({ ...prev, operations: { ...prev.operations, readyForTrackPod: e.target.checked } }))} />Ready for Track-POD</label>
+            </div>
+          </section>
+        ) : null}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <button
@@ -335,7 +359,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             disabled={submitState === "submitting"}
             className="rounded-xl bg-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {submitState === "submitting" ? "Creating Order..." : "Create Standard Order"}
+            {submitState === "submitting" ? "Creating..." : "Create it"}
           </button>
 
           {submitMessage && (
