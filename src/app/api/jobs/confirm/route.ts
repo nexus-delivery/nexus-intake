@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { StandardOrder } from "@/lib/intake/standardOrder";
+import { buildTrackPodOrderReference } from "@/lib/trackpodReference";
 
 type ConfirmJobRequest = {
   draftJobId?: string;
@@ -134,6 +135,11 @@ function buildTrackPodPayload(
   if (toBoolString(mapping.dedicated_vehicle)) tags.push("DEDICATED VEHICLE");
 
   const tagBlock = tags.length ? `Service Flags: ${tags.join(" | ")}` : "";
+  const reference = buildTrackPodOrderReference({
+    orderReference: masterReference,
+    externalOrderId: mapping.external_order_id,
+    twoMan: mapping.two_man,
+  });
   const baseNotes = cleanString(mapping.delivery_notes);
   const documentNotes = documentInfo
     ? [
@@ -151,12 +157,12 @@ function buildTrackPodPayload(
   const depotShipFrom = cleanString(mapping.collection_name);
 
   return {
-    Number: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
-    Id: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
+    Number: reference,
+    Id: reference,
     Type: orderType,
-    reference: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
-    collectionOrderNumber: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
-    deliveryOrderNumber: tags.length ? `${masterReference} ${tags.join(" ")}` : masterReference,
+    reference,
+    collectionOrderNumber: reference,
+    deliveryOrderNumber: reference,
     orderType: cleanString(mapping.order_type),
     collectionDate: cleanString(mapping.collection_date),
     deliveryDate: cleanString(mapping.delivery_date),

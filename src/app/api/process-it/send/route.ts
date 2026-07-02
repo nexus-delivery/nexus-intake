@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { buildTrackPodOrderReference } from "@/lib/trackpodReference";
 
 // Production Track-POD API endpoint and auth — as per reference/trackpod/PROCESS-IT.md
 const TRACKPOD_API_BASE_URL =
@@ -79,11 +80,6 @@ function buildServiceTags(fields: Record<string, string>): string[] {
   return tags;
 }
 
-function withTags(orderRef: string, tags: string[]): string {
-  if (!tags.length) return orderRef;
-  return `${orderRef} ${tags.join(" ")}`;
-}
-
 // ─── Production payload builders ──────────────────────────────────────────────
 // Field names and fallback chains exactly as documented in
 // reference/trackpod/PROCESS-IT.md and reference/trackpod/TRACKPOD-API-MAPPINGS.md
@@ -93,7 +89,11 @@ function buildDeliveryPayload(
   orderRef: string
 ): Record<string, unknown> {
   const tags = buildServiceTags(fields);
-  const refWithTags = withTags(orderRef, tags);
+  const refWithTags = buildTrackPodOrderReference({
+    orderReference: orderRef,
+    externalOrderId: fields.external_order_id,
+    twoMan: fields.two_man,
+  });
   const deliveryName = firstNonBlank(fields, ["delivery_name", "Delivery Name"]);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
@@ -151,7 +151,11 @@ function buildCollectionPayload(
   orderRef: string
 ): Record<string, unknown> {
   const tags = buildServiceTags(fields);
-  const refWithTags = withTags(orderRef, tags);
+  const refWithTags = buildTrackPodOrderReference({
+    orderReference: orderRef,
+    externalOrderId: fields.external_order_id,
+    twoMan: fields.two_man,
+  });
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
   const collectionAddress = firstNonBlank(fields, ["collection_address", "Collection Address"]);
