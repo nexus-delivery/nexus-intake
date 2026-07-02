@@ -27,6 +27,16 @@ type DocumentRecord = {
   email: string;
   whatsappLink: string;
   viewOrderHref: string;
+  needsAttention: boolean;
+  issueReasons: string[];
+};
+
+type DocumentSummary = {
+  total: number;
+  needsAttention: number;
+  withDocument: number;
+  withPod: number;
+  routeConfirmed: number;
 };
 
 type ActorContext = {
@@ -77,22 +87,45 @@ function normalizeRole(value: unknown): string {
 }
 
 function hasOperationalRelevance(record: DocumentRecord): boolean {
-  const status = `${record.status} ${record.routeStatus}`.toLowerCase();
-  const missingDocuments = !record.documentUrl && !record.podAvailable;
-  const missingData = !record.deliveryPostcode || !record.routeStatus || (!record.etaWindow && !record.etaFrom && !record.etaTo);
+  if (record.needsAttention) return true;
 
+  const status = `${record.status} ${record.routeStatus}`.toLowerCase();
   return (
     status.includes("ready for operations") ||
     status.includes("ready_for_trackpod") ||
     status.includes("ready for route") ||
     status.includes("route in planning") ||
-    status.includes("route confirmed") ||
-    status.includes("issue") ||
-    status.includes("failed") ||
-    status.includes("exception") ||
-    missingDocuments ||
-    missingData
+    status.includes("route confirmed")
   );
+}
+
+function deriveIssueReasons(input: {
+  status: string;
+  routeStatus: string;
+  routeDate: string;
+  etaWindow: string;
+  etaFrom: string;
+  etaTo: string;
+  deliveryPostcode: string;
+  documentUrl: string;
+  podAvailable: boolean;
+  trackPodLink: string;
+}): string[] {
+  const reasons: string[] = [];
+  const status = `${input.status} ${input.routeStatus}`.toLowerCase();
+
+  if (!input.deliveryPostcode) reasons.push("missing_delivery_postcode");
+  if (!input.routeStatus || input.routeStatus.toLowerCase() === "not planned") reasons.push("route_not_planned");
+  if (!input.routeDate) reasons.push("missing_route_date");
+  if (!input.etaWindow && !input.etaFrom && !input.etaTo) reasons.push("missing_eta");
+  if (!input.documentUrl && !input.podAvailable) reasons.push("missing_document_or_pod");
+  if (!input.trackPodLink && !input.podAvailable) reasons.push("missing_trackpod_link");
+
+  if (status.includes("failed") || status.includes("issue") || status.includes("exception")) {
+    reasons.push("delivery_or_sync_exception");
+  }
+
+  return Array.from(new Set(reasons));
 }
 
 function deriveDocumentType(row: DraftJobRow): string {
@@ -199,6 +232,7 @@ export async function GET(request: NextRequest) {
 
   const requestedView = request.nextUrl.searchParams.get("view") ?? "";
   const activeView = resolveRequestedView(context.value.scope, requestedView);
+  const onlyIssues = request.nextUrl.searchParams.get("onlyIssues") === "true";
 
   const draftJobSelect = [
     "id",
@@ -309,6 +343,19 @@ export async function GET(request: NextRequest) {
     const trackPodLink = text(row.trackpod_delivery_tracking_url) || text(row.trackpod_collection_tracking_url);
     const callPhone = text(row.delivery_phone) || text(row.collection_phone);
     const email = text(row.delivery_email) || text(row.customer_email);
+    const issueReasons = deriveIssueReasons({
+      status,
+      routeStatus,
+      routeDate,
+      etaWindow,
+      etaFrom,
+      etaTo,
+      deliveryPostcode: text(row.delivery_postcode),
+      documentUrl,
+      podAvailable: row.pod_available === true,
+      trackPodLink,
+    });
+    const scopeBasePath = context.value.scope === "admin" ? "/orders" : "/portal/orders";
 
     return {
       id: text(row.id),
@@ -332,13 +379,27 @@ export async function GET(request: NextRequest) {
       callPhone,
       email,
       whatsappLink: toWhatsAppLink(callPhone, `NEXUS order update: ${orderNumber || orderRef || "order"}`),
-      viewOrderHref: `/orders`,
+      viewOrderHref: scopeBasePath,
+      needsAttention: issueReasons.length > 0,
+      issueReasons,
     };
   });
 
   if (activeView === "operations") {
     records = records.filter((record) => hasOperationalRelevance(record));
   }
+
+  if (onlyIssues) {
+    records = records.filter((record) => record.needsAttention);
+  }
+
+  const summary: DocumentSummary = {
+    total: records.length,
+    needsAttention: records.filter((record) => record.needsAttention).length,
+    withDocument: records.filter((record) => Boolean(record.documentUrl)).length,
+    withPod: records.filter((record) => record.podAvailable).length,
+    routeConfirmed: records.filter((record) => record.routeStatus.toLowerCase() === "route confirmed").length,
+  };
 
   return NextResponse.json({
     scope: context.value.scope,
@@ -352,6 +413,7 @@ export async function GET(request: NextRequest) {
             ? ["customer"]
             : ["merchant"],
     total: records.length,
+    summary,
     records,
   });
 }

@@ -28,6 +28,16 @@ type DocumentRecord = {
   email: string;
   whatsappLink: string;
   viewOrderHref: string;
+  needsAttention: boolean;
+  issueReasons: string[];
+};
+
+type DocumentSummary = {
+  total: number;
+  needsAttention: number;
+  withDocument: number;
+  withPod: number;
+  routeConfirmed: number;
 };
 
 type ResponsePayload = {
@@ -35,6 +45,7 @@ type ResponsePayload = {
   activeView?: View;
   availableViews?: View[];
   total?: number;
+  summary?: DocumentSummary;
   records?: DocumentRecord[];
   error?: string;
 };
@@ -60,11 +71,19 @@ function statusClass(value: string): string {
 
 export default function DocumentItWorkspace() {
   const [records, setRecords] = useState<DocumentRecord[]>([]);
+  const [summary, setSummary] = useState<DocumentSummary>({
+    total: 0,
+    needsAttention: 0,
+    withDocument: 0,
+    withPod: 0,
+    routeConfirmed: 0,
+  });
   const [availableViews, setAvailableViews] = useState<View[]>([]);
   const [activeView, setActiveView] = useState<View>("merchant");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [onlyIssues, setOnlyIssues] = useState(false);
 
   const load = useCallback(async (view?: View) => {
     setLoading(true);
@@ -82,6 +101,7 @@ export default function DocumentItWorkspace() {
 
       const params = new URLSearchParams();
       if (view) params.set("view", view);
+      if (onlyIssues) params.set("onlyIssues", "true");
 
       const response = await fetch(`/api/document-it/records?${params.toString()}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
@@ -96,12 +116,23 @@ export default function DocumentItWorkspace() {
       setAvailableViews(nextViews);
       setActiveView((payload.activeView ?? nextViews[0] ?? "merchant") as View);
       setRecords(payload.records ?? []);
+      setSummary(
+        payload.summary ?? {
+          total: payload.total ?? (payload.records?.length ?? 0),
+          needsAttention: (payload.records ?? []).filter((record) => record.needsAttention).length,
+          withDocument: (payload.records ?? []).filter((record) => Boolean(record.documentUrl)).length,
+          withPod: (payload.records ?? []).filter((record) => record.podAvailable).length,
+          routeConfirmed: (payload.records ?? []).filter(
+            (record) => record.routeStatus.toLowerCase() === "route confirmed"
+          ).length,
+        }
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load Document it");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onlyIssues]);
 
   useEffect(() => {
     void load();
@@ -125,6 +156,56 @@ export default function DocumentItWorkspace() {
         .includes(needle)
     );
   }, [records, search]);
+
+  const csvRows = useMemo(() => {
+    return filtered.map((record) => {
+      const eta = record.etaWindow || [record.etaFrom, record.etaTo].filter(Boolean).join(" - ");
+      return {
+        status: record.status,
+        merchant: record.merchantName,
+        customer: record.customerName,
+        route_status: record.routeStatus,
+        route_date: record.routeDate,
+        eta,
+        order_number: record.orderNumber,
+        order_ref: record.orderRef,
+        delivery_postcode: record.deliveryPostcode,
+        document_type: record.documentType,
+        trackpod_link: record.trackPodLink,
+        document_url: record.documentUrl,
+        created_at: record.createdAt,
+        updated_at: record.updatedAt,
+        needs_attention: String(record.needsAttention),
+        issue_reasons: record.issueReasons.join("|"),
+      };
+    });
+  }, [filtered]);
+
+  const downloadCsv = useCallback(() => {
+    if (csvRows.length === 0) return;
+    const header = Object.keys(csvRows[0]);
+    const lines = [
+      header.join(","),
+      ...csvRows.map((row) =>
+        header
+          .map((column) => {
+            const value = String(row[column as keyof typeof row] ?? "").replaceAll('"', '""');
+            return `"${value}"`;
+          })
+          .join(",")
+      ),
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `document-it-${activeView}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [activeView, csvRows]);
 
   return (
     <section className="space-y-5 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
@@ -156,6 +237,45 @@ export default function DocumentItWorkspace() {
         >
           Refresh
         </button>
+        <button
+          onClick={() => setOnlyIssues((value) => !value)}
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+            onlyIssues
+              ? "bg-rose-600 text-white"
+              : "border border-slate-200 bg-white text-slate-700"
+          }`}
+        >
+          {onlyIssues ? "Showing Issues" : "Show Issues Only"}
+        </button>
+        <button
+          onClick={downloadCsv}
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs uppercase text-slate-500">Visible records</p>
+          <p className="text-xl font-semibold text-slate-900">{summary.total}</p>
+        </div>
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
+          <p className="text-xs uppercase text-rose-600">Needs attention</p>
+          <p className="text-xl font-semibold text-rose-700">{summary.needsAttention}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs uppercase text-slate-500">With document</p>
+          <p className="text-xl font-semibold text-slate-900">{summary.withDocument}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs uppercase text-slate-500">With POD</p>
+          <p className="text-xl font-semibold text-slate-900">{summary.withPod}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs uppercase text-slate-500">Route confirmed</p>
+          <p className="text-xl font-semibold text-slate-900">{summary.routeConfirmed}</p>
+        </div>
       </div>
 
       <input
@@ -230,6 +350,11 @@ export default function DocumentItWorkspace() {
                     <td className="px-3 py-2 text-xs text-slate-600">{toLocale(record.updatedAt)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1 text-xs">
+                        {record.needsAttention ? (
+                          <span className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700">
+                            Needs attention
+                          </span>
+                        ) : null}
                         <a href={record.viewOrderHref} className="rounded border border-slate-200 px-2 py-1 text-slate-700">View order</a>
                         {record.documentUrl ? (
                           <a href={record.documentUrl} target="_blank" rel="noreferrer" className="rounded border border-slate-200 px-2 py-1 text-slate-700">View document</a>
@@ -247,6 +372,9 @@ export default function DocumentItWorkspace() {
                           <a href={record.whatsappLink} target="_blank" rel="noreferrer" className="rounded border border-slate-200 px-2 py-1 text-slate-700">WhatsApp</a>
                         ) : null}
                       </div>
+                      {record.issueReasons.length > 0 ? (
+                        <p className="mt-1 text-[11px] text-rose-700">{record.issueReasons.join(", ")}</p>
+                      ) : null}
                     </td>
                   </tr>
                 );
