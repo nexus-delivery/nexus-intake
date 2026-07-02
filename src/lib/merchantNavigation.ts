@@ -16,8 +16,18 @@ export const merchantNavItems: NavItem[] = [
     icon: "PlusCircle",
   },
   {
+    label: "New Order",
+    href: "/portal/book-it",
+    icon: "PlusCircle",
+  },
+  {
     label: "Orders",
     href: "/portal/orders",
+    icon: "FileText",
+  },
+  {
+    label: "Draft Orders",
+    href: "/portal/draft-orders",
     icon: "FileText",
   },
   {
@@ -26,24 +36,29 @@ export const merchantNavItems: NavItem[] = [
     icon: "FileCheck",
   },
   {
+    label: "Booking Templates",
+    href: "/portal/booking-templates",
+    icon: "FileCheck",
+  },
+  {
+    label: "Public Booking Forms",
+    href: "/portal/public-booking-forms",
+    icon: "FileCheck",
+  },
+  {
     label: "WooCommerce Imports",
     href: "/portal/woocommerce-imports",
-    icon: "BarChart3",
-  },
-  {
-    label: "Customers",
-    href: "/portal/customers",
-    icon: "Box",
-  },
-  {
-    label: "Collection Addresses",
-    href: "/portal/addresses",
     icon: "BarChart3",
   },
   {
     label: "Documents",
     href: "/portal/documents",
     icon: "FileCheck",
+  },
+  {
+    label: "Manage-it",
+    href: "/portal/manage-it",
+    icon: "Box",
   },
   {
     label: "Integrate-it",

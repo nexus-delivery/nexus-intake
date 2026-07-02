@@ -5,16 +5,16 @@ import Link from "next/link";
 import StandardOrderForm from "@/components/StandardOrderForm";
 
 const workspaceCards = [
-  { title: "Dashboard", href: "/portal", detail: "Merchant overview and quick actions." },
+  { title: "Dashboard", href: "/portal/create-it", detail: "Create-it operational overview and quick actions." },
   { title: "New Order", href: "#new-order", detail: "Create a delivery, return, or manual request." },
   { title: "Order History", href: "/portal/orders", detail: "Review live and historical bookings." },
-  { title: "Customers", href: "/portal/customers", detail: "Manage customers and booking defaults." },
-  { title: "Collection Addresses", href: "/portal/addresses", detail: "Manage depot and pickup addresses." },
-  { title: "Delivery Addresses", href: "/portal/addresses", detail: "Reuse saved drop-off locations across bookings." },
+  { title: "Draft Orders", href: "/portal/draft-orders", detail: "Review pending intake records before operational handoff." },
   { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it." },
+  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
+  { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "Externally shared forms that still feed Create-it intake." },
   { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepare CTNI and THDG store imports." },
-  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon." },
-  { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon." },
+  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon.", },
+  { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon.", },
 ];
 
 const bookingTypes = [

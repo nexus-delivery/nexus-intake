@@ -259,6 +259,10 @@ export default function IntegrateItManager() {
                           <dd>{formatDate(integration.lastSynchronisedAt)}</dd>
                         </div>
                         <div className="flex justify-between gap-2">
+                          <dt>Usage Metrics</dt>
+                          <dd>{integration.connected ? "Active" : "Inactive"}</dd>
+                        </div>
+                        <div className="flex justify-between gap-2">
                           <dt>Last Error</dt>
                           <dd className="max-w-[58%] text-right">{integration.lastError ?? "None"}</dd>
                         </div>

@@ -18,6 +18,7 @@ type CompanyRow = {
 type MerchantCollectionProfileRow = {
   id: string;
   company_id: string;
+  is_default: boolean;
   profile_name: string | null;
   company_name: string | null;
   contact_name: string | null;
@@ -29,6 +30,7 @@ type MerchantCollectionProfileRow = {
   phone: string | null;
   email: string | null;
   instructions: string | null;
+  archived_at: string | null;
   updated_at: string | null;
 };
 
@@ -107,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     const companyId = context.profile.companyId;
 
-    const [{ data: company }, { data: profile }] = await Promise.all([
+    const [{ data: company }, { data: profiles }] = await Promise.all([
       context.privilegedClient
         .from("companies")
         .select("id, name, trading_name")
@@ -119,6 +121,7 @@ export async function GET(request: NextRequest) {
           [
             "id",
             "company_id",
+            "is_default",
             "profile_name",
             "company_name",
             "contact_name",
@@ -130,36 +133,41 @@ export async function GET(request: NextRequest) {
             "phone",
             "email",
             "instructions",
+            "archived_at",
             "updated_at",
           ].join(", ")
         )
         .eq("company_id", companyId)
-        .maybeSingle<MerchantCollectionProfileRow>(),
+        .is("archived_at", null)
+        .order("is_default", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .returns<MerchantCollectionProfileRow[]>(),
     ]);
 
     const companyName = clean(company?.trading_name) || clean(company?.name);
+    const mappedProfiles = (profiles ?? []).map((profile) => ({
+      id: clean(profile.id),
+      companyId: clean(profile.company_id),
+      isDefault: profile.is_default === true,
+      profileName: clean(profile.profile_name),
+      companyName: clean(profile.company_name),
+      contactName: clean(profile.contact_name),
+      addressLine1: clean(profile.address_line1),
+      addressLine2: clean(profile.address_line2),
+      addressLine3: clean(profile.address_line3),
+      postcode: clean(profile.postcode),
+      country: clean(profile.country) || "UK",
+      phone: clean(profile.phone),
+      email: clean(profile.email),
+      instructions: clean(profile.instructions),
+      updatedAt: clean(profile.updated_at),
+    }));
 
     return NextResponse.json({
       companyName,
       suggestedDepotMode: supportsDepotFirstByCompanyName(companyName),
-      profile: profile
-        ? {
-            id: clean(profile.id),
-            companyId: clean(profile.company_id),
-            profileName: clean(profile.profile_name),
-            companyName: clean(profile.company_name),
-            contactName: clean(profile.contact_name),
-            addressLine1: clean(profile.address_line1),
-            addressLine2: clean(profile.address_line2),
-            addressLine3: clean(profile.address_line3),
-            postcode: clean(profile.postcode),
-            country: clean(profile.country) || "UK",
-            phone: clean(profile.phone),
-            email: clean(profile.email),
-            instructions: clean(profile.instructions),
-            updatedAt: clean(profile.updated_at),
-          }
-        : null,
+      profile: mappedProfiles.find((profile) => profile.isDefault) ?? mappedProfiles[0] ?? null,
+      profiles: mappedProfiles,
     });
   } catch (error) {
     return NextResponse.json(
@@ -177,6 +185,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+
+    const profileId = clean(body.id);
+    const requestDefault = body.isDefault === true;
 
     const payload = {
       company_id: context.profile.companyId,
@@ -201,38 +212,110 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await context.privilegedClient
+    const existingProfilesResult = await context.privilegedClient
       .from("merchant_collection_profiles")
-      .upsert(payload, { onConflict: "company_id" })
-      .select(
-        [
-          "id",
-          "company_id",
-          "profile_name",
-          "company_name",
-          "contact_name",
-          "address_line1",
-          "address_line2",
-          "address_line3",
-          "postcode",
-          "country",
-          "phone",
-          "email",
-          "instructions",
-          "updated_at",
-        ].join(", ")
-      )
-      .single<MerchantCollectionProfileRow>();
+      .select("id")
+      .eq("company_id", context.profile.companyId)
+      .is("archived_at", null)
+      .returns<Array<{ id: string }>>();
+
+    if (existingProfilesResult.error) {
+      return NextResponse.json({ error: existingProfilesResult.error.message }, { status: 500 });
+    }
+
+    const shouldDefault = requestDefault || (existingProfilesResult.data?.length ?? 0) === 0;
+
+    const basePayload = {
+      ...payload,
+      is_default: shouldDefault,
+      archived_at: null,
+    };
+
+    const profileSelect = [
+      "id",
+      "company_id",
+      "is_default",
+      "profile_name",
+      "company_name",
+      "contact_name",
+      "address_line1",
+      "address_line2",
+      "address_line3",
+      "postcode",
+      "country",
+      "phone",
+      "email",
+      "instructions",
+      "archived_at",
+      "updated_at",
+    ].join(", ");
+
+    const writeQuery = profileId
+      ? context.privilegedClient
+          .from("merchant_collection_profiles")
+          .update(basePayload)
+          .eq("id", profileId)
+          .eq("company_id", context.profile.companyId)
+          .select(profileSelect)
+      : context.privilegedClient
+          .from("merchant_collection_profiles")
+          .insert({ ...basePayload, created_by_user_id: context.user.id })
+          .select(profileSelect);
+
+    const { data, error } = await writeQuery.maybeSingle<MerchantCollectionProfileRow>();
 
     if (error || !data) {
       return NextResponse.json({ error: error?.message ?? "Save failed" }, { status: 500 });
     }
+
+    if (shouldDefault) {
+      await context.privilegedClient
+        .from("merchant_collection_profiles")
+        .update({ is_default: false, updated_by_user_id: context.user.id })
+        .eq("company_id", context.profile.companyId)
+        .neq("id", data.id)
+        .is("archived_at", null);
+
+      await context.privilegedClient
+        .from("merchant_collection_profiles")
+        .update({ is_default: true, updated_by_user_id: context.user.id })
+        .eq("id", data.id)
+        .eq("company_id", context.profile.companyId);
+    }
+
+    const { data: profiles } = await context.privilegedClient
+      .from("merchant_collection_profiles")
+      .select(profileSelect)
+      .eq("company_id", context.profile.companyId)
+      .is("archived_at", null)
+      .order("is_default", { ascending: false })
+      .order("updated_at", { ascending: false })
+      .returns<MerchantCollectionProfileRow[]>();
+
+    const mappedProfiles = (profiles ?? []).map((entry) => ({
+      id: clean(entry.id),
+      companyId: clean(entry.company_id),
+      isDefault: entry.is_default === true,
+      profileName: clean(entry.profile_name),
+      companyName: clean(entry.company_name),
+      contactName: clean(entry.contact_name),
+      addressLine1: clean(entry.address_line1),
+      addressLine2: clean(entry.address_line2),
+      addressLine3: clean(entry.address_line3),
+      postcode: clean(entry.postcode),
+      country: clean(entry.country) || "UK",
+      phone: clean(entry.phone),
+      email: clean(entry.email),
+      instructions: clean(entry.instructions),
+      updatedAt: clean(entry.updated_at),
+    }));
 
     return NextResponse.json({
       success: true,
       profile: {
         id: clean(data.id),
         companyId: clean(data.company_id),
+        isDefault: shouldDefault,
         profileName: clean(data.profile_name),
         companyName: clean(data.company_name),
         contactName: clean(data.contact_name),
@@ -246,6 +329,7 @@ export async function POST(request: NextRequest) {
         instructions: clean(data.instructions),
         updatedAt: clean(data.updated_at),
       },
+      profiles: mappedProfiles,
     });
   } catch (error) {
     return NextResponse.json(

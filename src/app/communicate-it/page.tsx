@@ -60,6 +60,29 @@ const sections = [
     ),
   },
   {
+    title: "Conversation Timeline",
+    description: "Unified chronology across calls, messages, notes and escalations.",
+    href: "#",
+    status: "coming-soon",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M3 6h18M3 12h18M3 18h18" />
+      </svg>
+    ),
+  },
+  {
+    title: "Tasks",
+    description: "Follow-up tasks, ownership and due dates for customer communication.",
+    href: "#",
+    status: "coming-soon",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
+  {
     title: "Follow-ups",
     description: "Action tracking for sales, service and support callbacks.",
     href: "#",

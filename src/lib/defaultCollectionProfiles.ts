@@ -3,6 +3,7 @@ export type CollectionMode = "depot" | "new_address";
 export type DefaultCollectionProfile = {
   id: string;
   companyId: string;
+  isDefault?: boolean;
   profileName: string;
   companyName: string;
   contactName: string;
@@ -35,6 +36,7 @@ export function toEmptyDefaultCollectionProfile(companyId: string): DefaultColle
   return {
     id: "",
     companyId,
+    isDefault: false,
     profileName: "Default depot",
     companyName: "",
     contactName: "",

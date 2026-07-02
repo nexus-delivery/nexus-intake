@@ -9,6 +9,7 @@ export type IntegrationCapability =
   | "invoice_export"
   | "order_ingest"
   | "operational_execution"
+  | "customer_communications"
   | "customer_notifications"
   | "payment_collection";
 

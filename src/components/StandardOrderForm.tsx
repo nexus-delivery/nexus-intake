@@ -42,6 +42,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [profileCompanyId, setProfileCompanyId] = useState("");
   const [collectionMode, setCollectionMode] = useState<CollectionMode>(bookingVariant === "deliver" ? "depot" : "new_address");
   const [defaultCollectionProfile, setDefaultCollectionProfile] = useState<DefaultCollectionProfile | null>(null);
+  const [collectionProfiles, setCollectionProfiles] = useState<DefaultCollectionProfile[]>([]);
+  const [selectedCollectionProfileId, setSelectedCollectionProfileId] = useState("");
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -118,13 +120,18 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       if (!response.ok) return;
       const payload = (await response.json().catch(() => ({}))) as {
         profile?: DefaultCollectionProfile | null;
+        profiles?: DefaultCollectionProfile[];
         suggestedDepotMode?: boolean;
       };
 
       if (cancelled) return;
 
       if (payload.profile) {
-        setDefaultCollectionProfile(payload.profile);
+        const profiles = payload.profiles ?? [payload.profile];
+        const preferredProfile = profiles.find((profile) => profile.isDefault) ?? payload.profile;
+        setCollectionProfiles(profiles);
+        setDefaultCollectionProfile(preferredProfile);
+        setSelectedCollectionProfileId(preferredProfile.id);
         if (payload.suggestedDepotMode || bookingVariant === "deliver") {
           setCollectionMode("depot");
           setOrder((prev) => ({
@@ -132,7 +139,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             collectionMode: "depot",
             collection: {
               ...prev.collection,
-              ...profileToStop(payload.profile!),
+              ...profileToStop(preferredProfile),
             },
           }));
         }
@@ -141,7 +148,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             ...prev,
             delivery: {
               ...prev.delivery,
-              ...profileToStop(payload.profile!),
+              ...profileToStop(preferredProfile),
             },
           }));
         }
@@ -155,20 +162,24 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     };
   }, [bookingVariant]);
 
+  const activeCollectionProfile =
+    collectionProfiles.find((profile) => profile.id === selectedCollectionProfileId) ??
+    defaultCollectionProfile;
+
   const canSubmit = useMemo(() => {
     const hasCollection =
       (bookingVariant === "deliver" || collectionMode === "depot")
         ? Boolean(
-            defaultCollectionProfile?.addressLine1.trim() &&
-            defaultCollectionProfile?.postcode.trim()
+            activeCollectionProfile?.addressLine1.trim() &&
+            activeCollectionProfile?.postcode.trim()
           )
         : order.collection.addressLine1.trim().length > 0;
 
     const hasDelivery =
       bookingVariant === "return"
         ? Boolean(
-            defaultCollectionProfile?.addressLine1.trim() &&
-            defaultCollectionProfile?.postcode.trim()
+            activeCollectionProfile?.addressLine1.trim() &&
+            activeCollectionProfile?.postcode.trim()
           )
         : order.delivery.addressLine1.trim().length > 0;
 
@@ -177,21 +188,21 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       hasDelivery &&
       order.goods.some((item) => item.description.trim().length > 0)
     );
-  }, [bookingVariant, collectionMode, defaultCollectionProfile, order]);
+  }, [activeCollectionProfile, bookingVariant, collectionMode, order]);
 
   const resolvedCollection =
-    (bookingVariant === "deliver" || collectionMode === "depot") && defaultCollectionProfile
+    (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
       ? {
           ...order.collection,
-          ...profileToStop(defaultCollectionProfile),
+          ...profileToStop(activeCollectionProfile),
         }
       : order.collection;
 
   const resolvedDelivery =
-    bookingVariant === "return" && defaultCollectionProfile
+    bookingVariant === "return" && activeCollectionProfile
       ? {
           ...order.delivery,
-          ...profileToStop(defaultCollectionProfile),
+          ...profileToStop(activeCollectionProfile),
         }
       : order.delivery;
 
@@ -286,21 +297,21 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setSubmitMessage(`Order created: ${ref}${status}`);
       const empty = createEmptyStandardOrder(sourceSystem);
       setOrder(
-        (bookingVariant === "deliver" || collectionMode === "depot") && defaultCollectionProfile
+        (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
           ? {
               ...empty,
               collectionMode: "depot",
               collection: {
                 ...empty.collection,
-                ...profileToStop(defaultCollectionProfile),
+                ...profileToStop(activeCollectionProfile),
               },
             }
-          : bookingVariant === "return" && defaultCollectionProfile
+          : bookingVariant === "return" && activeCollectionProfile
             ? {
                 ...empty,
                 delivery: {
                   ...empty.delivery,
-                  ...profileToStop(defaultCollectionProfile),
+                  ...profileToStop(activeCollectionProfile),
                 },
               }
             : empty
@@ -340,13 +351,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               disabled={bookingVariant !== "standard"}
               onClick={() => {
                 setCollectionMode("depot");
-                if (defaultCollectionProfile) {
+                if (activeCollectionProfile) {
                   setOrder((prev) => ({
                     ...prev,
                     collectionMode: "depot",
                     collection: {
                       ...prev.collection,
-                      ...profileToStop(defaultCollectionProfile),
+                      ...profileToStop(activeCollectionProfile),
                     },
                   }));
                 }
@@ -384,13 +395,52 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
           {collectionMode === "depot" ? (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              {defaultCollectionProfile ? (
+              {activeCollectionProfile ? (
                 <>
+                  {collectionProfiles.length > 1 ? (
+                    <>
+                      <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="collectionProfileSelect">
+                        Collection Profile
+                      </label>
+                      <select
+                        id="collectionProfileSelect"
+                        className="mb-3 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        value={selectedCollectionProfileId}
+                        onChange={(event) => {
+                          const nextProfileId = event.target.value;
+                          setSelectedCollectionProfileId(nextProfileId);
+                          const nextProfile = collectionProfiles.find((profile) => profile.id === nextProfileId);
+                          if (!nextProfile) return;
+                          setOrder((prev) => ({
+                            ...prev,
+                            collection: {
+                              ...prev.collection,
+                              ...profileToStop(nextProfile),
+                            },
+                            delivery:
+                              bookingVariant === "return"
+                                ? {
+                                    ...prev.delivery,
+                                    ...profileToStop(nextProfile),
+                                  }
+                                : prev.delivery,
+                          }));
+                        }}
+                      >
+                        {collectionProfiles.map((profile) => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.profileName || "Collection profile"}
+                            {profile.isDefault ? " (Default)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : null}
                   <p className="font-semibold text-slate-900">Saved depot profile</p>
-                  <p className="mt-1">{defaultCollectionProfile.companyName || "-"}</p>
-                  <p>{defaultCollectionProfile.addressLine1 || "-"}</p>
+                  <p className="mt-1">{activeCollectionProfile.companyName || "-"}</p>
+                  <p>{activeCollectionProfile.addressLine1 || "-"}</p>
                   <p>
-                    {[defaultCollectionProfile.addressLine2, defaultCollectionProfile.addressLine3, defaultCollectionProfile.postcode]
+                    {[activeCollectionProfile.addressLine2, activeCollectionProfile.addressLine3, activeCollectionProfile.postcode]
                       .filter(Boolean)
                       .join(", ") || "-"}
                   </p>

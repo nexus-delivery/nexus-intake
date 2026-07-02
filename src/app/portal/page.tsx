@@ -2,10 +2,13 @@ import Link from "next/link";
 
 const moduleCards = [
   { title: "Create-it", href: "/portal/create-it", detail: "Merchant order workspace for Deliver it, Return it, and Request it." },
-  { title: "Booking Forms", href: "/portal/booking-forms", detail: "The three main merchant booking types built on one intake service." },
+  { title: "New Order", href: "/portal/book-it", detail: "Create a new order using shared intake services." },
+  { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it on one intake service." },
+  { title: "Draft Orders", href: "/portal/draft-orders", detail: "Review staged bookings before operations handoff." },
   { title: "Orders", href: "/portal/orders", detail: "Live order lifecycle with Track-POD synchronized timeline visibility." },
-  { title: "Customers", href: "/portal/customers", detail: "Manage customers, contacts, defaults, pricing profiles, and invites." },
-  { title: "Collection Addresses", href: "/portal/addresses", detail: "Save and reuse merchant depot and pickup addresses." },
+  { title: "Manage-it", href: "/portal/manage-it", detail: "Company, users, customers, addresses, settings and controls." },
+  { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "External forms routing into Create-it standard intake." },
+  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
   { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepared import path for CTNI and THDG." },
   { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon." },
   { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon." },

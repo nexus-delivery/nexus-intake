@@ -452,7 +452,7 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
     <SectionShell
       eyebrow="Spotlight"
       title="Manage IT"
-      description="Nexus Operations Centre for platform operators. Permissions, operational oversight and platform control live here in the same dark-purple Spotlight language as The Hub."
+      description="Administration workspace for merchants and platform operators. Create-it stays operational while Manage-it owns users, customers, addresses, integrations and settings."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Platform operator" value={accessProfile.email ?? "Signed in"} helper={accessProfile.roles.join(", ") || "Role pending"} />
@@ -517,6 +517,49 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
             <div className="mt-6 text-sm font-semibold text-[#7C3AED] transition group-hover:translate-x-1">Open →</div>
           </Link>
         ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Merchant View</p>
+          <h3 className="mt-2 text-xl font-semibold text-slate-950">Merchant Administration Menu</h3>
+          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+            {[
+              "Company",
+              "Users",
+              "Customers",
+              "Collection Addresses",
+              "Pricing",
+              "Document it",
+              "Communicate it",
+              "Notify it",
+              "Integrate it",
+              "Settings",
+            ].map((item) => (
+              <li key={item} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">{item}</li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Admin View</p>
+          <h3 className="mt-2 text-xl font-semibold text-slate-950">Platform Administration Menu</h3>
+          <ul className="mt-4 space-y-2 text-sm text-slate-700">
+            {[
+              "Merchant Management",
+              "Merchant Search",
+              "Switch / Impersonate Merchant",
+              "Merchant Users",
+              "Merchant Customers",
+              "Merchant Orders",
+              "Merchant Documents",
+              "Merchant Integrations",
+              "Platform Settings",
+            ].map((item) => (
+              <li key={item} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">{item}</li>
+            ))}
+          </ul>
+        </article>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
