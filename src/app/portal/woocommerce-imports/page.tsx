@@ -5,12 +5,12 @@ export default function PortalWooCommerceImportsPage() {
     <PortalSectionPage
       kicker="WooCommerce Imports"
       title="WooCommerce Imports"
-      description="Prepared for CTNI and THDG so WooCommerce orders can flow directly into the standard Create-it intake service."
+      description="Prepared so WooCommerce orders can flow directly into the standard Create-it intake service."
       primaryAction={{ label: "Create-it", href: "/portal/create-it" }}
       secondaryAction={{ label: "Orders", href: "/portal/orders" }}
       cards={[
-        { title: "CTNI", detail: "Direct import path ready for checkout-to-NEXUS mapping.", status: "future" },
-        { title: "THDG", detail: "Direct import path ready for checkout-to-NEXUS mapping.", status: "future" },
+        { title: "Merchant storefronts", detail: "Direct import path ready for checkout-to-NEXUS mapping.", status: "future" },
+        { title: "Webhook ingestion", detail: "WooCommerce events can land inside Merchant Orders and Process-it.", status: "future" },
         { title: "Checkout snippet", detail: "Capture pickup and collection details at checkout, replacing Wodely capture logic.", status: "future" },
       ]}
     />

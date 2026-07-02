@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import MerchantPortalShell from "@/components/MerchantPortalShell";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Workspace access - Nexus it Today",
@@ -11,5 +11,5 @@ export default function MerchantPortalLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <MerchantPortalShell>{children}</MerchantPortalShell>;
+  return <AppShell>{children}</AppShell>;
 }

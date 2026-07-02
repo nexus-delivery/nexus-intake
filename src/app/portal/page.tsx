@@ -9,7 +9,7 @@ const moduleCards = [
   { title: "Manage-it", href: "/portal/manage-it", detail: "Company, users, customers, addresses, settings and controls." },
   { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "External forms routing into Create-it standard intake." },
   { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
-  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepared import path for CTNI and THDG." },
+  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepared import path for merchant storefront imports into Create-it." },
   { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon." },
   { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon." },
   { title: "Integrate-it", href: "/portal/integrate-it", detail: "Manage provider connections and tenant-scoped integration configuration." },

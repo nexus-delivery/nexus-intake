@@ -18,18 +18,8 @@ export type DefaultCollectionProfile = {
   updatedAt: string;
 };
 
-const DEPOT_FIRST_MERCHANT_NAMES = [
-  "doorway",
-  "homebarn",
-  "blb",
-  "di designs",
-  "pricesavers",
-];
-
 export function supportsDepotFirstByCompanyName(companyName: string): boolean {
-  const normalized = companyName.trim().toLowerCase();
-  if (!normalized) return false;
-  return DEPOT_FIRST_MERCHANT_NAMES.some((name) => normalized.includes(name));
+  return companyName.trim().length > 0;
 }
 
 export function toEmptyDefaultCollectionProfile(companyId: string): DefaultCollectionProfile {

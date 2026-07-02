@@ -12,7 +12,7 @@ const workspaceCards = [
   { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it." },
   { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
   { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "Externally shared forms that still feed Create-it intake." },
-  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepare CTNI and THDG store imports." },
+  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepare merchant storefront imports into Create-it." },
   { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon.", },
   { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon.", },
 ];

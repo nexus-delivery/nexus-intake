@@ -158,6 +158,14 @@ export async function GET(request: NextRequest) {
           "trackpod_error_detail",
           "trackpod_error_at",
           "sales_channel_name",
+          "route_status",
+          "route_date",
+          "eta_window",
+          "driver_name",
+          "vehicle_name",
+          "collection_status",
+          "delivery_status",
+          "pod_available",
           "requested_collection_date",
           "requested_delivery_date",
           "integration_metadata",
@@ -165,12 +173,11 @@ export async function GET(request: NextRequest) {
           "updated_at",
         ].join(", ")
       )
-      .eq("company_id", profile.company_id)
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (scope === "merchant") {
-      query = query.eq("created_by_user_id", user.id);
+      query = query.eq("company_id", profile.company_id);
     }
 
     const { data, error } = await query.returns<DashboardListRow[]>();

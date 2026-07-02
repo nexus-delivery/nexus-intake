@@ -24,6 +24,17 @@ type StatusMapping = {
   kind: "event" | "error";
 };
 
+type RouteSyncPayload = {
+  routeStatus: string;
+  routeDate: string;
+  etaWindow: string;
+  driverName: string;
+  vehicleName: string;
+  collectionStatus: string;
+  deliveryStatus: string;
+  podAvailable: boolean;
+};
+
 function createPrivilegedClient() {
   if (!supabaseUrl || !supabaseServerKey) return null;
   return createClient(supabaseUrl, supabaseServerKey, {
@@ -49,6 +60,119 @@ function toIso(value: string): string {
 
 function normalizeStatus(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
+function firstText(payload: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = text(payload[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
+function toRouteStatus(value: string, normalizedType: string): string {
+  const normalizedValue = normalizeStatus(value);
+
+  if (
+    normalizedValue.includes("confirmed") ||
+    normalizedType.includes("route_confirmed") ||
+    normalizedType.includes("driver_assigned")
+  ) {
+    return "Route Confirmed";
+  }
+
+  if (
+    normalizedValue.includes("planning") ||
+    normalizedValue.includes("provisional") ||
+    normalizedType.includes("route_in_planning") ||
+    normalizedType.includes("collection_booked") ||
+    normalizedType.includes("collection_created") ||
+    normalizedType.includes("out_for_delivery")
+  ) {
+    return "Route in Planning";
+  }
+
+  return "";
+}
+
+function parseRouteSync(event: TrackPodEvent): RouteSyncPayload {
+  const payload = event.payload;
+
+  const routeDate = firstText(payload, [
+    "routeDate",
+    "route_date",
+    "RouteDate",
+    "plannedDate",
+    "PlannedDate",
+    "date",
+    "Date",
+  ]);
+
+  const etaWindow = firstText(payload, [
+    "etaWindow",
+    "eta_window",
+    "ETAWindow",
+    "eta",
+    "ETA",
+    "timeWindow",
+    "TimeWindow",
+  ]);
+
+  const driverName = firstText(payload, [
+    "driverName",
+    "driver_name",
+    "DriverName",
+    "driver",
+    "Driver",
+  ]);
+
+  const vehicleName = firstText(payload, [
+    "vehicleName",
+    "vehicle_name",
+    "VehicleName",
+    "vehicle",
+    "Vehicle",
+  ]);
+
+  const explicitRouteStatus = firstText(payload, [
+    "routeStatus",
+    "route_status",
+    "RouteStatus",
+    "planningStatus",
+    "PlanningStatus",
+  ]);
+
+  const collectionStatus = firstText(payload, [
+    "collectionStatus",
+    "collection_status",
+    "CollectionStatus",
+  ]);
+
+  const deliveryStatus = firstText(payload, [
+    "deliveryStatus",
+    "delivery_status",
+    "DeliveryStatus",
+    "status",
+    "Status",
+  ]);
+
+  const podAvailable = Boolean(
+    event.podUrl ||
+      normalizeStatus(deliveryStatus).includes("pod") ||
+      event.normalizedType.includes("pod") ||
+      event.normalizedType.includes("proof_of_delivery")
+  );
+
+  return {
+    routeStatus: toRouteStatus(explicitRouteStatus || deliveryStatus, event.normalizedType),
+    routeDate,
+    etaWindow,
+    driverName,
+    vehicleName,
+    collectionStatus,
+    deliveryStatus,
+    podAvailable,
+  };
 }
 
 function parseOrderReference(payload: Record<string, unknown>): string {
@@ -256,7 +380,7 @@ export async function POST(request: NextRequest) {
 
     const { data: job, error: jobError } = await client
       .from("draft_jobs")
-      .select("id, company_id, integration_metadata, trackpod_delivery_order_id, trackpod_collection_order_id, document_url")
+      .select("id, company_id, integration_metadata, trackpod_delivery_order_id, trackpod_collection_order_id, document_url, route_status, route_date, eta_window, driver_name, vehicle_name, collection_status, delivery_status, pod_available")
       .or(
         [
           `job_reference.eq.${ref}`,
@@ -277,11 +401,23 @@ export async function POST(request: NextRequest) {
     }
 
     const status = mapStatus(event);
+    const routeSync = parseRouteSync(event);
     const mergedMetadata = withMergedMetadata(job.integration_metadata, event, status);
 
     const updatePayload: Record<string, unknown> = {
       current_status: status.currentStatus,
       lifecycle_status: status.lifecycleStatus,
+      route_status:
+        routeSync.routeStatus ||
+        text(job.route_status) ||
+        (routeSync.routeDate || routeSync.etaWindow ? "Route in Planning" : "Not Planned"),
+      route_date: routeSync.routeDate || text(job.route_date) || null,
+      eta_window: routeSync.etaWindow || text(job.eta_window) || null,
+      driver_name: routeSync.driverName || text(job.driver_name) || null,
+      vehicle_name: routeSync.vehicleName || text(job.vehicle_name) || null,
+      collection_status: routeSync.collectionStatus || text(job.collection_status) || null,
+      delivery_status: routeSync.deliveryStatus || text(job.delivery_status) || status.currentStatus,
+      pod_available: routeSync.podAvailable || job.pod_available === true,
       last_sync: event.timestamp,
       integration_metadata: mergedMetadata,
       updated_at: event.timestamp,

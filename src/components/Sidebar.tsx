@@ -14,28 +14,26 @@ type SidebarProps = {
 };
 
 const moduleDescriptions: Record<string, string> = {
+  Dashboard: "Operational overview and live workspace status",
   "Manage it": "Company, users, security and platform controls",
   "Create it": "Create new work from any source",
   "Process it": "Send confirmed jobs to Track-POD and monitor dispatch",
   "Track it": "Track vehicles, jobs and deliveries in real time",
+  "Route it": "Planning, route sequencing and schedule confirmation",
   "Store it": "Warehouse, inventory and documents",
-  "Account it": "Customers, invoicing and payments",
-  "Report it": "Dashboards, KPIs and business insights",
-  "Improve it": "Feedback, automation and continuous improvement",
-  "Tell it": "Contact us — support and feedback",
+  "Choose it": "Marketplace, installed apps and subscriptions",
   Settings: "Workspace governance and configuration",
 };
 
 const moduleStatus: Record<string, string> = {
+  Dashboard: "installed",
   "Manage it": "installed",
   "Create it": "installed",
   "Process it": "installed",
   "Track it": "installed",
+  "Route it": "installed",
   "Store it": "available",
-  "Account it": "installed",
-  "Report it": "installed",
-  "Improve it": "available",
-  "Tell it": "installed",
+  "Choose it": "installed",
   Settings: "installed",
 };
 
@@ -64,6 +62,15 @@ const navIcons: Record<string, ReactNode> = {
       <circle cx="12" cy="9" r="2.5" />
     </svg>
   ),
+  "Route it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M4 7h10" />
+      <path d="M4 12h16" />
+      <path d="M4 17h8" />
+      <circle cx="17" cy="7" r="2" />
+      <circle cx="14" cy="17" r="2" />
+    </svg>
+  ),
   "Store it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 8l8-5 8 5v11H4V8z" />
@@ -71,29 +78,19 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M8 12h8" />
     </svg>
   ),
-  "Account it": (
+  "Choose it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M12 12a4 4 0 100-8 4 4 0 000 8z" />
-      <path d="M4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1" />
+      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M16 10a4 4 0 01-8 0" />
     </svg>
   ),
-  "Report it": (
+  Dashboard: (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M4 6h16" />
-      <path d="M7 6v12" />
-      <path d="M12 10v8" />
-      <path d="M17 14v4" />
-      <path d="M4 18h16" />
-    </svg>
-  ),
-  "Improve it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M12 2l3.2 6.5 7.2 1-5.2 5 1.2 7.3-6.4-3.4-6.4 3.4 1.2-7.3-5.2-5 7.2-1L12 2z" />
-    </svg>
-  ),
-  "Tell it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+      <path d="M3 13h8V3H3v10z" />
+      <path d="M13 21h8V11h-8v10z" />
+      <path d="M13 3h8v6h-8V3z" />
+      <path d="M3 21h8v-6H3v6z" />
     </svg>
   ),
   Settings: (
@@ -134,29 +131,10 @@ export default function Sidebar({ items, activePath, userType = "admin", onUserT
           </div>
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20">
-            <p className="font-medium text-slate-100">Choose it</p>
+            <p className="font-medium text-slate-100">Build → Replace → Scale → Sell</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Get what you want from it!
+              One transport operating system with workflow-first navigation.
             </p>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-[#7C3AED]/20 to-white/5 p-4 shadow-sm shadow-slate-950/20">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-300">View as</p>
-            <div className="mt-3 space-y-2">
-              {["admin", "merchant", "customer"].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => onUserTypeChange?.(type as "admin" | "merchant" | "customer")}
-                  className={`w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
-                    userType === type
-                      ? "bg-[#7C3AED]/40 text-white shadow-[0_4px_12px_-3px_rgba(124,58,237,0.4)]"
-                      : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -201,48 +179,6 @@ export default function Sidebar({ items, activePath, userType = "admin", onUserT
             );
           })}
         </nav>
-
-        <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Coming soon</p>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-4 w-4">
-                  <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <path d="M16 10a4 4 0 01-8 0" />
-                </svg>
-                <p className="text-sm font-semibold text-white">Sell it</p>
-              </div>
-              <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
-                coming soon
-              </span>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-slate-400">Websites, marketing and customer acquisition.</p>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-4 w-4">
-                  <path d="M18 8h1a4 4 0 010 8h-1M2 8h16a4 4 0 014 4 4 4 0 01-4 4H2M2 8v8m2-4h12" />
-                  <circle cx="6" cy="16" r="2" />
-                  <circle cx="18" cy="16" r="2" />
-                </svg>
-                <p className="text-sm font-semibold text-white">Run it</p>
-              </div>
-              <span className="rounded-full bg-violet-500/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-violet-300">
-                coming soon
-              </span>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-slate-400">Fleet, maintenance and asset management.</p>
-          </div>
-          <button
-            type="button"
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-left text-sm font-medium text-slate-200 transition hover:border-[#7C3AED]/40 hover:text-white"
-          >
-            Upgrade it
-          </button>
-        </div>
       </div>
     </aside>
   );

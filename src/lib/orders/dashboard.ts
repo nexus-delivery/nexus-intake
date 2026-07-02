@@ -15,6 +15,11 @@ export type DashboardTrackPodStatus =
   | "Failed"
   | "Not required";
 
+export type DashboardRouteStatus =
+  | "Not Planned"
+  | "Route in Planning"
+  | "Route Confirmed";
+
 export type DashboardRow = {
   id: string;
   companyId: string;
@@ -44,6 +49,14 @@ export type DashboardRow = {
   rawLifecycleStatus: string;
   requestedCollectionDate: string;
   requestedDeliveryDate: string;
+  routeStatus: DashboardRouteStatus;
+  routeDate: string;
+  etaWindow: string;
+  driverName: string;
+  vehicleName: string;
+  collectionStatus: string;
+  deliveryStatus: string;
+  podAvailable: boolean;
 };
 
 export type DashboardDetail = {
@@ -95,6 +108,11 @@ export type DashboardDetail = {
     depot: string;
     warehouse: string;
     routeName: string;
+    routeStatus: DashboardRouteStatus;
+    routeDate: string;
+    etaWindow: string;
+    driverName: string;
+    vehicleName: string;
     shipper: string;
     serviceType: string;
     notes: string;
@@ -244,6 +262,18 @@ function deriveTrackPodPushStatus(params: {
   return "Pending";
 }
 
+function deriveRouteStatus(job: DraftJobRow): DashboardRouteStatus {
+  const explicit = asString(job.route_status).trim().toLowerCase();
+  if (explicit === "route_confirmed") return "Route Confirmed";
+  if (explicit === "route_in_planning") return "Route in Planning";
+
+  if (asString(job.route_date).trim() || asString(job.eta_window).trim()) {
+    return "Route in Planning";
+  }
+
+  return "Not Planned";
+}
+
 export function buildFieldMap(job: DraftJobRow): Record<string, string> {
   const metadata = asRecord(job.integration_metadata);
   const mapping = asRecord(metadata.trackPodMapping);
@@ -313,6 +343,8 @@ export function toDashboardRow(job: DraftJobRow): DashboardRow {
     hasTrackPodError,
   });
 
+  const routeStatus = deriveRouteStatus(job);
+
   return {
     id,
     companyId: asString(job.company_id),
@@ -344,6 +376,14 @@ export function toDashboardRow(job: DraftJobRow): DashboardRow {
     rawLifecycleStatus: lifecycleStatus,
     requestedCollectionDate: asString(job.requested_collection_date),
     requestedDeliveryDate: asString(job.requested_delivery_date),
+    routeStatus,
+    routeDate: asString(job.route_date),
+    etaWindow: asString(job.eta_window),
+    driverName: asString(job.driver_name),
+    vehicleName: asString(job.vehicle_name),
+    collectionStatus: asString(job.collection_status),
+    deliveryStatus: asString(job.delivery_status) || currentStatus,
+    podAvailable: job.pod_available === true,
   };
 }
 
@@ -449,6 +489,11 @@ export function toDashboardDetail(job: DraftJobRow): DashboardDetail {
       depot: asString(job.depot) || pickValue(fields, "depot"),
       warehouse: asString(job.warehouse) || pickValue(fields, "warehouse"),
       routeName: asString(job.route_name) || pickValue(fields, "route"),
+      routeStatus: row.routeStatus,
+      routeDate: row.routeDate,
+      etaWindow: row.etaWindow,
+      driverName: row.driverName,
+      vehicleName: row.vehicleName,
       shipper: asString(job.shipper) || pickValue(fields, "shipper", "merchant_shipper"),
       serviceType: asString(job.service_type) || pickValue(fields, "service_type"),
       notes: asString(job.notes) || pickValue(fields, "notes"),

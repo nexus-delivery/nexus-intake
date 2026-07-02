@@ -137,6 +137,14 @@ export async function GET(
           "depot",
           "warehouse",
           "route_name",
+          "route_status",
+          "route_date",
+          "eta_window",
+          "driver_name",
+          "vehicle_name",
+          "collection_status",
+          "delivery_status",
+          "pod_available",
           "shipper",
           "service_type",
           "notes",
@@ -161,11 +169,12 @@ export async function GET(
           "updated_at",
         ].join(", ")
       )
-      .eq("company_id", profile.company_id)
       .eq("id", id);
 
-    if (!admin) {
-      query = query.eq("created_by_user_id", user.id);
+    if (admin) {
+      query = query;
+    } else {
+      query = query.eq("company_id", profile.company_id);
     }
 
     const { data, error } = await query.maybeSingle<DraftJobDetailRow>();

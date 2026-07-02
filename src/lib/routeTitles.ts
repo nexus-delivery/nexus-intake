@@ -1,5 +1,5 @@
 export const ROUTE_TITLES: Record<string, string> = {
-  "/": "Choose it",
+  "/": "Dashboard",
   "/choose-it": "Choose it",
   "/create-it": "Create it",
   "/integrate-it": "Integrate it",
@@ -53,8 +53,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/reports": "Reports",
   "/settings": "Settings",
   "/support": "Support",
-  "/portal": "Workspace Dashboard",
-  "/portal/book-it": "Book Create-it",
+  "/portal": "Dashboard",
+  "/portal/book-it": "Create it",
   "/portal/create-it": "Create-it",
   "/portal/manage-it": "Manage-it",
   "/portal/orders": "Orders",

@@ -38,6 +38,14 @@ export type ProcessItJob = {
   pushCompletedAt: string | null;
   xeroInvoiceId: string | null;
   currentStatus: string | null;
+  routeStatus: string | null;
+  routeDate: string | null;
+  etaWindow: string | null;
+  driverName: string | null;
+  vehicleName: string | null;
+  collectionStatus: string | null;
+  deliveryStatus: string | null;
+  podAvailable: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -469,6 +477,12 @@ function DetailPanel({ job, onClose }: { job: ProcessItJob; onClose: () => void 
             <div className="grid grid-cols-2 gap-3">
               <DetailRow label="Lifecycle" value={job.lifecycleStatus ?? job.status} />
               <DetailRow label="Current" value={job.currentStatus ?? "—"} />
+              <DetailRow label="Route Status" value={job.routeStatus ?? "Not Planned"} />
+              <DetailRow label="Route Date" value={job.routeDate ?? "—"} />
+              <DetailRow label="ETA Window" value={job.etaWindow ?? "—"} />
+              <DetailRow label="Driver" value={job.driverName ?? "—"} />
+              <DetailRow label="Vehicle" value={job.vehicleName ?? "—"} />
+              <DetailRow label="POD Available" value={job.podAvailable ? "Yes" : "No"} />
               <DetailRow label="Push attempted" value={job.pushAttemptedAt ? new Date(job.pushAttemptedAt).toLocaleString() : "—"} />
               <DetailRow label="Push completed" value={job.pushCompletedAt ? new Date(job.pushCompletedAt).toLocaleString() : "—"} />
             </div>
@@ -822,6 +836,9 @@ export default function ProcessItQueue() {
                 {[
                   "Master Order",
                   "Merchant",
+                  "Route Status",
+                  "Route Date",
+                  "ETA Window",
                   "Collection",
                   "Delivery",
                   "Current Status",
@@ -875,6 +892,26 @@ export default function ProcessItQueue() {
                       <div className="max-w-[120px] truncate font-medium text-slate-700">
                         {job.merchantName || "—"}
                       </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                        job.routeStatus === "Route Confirmed"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : job.routeStatus === "Route in Planning"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {job.routeStatus ?? "Not Planned"}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {job.routeDate || "—"}
+                    </td>
+
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {job.etaWindow || "—"}
                     </td>
 
                     {/* Collection */}
