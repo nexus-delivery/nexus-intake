@@ -62,15 +62,6 @@ function validate(order: StandardOrder): string | null {
   return null;
 }
 
-function normalizeSalesChannelCode(value: string): string {
-  return value
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 64);
-}
-
 async function resolveSalesChannelId(args: {
   privilegedClient: ReturnType<typeof createPrivilegedClient>;
   companyId: string;
@@ -109,7 +100,6 @@ async function resolveSalesChannelId(args: {
     .insert({
       company_id: companyId,
       name: normalizedName,
-      code: normalizeSalesChannelCode(normalizedName) || "SALES_CHANNEL",
       active: true,
     })
     .select("id, name")
@@ -240,9 +230,11 @@ export async function POST(request: NextRequest) {
         delivery_longitude: order.delivery.longitude || null,
         route_distance_km: order.operations.distanceKm || null,
         journey_time_minutes: order.operations.journeyMinutes || null,
-        lifecycle_status: order.operations.readyForTrackPod
-          ? "READY_FOR_TRACKPOD"
-          : "REVIEW_REQUIRED",
+        lifecycle_status: (
+          order.collection.addressLine1.trim() &&
+          order.delivery.addressLine1.trim() &&
+          order.goods.some((g) => g.description.trim())
+        ) ? "READY_FOR_TRACKPOD" : "REVIEW_REQUIRED",
       })
       .select("id")
       .single();
@@ -374,13 +366,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const lifecycleStatus = (
+      order.collection.addressLine1.trim() &&
+      order.delivery.addressLine1.trim() &&
+      order.goods.some((g) => g.description.trim())
+    ) ? "READY_FOR_TRACKPOD" : "REVIEW_REQUIRED";
+
     return NextResponse.json({
       success: true,
       jobId,
       jobReference,
-      lifecycleStatus: order.operations.readyForTrackPod
-        ? "READY_FOR_TRACKPOD"
-        : "REVIEW_REQUIRED",
+      lifecycleStatus,
     });
   } catch (error) {
     console.error("[intake/orders] unhandled error", error);

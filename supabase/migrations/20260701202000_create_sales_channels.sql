@@ -1,9 +1,10 @@
 -- Sales channels for reporting and booking autocomplete
+-- Columns: id, company_id, name, active, created_at
+-- code is added by a subsequent migration once the live table is confirmed stable
 CREATE TABLE IF NOT EXISTS sales_channels (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL,
   name TEXT NOT NULL,
-  code TEXT NOT NULL,
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

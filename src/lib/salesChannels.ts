@@ -2,7 +2,6 @@ export type SalesChannelRecord = {
   id: string;
   company_id: string;
   name: string;
-  code: string | null;
   active: boolean;
   created_at: string;
 };

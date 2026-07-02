@@ -130,6 +130,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         error?: string;
         success?: boolean;
         jobReference?: string;
+        lifecycleStatus?: string;
       };
 
       if (!response.ok || !payload.success) {
@@ -138,8 +139,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         return;
       }
 
+      const ref = payload.jobReference ?? "reference pending";
+      const status = payload.lifecycleStatus === "READY_FOR_TRACKPOD"
+        ? " — ready for operations"
+        : "";
       setSubmitState("success");
-      setSubmitMessage(`Order created: ${payload.jobReference ?? "reference pending"}`);
+      setSubmitMessage(`Order created: ${ref}${status}`);
       setOrder(createEmptyStandardOrder(sourceSystem));
       setSalesChannelId("");
       setSalesChannelName("");
