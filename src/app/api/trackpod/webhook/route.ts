@@ -28,6 +28,8 @@ type RouteSyncPayload = {
   routeStatus: string;
   routeDate: string;
   etaWindow: string;
+  etaFrom: string;
+  etaTo: string;
   driverName: string;
   vehicleName: string;
   collectionStatus: string;
@@ -118,6 +120,22 @@ function parseRouteSync(event: TrackPodEvent): RouteSyncPayload {
     "TimeWindow",
   ]);
 
+  const etaFrom = firstText(payload, [
+    "etaFrom",
+    "eta_from",
+    "ETAFrom",
+    "windowStart",
+    "WindowStart",
+  ]);
+
+  const etaTo = firstText(payload, [
+    "etaTo",
+    "eta_to",
+    "ETATo",
+    "windowEnd",
+    "WindowEnd",
+  ]);
+
   const driverName = firstText(payload, [
     "driverName",
     "driver_name",
@@ -167,6 +185,8 @@ function parseRouteSync(event: TrackPodEvent): RouteSyncPayload {
     routeStatus: toRouteStatus(explicitRouteStatus || deliveryStatus, event.normalizedType),
     routeDate,
     etaWindow,
+    etaFrom,
+    etaTo,
     driverName,
     vehicleName,
     collectionStatus,
@@ -380,7 +400,7 @@ export async function POST(request: NextRequest) {
 
     const { data: job, error: jobError } = await client
       .from("draft_jobs")
-      .select("id, company_id, integration_metadata, trackpod_delivery_order_id, trackpod_collection_order_id, document_url, route_status, route_date, eta_window, driver_name, vehicle_name, collection_status, delivery_status, pod_available")
+      .select("id, company_id, integration_metadata, trackpod_delivery_order_id, trackpod_collection_order_id, document_url, route_status, route_date, eta_window, eta_from, eta_to, driver_name, vehicle_name, collection_status, delivery_status, pod_available")
       .or(
         [
           `job_reference.eq.${ref}`,
@@ -413,6 +433,8 @@ export async function POST(request: NextRequest) {
         (routeSync.routeDate || routeSync.etaWindow ? "Route in Planning" : "Not Planned"),
       route_date: routeSync.routeDate || text(job.route_date) || null,
       eta_window: routeSync.etaWindow || text(job.eta_window) || null,
+      eta_from: routeSync.etaFrom || text(job.eta_from) || null,
+      eta_to: routeSync.etaTo || text(job.eta_to) || null,
       driver_name: routeSync.driverName || text(job.driver_name) || null,
       vehicle_name: routeSync.vehicleName || text(job.vehicle_name) || null,
       collection_status: routeSync.collectionStatus || text(job.collection_status) || null,
