@@ -58,10 +58,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
     return (
       order.collection.addressLine1.trim().length > 0 &&
       order.delivery.addressLine1.trim().length > 0 &&
-      order.goods.some((item) => item.description.trim().length > 0) &&
-      salesChannelName.trim().length > 0
+      order.goods.some((item) => item.description.trim().length > 0)
     );
-  }, [order, salesChannelName]);
+  }, [order]);
 
   const getAuthHeaders = async () => {
     if (!supabase) {
@@ -83,7 +82,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
     event.preventDefault();
     if (!canSubmit) {
       setSubmitState("error");
-      setSubmitMessage("Complete collection and delivery addresses, sales channel, and at least one goods description.");
+      setSubmitMessage("Complete collection and delivery addresses, and at least one goods description.");
       return;
     }
 
