@@ -1,9 +1,14 @@
 import Link from "next/link";
 
 const moduleCards = [
-  { title: "Book Create-it", href: "/portal/book-it", detail: "Create merchant bookings with customer defaults and intake controls." },
+  { title: "Create-it", href: "/portal/create-it", detail: "Merchant order workspace for Deliver it, Return it, and Request it." },
+  { title: "Booking Forms", href: "/portal/booking-forms", detail: "The three main merchant booking types built on one intake service." },
   { title: "Orders", href: "/portal/orders", detail: "Live order lifecycle with Track-POD synchronized timeline visibility." },
   { title: "Customers", href: "/portal/customers", detail: "Manage customers, contacts, defaults, pricing profiles, and invites." },
+  { title: "Collection Addresses", href: "/portal/addresses", detail: "Save and reuse merchant depot and pickup addresses." },
+  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepared import path for CTNI and THDG." },
+  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon." },
+  { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon." },
   { title: "Integrate-it", href: "/portal/integrate-it", detail: "Manage provider connections and tenant-scoped integration configuration." },
   { title: "Documents", href: "/portal/documents", detail: "Upload and manage operational/customer documents." },
   { title: "Reports", href: "/portal/reports", detail: "Company-scoped reporting and exports." },

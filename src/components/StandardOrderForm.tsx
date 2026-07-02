@@ -22,6 +22,7 @@ type Props = {
   sourceSystem: IntakeSourceSystem;
   title: string;
   subtitle: string;
+  bookingVariant?: "standard" | "deliver" | "return" | "request";
 };
 
 type SubmitState = "idle" | "submitting" | "success" | "error";
@@ -36,10 +37,10 @@ function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partia
   return items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...next } : item));
 }
 
-export default function StandardOrderForm({ sourceSystem, title, subtitle }: Props) {
+export default function StandardOrderForm({ sourceSystem, title, subtitle, bookingVariant = "standard" }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
   const [profileCompanyId, setProfileCompanyId] = useState("");
-  const [collectionMode, setCollectionMode] = useState<CollectionMode>("new_address");
+  const [collectionMode, setCollectionMode] = useState<CollectionMode>(bookingVariant === "deliver" ? "depot" : "new_address");
   const [defaultCollectionProfile, setDefaultCollectionProfile] = useState<DefaultCollectionProfile | null>(null);
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
@@ -124,13 +125,22 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
 
       if (payload.profile) {
         setDefaultCollectionProfile(payload.profile);
-        if (payload.suggestedDepotMode) {
+        if (payload.suggestedDepotMode || bookingVariant === "deliver") {
           setCollectionMode("depot");
           setOrder((prev) => ({
             ...prev,
             collectionMode: "depot",
             collection: {
               ...prev.collection,
+              ...profileToStop(payload.profile!),
+            },
+          }));
+        }
+        if (bookingVariant === "return") {
+          setOrder((prev) => ({
+            ...prev,
+            delivery: {
+              ...prev.delivery,
               ...profileToStop(payload.profile!),
             },
           }));
@@ -143,23 +153,47 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bookingVariant]);
 
   const canSubmit = useMemo(() => {
     const hasCollection =
-      collectionMode === "depot"
+      (bookingVariant === "deliver" || collectionMode === "depot")
         ? Boolean(
             defaultCollectionProfile?.addressLine1.trim() &&
             defaultCollectionProfile?.postcode.trim()
           )
         : order.collection.addressLine1.trim().length > 0;
 
+    const hasDelivery =
+      bookingVariant === "return"
+        ? Boolean(
+            defaultCollectionProfile?.addressLine1.trim() &&
+            defaultCollectionProfile?.postcode.trim()
+          )
+        : order.delivery.addressLine1.trim().length > 0;
+
     return (
       hasCollection &&
-      order.delivery.addressLine1.trim().length > 0 &&
+      hasDelivery &&
       order.goods.some((item) => item.description.trim().length > 0)
     );
-  }, [collectionMode, defaultCollectionProfile, order]);
+  }, [bookingVariant, collectionMode, defaultCollectionProfile, order]);
+
+  const resolvedCollection =
+    (bookingVariant === "deliver" || collectionMode === "depot") && defaultCollectionProfile
+      ? {
+          ...order.collection,
+          ...profileToStop(defaultCollectionProfile),
+        }
+      : order.collection;
+
+  const resolvedDelivery =
+    bookingVariant === "return" && defaultCollectionProfile
+      ? {
+          ...order.delivery,
+          ...profileToStop(defaultCollectionProfile),
+        }
+      : order.delivery;
 
   const getAuthHeaders = async () => {
     if (!supabase) {
@@ -221,13 +255,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
           order: {
             ...order,
             collectionMode,
-            collection:
-              collectionMode === "depot" && defaultCollectionProfile
-                ? {
-                    ...order.collection,
-                    ...profileToStop(defaultCollectionProfile),
-                  }
-                : order.collection,
+            collection: resolvedCollection,
+            delivery: resolvedDelivery,
             salesChannel: resolvedSalesChannelName,
           },
           company_id: effectiveCompanyId,
@@ -257,18 +286,26 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
       setSubmitMessage(`Order created: ${ref}${status}`);
       const empty = createEmptyStandardOrder(sourceSystem);
       setOrder(
-        collectionMode === "depot" && defaultCollectionProfile
+        (bookingVariant === "deliver" || collectionMode === "depot") && defaultCollectionProfile
           ? {
               ...empty,
-              collectionMode,
+              collectionMode: "depot",
               collection: {
                 ...empty.collection,
                 ...profileToStop(defaultCollectionProfile),
               },
             }
-          : empty
+          : bookingVariant === "return" && defaultCollectionProfile
+            ? {
+                ...empty,
+                delivery: {
+                  ...empty.delivery,
+                  ...profileToStop(defaultCollectionProfile),
+                },
+              }
+            : empty
       );
-          setCustomerId("");
+      setCustomerId("");
       setSalesChannelId("");
       setSalesChannelName("");
     } catch (error) {
@@ -289,11 +326,18 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Booking Mode</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Choose whether this booking collects from your saved depot profile or a one-off address.
+            {bookingVariant === "deliver"
+              ? "Deliver it uses your saved depot profile for collection."
+              : bookingVariant === "return"
+                ? "Return it uses your saved depot profile for delivery."
+                : bookingVariant === "request"
+                  ? "Request it is fully manual for unusual jobs and exceptions."
+                  : "Choose whether this booking collects from your saved depot profile or a one-off address."}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
+              disabled={bookingVariant !== "standard"}
               onClick={() => {
                 setCollectionMode("depot");
                 if (defaultCollectionProfile) {
@@ -320,6 +364,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             </button>
             <button
               type="button"
+              disabled={bookingVariant !== "standard"}
               onClick={() => {
                 setCollectionMode("new_address");
                 setOrder((prev) => ({ ...prev, collectionMode: "new_address" }));

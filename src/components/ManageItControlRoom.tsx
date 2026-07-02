@@ -461,6 +461,38 @@ export default function ManageItControlRoom({ sectionSlug }: { sectionSlug?: Man
         <StatCard label="Queue health" value="Stable" helper="2 alerts require review" />
       </div>
 
+      <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Merchant Management</p>
+            <h3 className="mt-2 text-2xl font-semibold text-slate-950">Switch / Impersonate Merchant</h3>
+            <p className="mt-1 text-sm text-slate-600">Jump into any merchant workspace using the existing company runtime override.</p>
+          </div>
+          <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+            {companies.length} merchants seeded
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {companies.map((company) => (
+            <button
+              key={company.id}
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.sessionStorage.setItem("nexus.runtimeCompanyId", company.id);
+                }
+                router.push(`/portal?companyId=${encodeURIComponent(company.id)}`);
+              }}
+              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-[#7C3AED]/40 hover:bg-white"
+            >
+              <p className="text-sm font-semibold text-slate-900">{company.name}</p>
+              <p className="mt-1 text-xs text-slate-500">{company.subscription} • {company.status}</p>
+              <p className="mt-3 text-xs font-semibold text-[#7C3AED]">Open merchant workspace →</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {actionMessage ? (
         <div className="rounded-[28px] border border-[#7C3AED]/20 bg-[#7C3AED]/5 px-5 py-4 text-sm text-slate-700 shadow-sm">
           {actionMessage}

@@ -88,6 +88,7 @@ VALUES
   ('amazon', 'commerce', 'Amazon', ARRAY['order_ingest'], 50),
   ('ebay', 'commerce', 'eBay', ARRAY['order_ingest'], 60),
   ('trackpod', 'operations', 'Track-POD', ARRAY['operational_execution'], 10),
+  ('circleloop', 'communications', 'CircleLoop', ARRAY['customer_communications'], 5),
   ('resend', 'communications', 'Resend', ARRAY['customer_notifications'], 10),
   ('twilio', 'communications', 'Twilio', ARRAY['customer_notifications'], 20),
   ('stripe', 'payments', 'Stripe', ARRAY['payment_collection'], 10),
