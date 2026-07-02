@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 type SendTrackingEmailRequest = {
   to?: string;
-  kind?: "collection" | "delivery" | "documents" | "pod";
+  kind?: "order_created";
   jobReference?: string;
-  collectionTrackingUrl?: string | null;
-  deliveryTrackingUrl?: string | null;
-  documentUrl?: string | null;
-  podUrl?: string | null;
+  customerName?: string;
 };
 
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -15,33 +12,11 @@ const resendFromEmail = process.env.RESEND_FROM_EMAIL ?? "noreply@nexus.delivery
 
 function buildEmailBody(payload: SendTrackingEmailRequest): { subject: string; html: string } {
   const ref = payload.jobReference ?? "NEXUS job";
-
-  const commonHeader = `<p>Hello,</p><p>Tracking update for <strong>${ref}</strong>.</p>`;
-
-  if (payload.kind === "collection") {
-    return {
-      subject: `Collection Tracking - ${ref}`,
-      html: `${commonHeader}<p>Collection tracking link:</p><p><a href="${payload.collectionTrackingUrl ?? "#"}">${payload.collectionTrackingUrl ?? ""}</a></p>`,
-    };
-  }
-
-  if (payload.kind === "delivery") {
-    return {
-      subject: `Delivery Tracking - ${ref}`,
-      html: `${commonHeader}<p>Delivery tracking link:</p><p><a href="${payload.deliveryTrackingUrl ?? "#"}">${payload.deliveryTrackingUrl ?? ""}</a></p>`,
-    };
-  }
-
-  if (payload.kind === "pod") {
-    return {
-      subject: `Proof Of Delivery - ${ref}`,
-      html: `${commonHeader}<p>Proof of Delivery link:</p><p><a href="${payload.podUrl ?? payload.deliveryTrackingUrl ?? "#"}">${payload.podUrl ?? payload.deliveryTrackingUrl ?? ""}</a></p>`,
-    };
-  }
+  const name = payload.customerName?.trim() || "Customer";
 
   return {
-    subject: `Document Links - ${ref}`,
-    html: `${commonHeader}<p>Document link:</p><p><a href="${payload.documentUrl ?? "#"}">${payload.documentUrl ?? ""}</a></p>`,
+    subject: `Order received - ${ref}`,
+    html: `<p>Hello ${name},</p><p>We have successfully received your order in NEXUS.</p><p><strong>Order reference:</strong> ${ref}</p><p>Further operational updates will follow from Track-POD.</p>`,
   };
 }
 
@@ -54,6 +29,12 @@ export async function POST(request: NextRequest) {
     const payload = (await request.json()) as SendTrackingEmailRequest;
     if (!payload.to) {
       return NextResponse.json({ error: "Recipient email is required" }, { status: 400 });
+    }
+    if (payload.kind && payload.kind !== "order_created") {
+      return NextResponse.json(
+        { error: "NEXUS does not send operational notifications. Only order_created is supported." },
+        { status: 400 }
+      );
     }
 
     const { subject, html } = buildEmailBody(payload);

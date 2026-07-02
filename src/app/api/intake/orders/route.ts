@@ -21,6 +21,7 @@ import {
   toIntakeOrderInput,
 } from "@/lib/intake/standardOrder";
 import { processIntake } from "@/lib/intake/intakeService";
+import { notifyOrderCreated } from "@/lib/notify/orderCreated";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServerKey =
@@ -108,6 +109,18 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    // One NEXUS customer confirmation only: order successfully created.
+    // Operational updates are delegated to Track-POD.
+    await notifyOrderCreated({
+      client: privilegedClient,
+      draftJobId: result.jobId,
+      companyId,
+      orderReference: result.jobReference,
+      customerName: order.delivery.contact || order.delivery.company || order.customer,
+      customerEmail: order.delivery.email || order.collection.email,
+      customerPhone: order.delivery.phone || order.collection.phone,
+    });
 
     return NextResponse.json({
       success: true,

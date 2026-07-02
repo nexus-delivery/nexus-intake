@@ -2,33 +2,100 @@
 
 import AppShell from "@/components/AppShell";
 import Link from "next/link";
-import { useState } from "react";
-
-const mockProfile = {
-  companyName: "Doorway Group Ltd",
-  tradingName: "Doorway Interiors",
-  primaryContact: "Sarah Mitchell",
-  billingContact: "James Harrow",
-  email: "accounts@doorwaygroup.co.uk",
-  phone: "020 7946 0823",
-  address: "14 Commerce Way, London, EC1A 2BB",
-  defaultCollectionAddress: "14 Commerce Way, London, EC1A 2BB",
-  brandColour: "#7C3AED",
-  notifications: {
-    deliveryConfirmation: true,
-    collectionReminders: true,
-    podAvailable: true,
-    weeklyDigest: false,
-  },
-};
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  toEmptyDefaultCollectionProfile,
+  type DefaultCollectionProfile,
+} from "@/lib/defaultCollectionProfiles";
 
 export default function CompanyProfilePage() {
+  const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [profile, setProfile] = useState<DefaultCollectionProfile>(
+    toEmptyDefaultCollectionProfile("")
+  );
 
-  function handleSave(e: React.FormEvent) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        if (!supabase) return;
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+
+        const response = await fetch("/api/reference/default-collection-profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          companyName?: string;
+          profile?: DefaultCollectionProfile | null;
+          error?: string;
+        };
+
+        if (!response.ok) {
+          if (!cancelled) setError(payload.error ?? "Failed to load profile");
+          return;
+        }
+
+        if (cancelled) return;
+        setCompanyName(payload.companyName ?? "");
+        setProfile(payload.profile ?? toEmptyDefaultCollectionProfile(""));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setError("");
+
+    try {
+      if (!supabase) throw new Error("Supabase is not configured");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Please sign in again");
+
+      const response = await fetch("/api/reference/default-collection-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profile),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        profile?: DefaultCollectionProfile;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.success || !payload.profile) {
+        throw new Error(payload.error ?? "Save failed");
+      }
+
+      setProfile(payload.profile);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    }
   }
 
   return (
@@ -64,47 +131,36 @@ export default function CompanyProfilePage() {
         </div>
 
         <form onSubmit={handleSave} className="space-y-8">
-          {/* Company Details */}
           <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-5 text-base font-semibold text-[#111827]">Company details</h2>
+            <h2 className="mb-5 text-base font-semibold text-[#111827]">Default Collection Profile</h2>
+            {loading ? (
+              <p className="text-sm text-slate-500">Loading profile...</p>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">Company name</label>
                 <input
                   type="text"
-                  defaultValue={mockProfile.companyName}
+                  value={profile.companyName || companyName}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, companyName: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Trading name</label>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Profile name</label>
                 <input
                   type="text"
-                  defaultValue={mockProfile.tradingName}
+                  value={profile.profileName}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, profileName: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Primary contact</label>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Contact name</label>
                 <input
                   type="text"
-                  defaultValue={mockProfile.primaryContact}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Billing contact</label>
-                <input
-                  type="text"
-                  defaultValue={mockProfile.billingContact}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
-                <input
-                  type="email"
-                  defaultValue={mockProfile.email}
+                  value={profile.contactName}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, contactName: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
               </div>
@@ -112,117 +168,65 @@ export default function CompanyProfilePage() {
                 <label className="mb-1.5 block text-xs font-medium text-slate-600">Phone</label>
                 <input
                   type="tel"
-                  defaultValue={mockProfile.phone}
+                  value={profile.phone}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
+                <input
+                  type="email"
+                  value={profile.email}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Postcode</label>
+                <input
+                  type="text"
+                  value={profile.postcode}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, postcode: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Address</label>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Address line 1</label>
                 <input
                   type="text"
-                  defaultValue={mockProfile.address}
+                  value={profile.addressLine1}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, addressLine1: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Address line 2</label>
+                <input
+                  type="text"
+                  value={profile.addressLine2}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, addressLine2: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Address line 3</label>
+                <input
+                  type="text"
+                  value={profile.addressLine3}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, addressLine3: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Default collection address</label>
-                <input
-                  type="text"
-                  defaultValue={mockProfile.defaultCollectionAddress}
+                <label className="mb-1.5 block text-xs font-medium text-slate-600">Collection instructions</label>
+                <textarea
+                  rows={3}
+                  value={profile.instructions}
+                  onChange={(e) => setProfile((prev) => ({ ...prev, instructions: e.target.value }))}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
                 />
-                <p className="mt-1.5 text-xs text-slate-400">
-                  Used as the default pickup location when creating new deliveries.
-                </p>
               </div>
-            </div>
-          </section>
-
-          {/* Branding */}
-          <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-5 text-base font-semibold text-[#111827]">Branding</h2>
-            <div className="grid gap-6 sm:grid-cols-2">
-              {/* Logo upload */}
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Logo</label>
-                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition hover:border-[#7C3AED]/40 hover:bg-[#7C3AED]/5 cursor-pointer">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-200 text-slate-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-700">Upload your logo</p>
-                    <p className="text-xs text-slate-400">PNG, SVG or JPG — max 2 MB</p>
-                  </div>
-                  <span className="rounded-xl border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50">
-                    Choose file
-                  </span>
-                </div>
-              </div>
-
-              {/* Brand colour */}
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Brand colour</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    defaultValue={mockProfile.brandColour}
-                    className="h-12 w-12 cursor-pointer rounded-xl border border-slate-200 bg-transparent p-1"
-                  />
-                  <input
-                    type="text"
-                    defaultValue={mockProfile.brandColour}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-[#111827] focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
-                  />
-                </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  Used on branded PODs, delivery documents and customer communications.
-                </p>
-                <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                  <p className="text-xs font-medium text-slate-500 mb-2">Preview</p>
-                  <div
-                    className="h-8 w-full rounded-lg"
-                    style={{ backgroundColor: mockProfile.brandColour }}
-                  />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Notification preferences */}
-          <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-1 text-base font-semibold text-[#111827]">Notification preferences</h2>
-            <p className="mb-5 text-xs text-slate-400">Control which notifications your team receives.</p>
-            <div className="space-y-3">
-              {(
-                [
-                  { key: "deliveryConfirmation", label: "Delivery confirmation", desc: "When a delivery is marked as complete" },
-                  { key: "collectionReminders", label: "Collection reminders", desc: "Reminder before scheduled collection windows" },
-                  { key: "podAvailable", label: "POD available", desc: "When a signed proof of delivery is ready" },
-                  { key: "weeklyDigest", label: "Weekly digest", desc: "Summary of activity sent every Monday morning" },
-                ] as { key: keyof typeof mockProfile.notifications; label: string; desc: string }[]
-              ).map((pref) => (
-                <label
-                  key={pref.key}
-                  className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 transition hover:border-[#7C3AED]/20 hover:bg-[#7C3AED]/5"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-[#111827]">{pref.label}</p>
-                    <p className="text-xs text-slate-400">{pref.desc}</p>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      defaultChecked={mockProfile.notifications[pref.key]}
-                      className="peer sr-only"
-                    />
-                    <div className="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-[#7C3AED] after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5" />
-                  </div>
-                </label>
-              ))}
             </div>
           </section>
 
@@ -242,9 +246,7 @@ export default function CompanyProfilePage() {
                 Saved
               </span>
             )}
-            <p className="text-xs text-slate-400">
-              Placeholder — backend integration pending.
-            </p>
+            {error ? <p className="text-xs text-red-600">{error}</p> : null}
           </div>
         </form>
       </div>

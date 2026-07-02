@@ -78,6 +78,7 @@ export type StandardOrder = {
   orderReference: string;
   externalOrderId: string;
   sourceSystem: IntakeSourceSystem;
+  collectionMode: "depot" | "new_address";
   salesChannel: string;
   merchant: string;
   customer: string;
@@ -116,6 +117,7 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
     orderReference: "",
     externalOrderId: "",
     sourceSystem,
+    collectionMode: "new_address",
     salesChannel: "",
     merchant: "",
     customer: "",
@@ -211,6 +213,8 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
     orderReference: toText(source.orderReference),
     externalOrderId: toText(source.externalOrderId),
     sourceSystem: empty.sourceSystem,
+    collectionMode:
+      toText(source.collectionMode) === "depot" ? "depot" : "new_address",
     salesChannel: toText(source.salesChannel),
     merchant: toText(source.merchant),
     customer: toText(source.customer),
@@ -332,6 +336,7 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     order_reference: order.orderReference,
     external_order_id: order.externalOrderId,
     source_system: order.sourceSystem,
+    collection_mode: order.collectionMode,
     sales_channel: order.salesChannel,
     merchant_name: order.merchant,
     customer: order.customer,
@@ -407,6 +412,7 @@ export function toIntakeOrderInput(
   // Import type inline to avoid circular dependency; intakeService is the source of truth
   return {
     sourceSystem: order.sourceSystem,
+    collectionMode: order.collectionMode,
     companyId: args.companyId,
     createdByUserId: args.createdByUserId ?? null,
     salesChannelId: args.salesChannelId ?? null,

@@ -320,6 +320,7 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
     const standardOrder: StandardOrder = {
       ...createEmptyStandardOrder(sourceSystem),
       orderReference,
+      collectionMode: "new_address",
       merchant: "Doorway Group LTD",
       salesChannel: resolvedSalesChannelName,
       sourceSystem,

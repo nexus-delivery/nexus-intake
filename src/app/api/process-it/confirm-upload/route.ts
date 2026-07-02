@@ -45,6 +45,23 @@ function generateRef(id: string): string {
   return `NEX-${date}-${suffix}`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function preferIncoming(
+  incoming: Record<string, string | null>,
+  existing: Record<string, string | null>,
+  key: string
+): string | null {
+  const incomingValue = clean(incoming[key]);
+  if (incomingValue) return incomingValue;
+  const existingValue = clean(existing[key]);
+  return existingValue || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const accessToken = parseBearerToken(request);
@@ -111,13 +128,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const existingMeta =
-      draftJob.integration_metadata && typeof draftJob.integration_metadata === "object"
-        ? (draftJob.integration_metadata as Record<string, unknown>)
-        : {};
+    const existingMeta = asRecord(draftJob.integration_metadata);
+    const existingTrackPodMapping = asRecord(existingMeta.trackPodMapping) as Record<string, string | null>;
+
+    const existingCollectionMode =
+      typeof existingMeta.collectionMode === "string" ? existingMeta.collectionMode : null;
+
+    const resolvedCollectionMode =
+      clean(existingCollectionMode) ||
+      clean(mapping.collection_mode) ||
+      clean(existingTrackPodMapping.collection_mode) ||
+      "new_address";
+
+    const mergedMapping: Record<string, string | null> = {
+      ...existingTrackPodMapping,
+      ...mapping,
+      collection_mode: resolvedCollectionMode,
+    };
+
+    if (resolvedCollectionMode === "depot") {
+      const protectedCollectionKeys = [
+        "collection_name",
+        "merchant_shipper",
+        "shipper_name",
+        "collection_address",
+        "collection_phone",
+        "collection_email",
+        "colllection_email",
+        "collection_date",
+        "collection_time",
+        "collection_instructions",
+        "collection_latitude",
+        "collection_longitude",
+      ];
+
+      for (const key of protectedCollectionKeys) {
+        const existingValue = clean(existingTrackPodMapping[key]);
+        if (existingValue) {
+          mergedMapping[key] = existingValue;
+        }
+      }
+    }
 
     const jobReference =
-      clean(mapping.order_reference) ||
+      clean(mergedMapping.order_reference) ||
       clean(draftJob.job_reference as string | null) ||
       generateRef(draftJob.id as string);
 
@@ -135,9 +189,31 @@ export async function POST(request: NextRequest) {
         lifecycle_status: "READY_FOR_TRACKPOD",
         current_status: "READY_FOR_TRACKPOD",
         job_reference: jobReference,
+        collection_company: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_name"),
+        collection_address_line1: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_address"),
+        collection_phone: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_phone"),
+        collection_email: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_email"),
+        collection_instructions: preferIncoming(
+          mergedMapping,
+          existingTrackPodMapping,
+          "collection_instructions"
+        ),
+        delivery_company: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_name"),
+        delivery_address_line1: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_address"),
+        delivery_phone: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_phone"),
+        delivery_email: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_email"),
+        delivery_instructions: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_notes"),
+        requested_collection_date: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_date"),
+        requested_collection_time: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_time"),
+        requested_delivery_date: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_date"),
+        requested_delivery_time: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_time"),
+        goods_description: preferIncoming(mergedMapping, existingTrackPodMapping, "goods_description"),
+        external_order_id: preferIncoming(mergedMapping, existingTrackPodMapping, "external_order_id"),
+        notes: preferIncoming(mergedMapping, existingTrackPodMapping, "delivery_notes"),
         integration_metadata: {
           ...existingMeta,
-          trackPodMapping: mapping,
+          collectionMode: resolvedCollectionMode,
+          trackPodMapping: mergedMapping,
           updatedAt: now,
         },
         last_sync: now,
@@ -152,7 +228,7 @@ export async function POST(request: NextRequest) {
     console.info("[confirm-upload] saved-trackpod-mapping", {
       draft_job_id: draftJob.id,
       document_id: body.documentId,
-      saved_fields: mapping,
+      saved_fields: mergedMapping,
     });
 
     return NextResponse.json({

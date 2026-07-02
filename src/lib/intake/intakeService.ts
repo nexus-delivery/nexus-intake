@@ -87,6 +87,7 @@ export type IntakeOperations = {
 export type IntakeOrderInput = {
   // Source context
   sourceSystem: IntakeSourceSystem;
+  collectionMode?: "depot" | "new_address";
   companyId: string;
   createdByUserId?: string | null;
   salesChannelId?: string | null;
@@ -251,6 +252,7 @@ function buildTrackPodMapping(input: IntakeOrderInput, ref: string): Record<stri
     order_reference: ref,
     external_order_id: input.externalOrderId ?? "",
     source_system: input.sourceSystem,
+    collection_mode: input.collectionMode ?? "new_address",
     sales_channel_name: input.salesChannelName ?? "",
     customer: input.customer ?? "",
     priority: input.priority ?? "Normal",
@@ -469,6 +471,7 @@ export async function processIntake(
         integration_metadata: {
           source: "nexus_intake_v2",
           sourceSystem: input.sourceSystem,
+          collectionMode: input.collectionMode ?? "new_address",
           trackPodMapping,
           goods: input.goods,
           commercial: input.commercial ?? {},

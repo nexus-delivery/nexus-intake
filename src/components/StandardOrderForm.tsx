@@ -10,6 +10,11 @@ import {
 import { fetchCurrentProfile, supabase } from "@/lib/supabaseClient";
 import { resolveSalesChannel } from "@/lib/salesChannels";
 import SalesChannelField from "@/components/SalesChannelField";
+import {
+  profileToStop,
+  type CollectionMode,
+  type DefaultCollectionProfile,
+} from "@/lib/defaultCollectionProfiles";
 
 type Props = {
   sourceSystem: IntakeSourceSystem;
@@ -32,6 +37,8 @@ function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partia
 export default function StandardOrderForm({ sourceSystem, title, subtitle }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
   const [profileCompanyId, setProfileCompanyId] = useState("");
+  const [collectionMode, setCollectionMode] = useState<CollectionMode>("new_address");
+  const [defaultCollectionProfile, setDefaultCollectionProfile] = useState<DefaultCollectionProfile | null>(null);
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
@@ -54,13 +61,67 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDefaultCollectionProfile() {
+      if (!supabase) return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const response = await fetch("/api/reference/default-collection-profile", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) return;
+      const payload = (await response.json().catch(() => ({}))) as {
+        profile?: DefaultCollectionProfile | null;
+        suggestedDepotMode?: boolean;
+      };
+
+      if (cancelled) return;
+
+      if (payload.profile) {
+        setDefaultCollectionProfile(payload.profile);
+        if (payload.suggestedDepotMode) {
+          setCollectionMode("depot");
+          setOrder((prev) => ({
+            ...prev,
+            collectionMode: "depot",
+            collection: {
+              ...prev.collection,
+              ...profileToStop(payload.profile!),
+            },
+          }));
+        }
+      }
+    }
+
+    void loadDefaultCollectionProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const canSubmit = useMemo(() => {
+    const hasCollection =
+      collectionMode === "depot"
+        ? Boolean(
+            defaultCollectionProfile?.addressLine1.trim() &&
+            defaultCollectionProfile?.postcode.trim()
+          )
+        : order.collection.addressLine1.trim().length > 0;
+
     return (
-      order.collection.addressLine1.trim().length > 0 &&
+      hasCollection &&
       order.delivery.addressLine1.trim().length > 0 &&
       order.goods.some((item) => item.description.trim().length > 0)
     );
-  }, [order]);
+  }, [collectionMode, defaultCollectionProfile, order]);
 
   const getAuthHeaders = async () => {
     if (!supabase) {
@@ -119,7 +180,18 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
-          order: { ...order, salesChannel: resolvedSalesChannelName },
+          order: {
+            ...order,
+            collectionMode,
+            collection:
+              collectionMode === "depot" && defaultCollectionProfile
+                ? {
+                    ...order.collection,
+                    ...profileToStop(defaultCollectionProfile),
+                  }
+                : order.collection,
+            salesChannel: resolvedSalesChannelName,
+          },
           company_id: effectiveCompanyId,
           sales_channel_id: resolvedSalesChannelId || null,
           sales_channel_name: resolvedSalesChannelName || null,
@@ -144,7 +216,19 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         : "";
       setSubmitState("success");
       setSubmitMessage(`Order created: ${ref}${status}`);
-      setOrder(createEmptyStandardOrder(sourceSystem));
+      const empty = createEmptyStandardOrder(sourceSystem);
+      setOrder(
+        collectionMode === "depot" && defaultCollectionProfile
+          ? {
+              ...empty,
+              collectionMode,
+              collection: {
+                ...empty.collection,
+                ...profileToStop(defaultCollectionProfile),
+              },
+            }
+          : empty
+      );
       setSalesChannelId("");
       setSalesChannelName("");
     } catch (error) {
@@ -162,6 +246,82 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <section className={sectionClass}>
+          <h2 className="text-base font-semibold text-slate-900">Booking Mode</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Choose whether this booking collects from your saved depot profile or a one-off address.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCollectionMode("depot");
+                if (defaultCollectionProfile) {
+                  setOrder((prev) => ({
+                    ...prev,
+                    collectionMode: "depot",
+                    collection: {
+                      ...prev.collection,
+                      ...profileToStop(defaultCollectionProfile),
+                    },
+                  }));
+                }
+              }}
+              className={`rounded-xl border px-4 py-3 text-left text-sm ${
+                collectionMode === "depot"
+                  ? "border-[#7C3AED] bg-violet-50 text-violet-800"
+                  : "border-slate-200 bg-white text-slate-700"
+              }`}
+            >
+              <p className="font-semibold">Book it from Depot</p>
+              <p className="mt-1 text-xs opacity-80">
+                Uses saved collection profile and ignores OCR/manual collection replacement.
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCollectionMode("new_address");
+                setOrder((prev) => ({ ...prev, collectionMode: "new_address" }));
+              }}
+              className={`rounded-xl border px-4 py-3 text-left text-sm ${
+                collectionMode === "new_address"
+                  ? "border-[#7C3AED] bg-violet-50 text-violet-800"
+                  : "border-slate-200 bg-white text-slate-700"
+              }`}
+            >
+              <p className="font-semibold">Book it from New Address</p>
+              <p className="mt-1 text-xs opacity-80">
+                Enter collection details manually for supplier collections, returns, and one-offs.
+              </p>
+            </button>
+          </div>
+
+          {collectionMode === "depot" ? (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              {defaultCollectionProfile ? (
+                <>
+                  <p className="font-semibold text-slate-900">Saved depot profile</p>
+                  <p className="mt-1">{defaultCollectionProfile.companyName || "-"}</p>
+                  <p>{defaultCollectionProfile.addressLine1 || "-"}</p>
+                  <p>
+                    {[defaultCollectionProfile.addressLine2, defaultCollectionProfile.addressLine3, defaultCollectionProfile.postcode]
+                      .filter(Boolean)
+                      .join(", ") || "-"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-red-700">No default collection profile saved</p>
+                  <p className="mt-1 text-red-600">
+                    Save a default depot in Account It before using Depot mode.
+                  </p>
+                </>
+              )}
+            </div>
+          ) : null}
+        </section>
+
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Order</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -211,19 +371,24 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
 
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Collection</h2>
+          {collectionMode === "depot" ? (
+            <p className="mt-2 text-sm text-slate-600">
+              Collection details are locked to your default depot profile for this booking.
+            </p>
+          ) : null}
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} placeholder="Optional" /></div>
-            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Phone</label><input className={inputClass} value={order.collection.phone} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, phone: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input className={inputClass} value={order.collection.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine1: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input className={inputClass} value={order.collection.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine2: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input className={inputClass} value={order.collection.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine3: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input className={inputClass} value={order.collection.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, postcode: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Country</label><input className={inputClass} value={order.collection.country} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, country: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Email</label><input className={inputClass} value={order.collection.email} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, email: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} placeholder="Optional" /></div>
+            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Phone</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.phone} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, phone: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine1: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine2: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine3: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, postcode: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Country</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.country} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, country: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Email</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.email} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, email: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Collection Date</label><input type="date" className={inputClass} value={order.collection.date} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, date: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Collection Time</label><input type="time" className={inputClass} value={order.collection.time} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, time: e.target.value } }))} /></div>
-            <div className="sm:col-span-2 lg:col-span-3"><label className="text-sm font-medium text-slate-700">Instructions</label><textarea className={inputClass} rows={2} value={order.collection.instructions} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, instructions: e.target.value } }))} /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="text-sm font-medium text-slate-700">Instructions</label><textarea disabled={collectionMode === "depot"} className={inputClass} rows={2} value={order.collection.instructions} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, instructions: e.target.value } }))} /></div>
           </div>
         </section>
 

@@ -1,11 +1,11 @@
-import DoorwayBookingForm from "@/components/DoorwayBookingForm";
+import StandardOrderForm from "@/components/StandardOrderForm";
 
 export default function PortalBookItPage() {
   return (
-    <DoorwayBookingForm
+    <StandardOrderForm
       sourceSystem="merchant_portal"
-      modeLabel="Doorway Booking Form"
-      intro="Merchant booking demo for Doorway Group LTD. Every booking writes one standard order object for Track-POD and future Xero handling."
+      title="Book it"
+      subtitle="Create bookings from depot defaults or one-off collection addresses. Every booking writes a complete intake record in NEXUS."
     />
   );
 }

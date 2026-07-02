@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { notifyOrderCreated } from "@/lib/notify/orderCreated";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServerKey =
@@ -93,6 +94,11 @@ export async function POST(request: NextRequest) {
       companyId = profile.company_id;
     }
 
+    const resolvedCompanyId = (companyId ?? "").trim();
+    if (!resolvedCompanyId) {
+      return NextResponse.json({ error: "No company linked to user" }, { status: 403 });
+    }
+
     if (!body.collectionName?.trim()) {
       return NextResponse.json({ error: "Collection Name is required" }, { status: 400 });
     }
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
     const { data: newJob, error: insertError } = await privilegedClient
       .from("draft_jobs")
       .insert({
-        company_id: companyId,
+        company_id: resolvedCompanyId,
         created_by_user_id: user.id,
         status: "job_created",
         lifecycle_status: "READY_FOR_TRACKPOD",
@@ -160,6 +166,16 @@ export async function POST(request: NextRequest) {
       .from("draft_jobs")
       .update({ integration_metadata: { trackPodMapping: fields } })
       .eq("id", jobId);
+
+    await notifyOrderCreated({
+      client: privilegedClient,
+      draftJobId: jobId,
+      companyId: resolvedCompanyId,
+      orderReference: jobReference,
+      customerName: body.deliveryName?.trim() || body.merchantName?.trim() || null,
+      customerEmail: body.deliveryEmail?.trim() || body.collectionEmail?.trim() || null,
+      customerPhone: body.deliveryPhone?.trim() || body.collectionPhone?.trim() || null,
+    });
 
     return NextResponse.json({
       success: true,
