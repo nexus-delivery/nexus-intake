@@ -29,6 +29,11 @@ type DocumentRecord = {
   viewOrderHref: string;
   needsAttention: boolean;
   issueReasons: string[];
+  emailNotificationSent: boolean;
+  smsNotificationSent: boolean;
+  timelineEvents: number;
+  trackPodEvents: number;
+  apiEvents: number;
 };
 
 type DocumentSummary = {
@@ -263,6 +268,7 @@ export async function GET(request: NextRequest) {
     "eta_window",
     "eta_from",
     "eta_to",
+    "integration_metadata",
     "created_at",
     "updated_at",
   ].join(", ");
@@ -327,6 +333,32 @@ export async function GET(request: NextRequest) {
   );
   const customerMap = new Map((customerRes.data ?? []).map((entry) => [entry.id, text(entry.customer_name)]));
 
+  const jobIds = rows.map((row) => text(row.id)).filter(Boolean);
+  const timelineMap = new Map<string, { total: number; trackPod: number; api: number }>();
+
+  if (jobIds.length > 0) {
+    try {
+      const { data: timelineRows } = await context.value.client
+        .from("discuss_it_timeline")
+        .select("draft_job_id, event_source")
+        .in("draft_job_id", jobIds)
+        .returns<Array<{ draft_job_id: string; event_source: string | null }>>();
+
+      for (const row of timelineRows ?? []) {
+        const id = text(row.draft_job_id);
+        if (!id) continue;
+        const source = text(row.event_source).toLowerCase();
+        const current = timelineMap.get(id) ?? { total: 0, trackPod: 0, api: 0 };
+        current.total += 1;
+        if (source.includes("trackpod")) current.trackPod += 1;
+        if (source.includes("api") || source.includes("woocommerce")) current.api += 1;
+        timelineMap.set(id, current);
+      }
+    } catch {
+      // timeline table might not be present in all environments
+    }
+  }
+
   let records = rows.map((row): DocumentRecord => {
     const orderNumber = text(row.job_reference);
     const orderRef = text(row.external_order_id);
@@ -343,6 +375,19 @@ export async function GET(request: NextRequest) {
     const trackPodLink = text(row.trackpod_delivery_tracking_url) || text(row.trackpod_collection_tracking_url);
     const callPhone = text(row.delivery_phone) || text(row.collection_phone);
     const email = text(row.delivery_email) || text(row.customer_email);
+    const metadata =
+      row.integration_metadata && typeof row.integration_metadata === "object" && !Array.isArray(row.integration_metadata)
+        ? (row.integration_metadata as Record<string, unknown>)
+        : {};
+    const notifications =
+      metadata.nexusNotifications && typeof metadata.nexusNotifications === "object"
+        ? (metadata.nexusNotifications as Record<string, unknown>)
+        : {};
+    const orderCreated =
+      notifications.orderCreated && typeof notifications.orderCreated === "object"
+        ? (notifications.orderCreated as Record<string, unknown>)
+        : {};
+    const timeline = timelineMap.get(text(row.id)) ?? { total: 0, trackPod: 0, api: 0 };
     const issueReasons = deriveIssueReasons({
       status,
       routeStatus,
@@ -382,6 +427,11 @@ export async function GET(request: NextRequest) {
       viewOrderHref: scopeBasePath,
       needsAttention: issueReasons.length > 0,
       issueReasons,
+      emailNotificationSent: orderCreated.emailSent === true,
+      smsNotificationSent: orderCreated.smsSent === true,
+      timelineEvents: timeline.total,
+      trackPodEvents: timeline.trackPod,
+      apiEvents: timeline.api,
     };
   });
 

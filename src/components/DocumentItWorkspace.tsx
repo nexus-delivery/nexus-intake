@@ -30,6 +30,11 @@ type DocumentRecord = {
   viewOrderHref: string;
   needsAttention: boolean;
   issueReasons: string[];
+  emailNotificationSent: boolean;
+  smsNotificationSent: boolean;
+  timelineEvents: number;
+  trackPodEvents: number;
+  apiEvents: number;
 };
 
 type DocumentSummary = {
@@ -173,6 +178,11 @@ export default function DocumentItWorkspace() {
         document_type: record.documentType,
         trackpod_link: record.trackPodLink,
         document_url: record.documentUrl,
+        email_notification_sent: String(record.emailNotificationSent),
+        sms_notification_sent: String(record.smsNotificationSent),
+        timeline_events: String(record.timelineEvents),
+        trackpod_events: String(record.trackPodEvents),
+        api_events: String(record.apiEvents),
         created_at: record.createdAt,
         updated_at: record.updatedAt,
         needs_attention: String(record.needsAttention),
@@ -308,6 +318,9 @@ export default function DocumentItWorkspace() {
                   "Delivery Postcode",
                   "Document Type",
                   "Track-POD",
+                  "Email",
+                  "SMS",
+                  "Timeline",
                   "Created",
                   "Updated",
                   "Actions",
@@ -345,6 +358,17 @@ export default function DocumentItWorkspace() {
                       ) : (
                         "-"
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-700">
+                      {record.emailNotificationSent ? "Sent" : "Not sent"}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-700">
+                      {record.smsNotificationSent ? "Sent" : "Not sent"}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-700">
+                      <div>Total: {record.timelineEvents}</div>
+                      <div>Track-POD: {record.trackPodEvents}</div>
+                      <div>API: {record.apiEvents}</div>
                     </td>
                     <td className="px-3 py-2 text-xs text-slate-600">{toLocale(record.createdAt)}</td>
                     <td className="px-3 py-2 text-xs text-slate-600">{toLocale(record.updatedAt)}</td>
