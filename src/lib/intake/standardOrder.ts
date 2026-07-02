@@ -7,6 +7,10 @@ export type IntakeSourceSystem =
   | "email_order"
   | "woocommerce"
   | "shopify"
+  | "api"
+  | "csv_import"
+  | "admin_manual"
+  | "mobile_app"
   | "ocr_future";
 
 export type StandardGoodsItem = {
@@ -384,5 +388,105 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
     ready_for_trackpod: String(order.operations.readyForTrackPod),
     route_distance_km: order.operations.distanceKm,
     journey_time_minutes: order.operations.journeyMinutes,
+  };
+}
+
+/**
+ * Adapter: Convert a StandardOrder (form model) to the canonical IntakeOrderInput.
+ * Use this to bridge any form component to processIntake().
+ */
+export function toIntakeOrderInput(
+  order: StandardOrder,
+  args: {
+    companyId: string;
+    createdByUserId?: string | null;
+    salesChannelId?: string | null;
+    salesChannelName?: string | null;
+  }
+) {
+  // Import type inline to avoid circular dependency; intakeService is the source of truth
+  return {
+    sourceSystem: order.sourceSystem,
+    companyId: args.companyId,
+    createdByUserId: args.createdByUserId ?? null,
+    salesChannelId: args.salesChannelId ?? null,
+    salesChannelName: args.salesChannelName ?? order.salesChannel ?? null,
+    externalOrderId: order.externalOrderId || null,
+    orderReference: order.orderReference || null,
+    customer: order.customer || undefined,
+    merchant: order.merchant || undefined,
+    priority: (order.priority as "High" | "Normal" | "Low") ?? "Normal",
+    notes: order.notes || undefined,
+    collection: {
+      company: order.collection.company,
+      contact: order.collection.contact,
+      addressLine1: order.collection.addressLine1,
+      addressLine2: order.collection.addressLine2,
+      addressLine3: order.collection.addressLine3,
+      postcode: order.collection.postcode,
+      country: order.collection.country || "UK",
+      phone: order.collection.phone,
+      email: order.collection.email,
+      date: order.collection.date,
+      time: order.collection.time,
+      instructions: order.collection.instructions,
+      latitude: order.collection.latitude,
+      longitude: order.collection.longitude,
+    },
+    delivery: {
+      company: order.delivery.company,
+      contact: order.delivery.contact,
+      addressLine1: order.delivery.addressLine1,
+      addressLine2: order.delivery.addressLine2,
+      addressLine3: order.delivery.addressLine3,
+      postcode: order.delivery.postcode,
+      country: order.delivery.country || "UK",
+      phone: order.delivery.phone,
+      email: order.delivery.email,
+      date: order.delivery.date,
+      time: order.delivery.time,
+      instructions: order.delivery.instructions,
+      latitude: order.delivery.latitude,
+      longitude: order.delivery.longitude,
+    },
+    goods: order.goods.map((g) => ({
+      description: g.description,
+      productCode: g.productCode || undefined,
+      quantity: g.quantity,
+      packages: g.packages,
+      palletCount: g.palletCount,
+      weightKg: g.weightKg,
+      dimensions: g.dimensions || undefined,
+      unitPrice: g.unitPrice,
+      vatRate: g.vatRate,
+      lineTotal: g.lineTotal,
+      fragile: g.fragile,
+      twoMan: g.twoMan,
+      roomOfChoice: g.roomOfChoice,
+      assembly: g.assembly,
+      tailLiftRequired: g.tailLiftRequired,
+      dedicatedVehicle: g.dedicatedVehicle,
+      northernIrelandDelivery: g.northernIrelandDelivery,
+      sameDay: g.sameDay,
+      catalogueItemId: g.catalogueItemId || undefined,
+      itemType: g.itemType || undefined,
+    })),
+    commercial: {
+      purchaseOrder: order.commercial.purchaseOrder || undefined,
+      net: order.commercial.net || undefined,
+      vat: order.commercial.vat || undefined,
+      total: order.commercial.total || undefined,
+      cod: order.commercial.cod || undefined,
+      invoiceRequired: order.commercial.invoiceRequired,
+    },
+    operations: {
+      depot: order.operations.depot || undefined,
+      warehouse: order.operations.warehouse || undefined,
+      route: order.operations.route || undefined,
+      shipper: order.operations.shipper || undefined,
+      serviceType: order.operations.serviceType || undefined,
+      distanceKm: order.operations.distanceKm || undefined,
+      journeyMinutes: order.operations.journeyMinutes || undefined,
+    },
   };
 }
