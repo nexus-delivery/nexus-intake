@@ -308,7 +308,6 @@ export default function DoorwayBookingForm({ sourceSystem, modeLabel, intro }: P
       const resolved = await resolveSalesChannel({
         companyId: merchantId,
         name: resolvedSalesChannelName,
-        sourceType: sourceSystem,
       });
       if (resolved) {
         resolvedSalesChannelId = resolved.id;

@@ -62,6 +62,15 @@ function validate(order: StandardOrder): string | null {
   return null;
 }
 
+function normalizeSalesChannelCode(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
 async function resolveSalesChannelId(args: {
   privilegedClient: ReturnType<typeof createPrivilegedClient>;
   companyId: string;
@@ -99,9 +108,8 @@ async function resolveSalesChannelId(args: {
     .from("sales_channels")
     .insert({
       company_id: companyId,
-      merchant_id: null,
       name: normalizedName,
-      source_type: null,
+      code: normalizeSalesChannelCode(normalizedName) || "SALES_CHANNEL",
       active: true,
     })
     .select("id, name")

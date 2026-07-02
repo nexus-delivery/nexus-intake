@@ -106,7 +106,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         const resolved = await resolveSalesChannel({
           companyId: effectiveCompanyId,
           name: resolvedSalesChannelName,
-          sourceType: sourceSystem,
           authHeaders,
         });
         if (resolved) {
@@ -302,7 +301,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
                     ["twoMan", "Two-man"],
                     ["roomOfChoice", "Room of choice"],
                     ["assembly", "Assembly"],
-                    ["photosRequired", "Photos required"],
                     ["tailLiftRequired", "Tail-lift required"],
                     ["dedicatedVehicle", "Dedicated van"],
                     ["sameDay", "Same day"],

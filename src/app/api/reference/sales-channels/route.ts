@@ -16,6 +16,15 @@ function normalizeName(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+function normalizeCode(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
 export async function GET(request: NextRequest) {
   const client = createPrivilegedClient();
   if (!client) {
@@ -28,19 +37,14 @@ export async function GET(request: NextRequest) {
   }
 
   const query = normalizeName(request.nextUrl.searchParams.get("query") ?? "");
-  const merchantId = request.nextUrl.searchParams.get("merchant_id")?.trim() || null;
 
   let dbQuery = client
     .from("sales_channels")
-    .select("id, company_id, merchant_id, name, source_type, active, created_at, updated_at")
+    .select("id, company_id, name, code, active, created_at")
     .eq("company_id", companyId)
     .eq("active", true)
     .order("name", { ascending: true })
     .limit(12);
-
-  if (merchantId) {
-    dbQuery = dbQuery.or(`merchant_id.is.null,merchant_id.eq.${merchantId}`);
-  }
 
   if (query) {
     dbQuery = dbQuery.ilike("name", `%${query}%`);
@@ -62,9 +66,8 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => ({}))) as {
     company_id?: string;
-    merchant_id?: string | null;
     name?: string;
-    source_type?: string | null;
+    code?: string | null;
     active?: boolean;
   };
 
@@ -77,17 +80,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Sales channel name is required" }, { status: 400 });
   }
 
-  const merchantId = body.merchant_id?.trim() || null;
+  const code = normalizeCode(body.code ?? name) || "SALES_CHANNEL";
 
-  let existingQuery = client
+  const existingQuery = client
     .from("sales_channels")
-    .select("id, company_id, merchant_id, name, source_type, active, created_at, updated_at")
+    .select("id, company_id, name, code, active, created_at")
     .eq("company_id", companyId)
     .ilike("name", name);
-
-  existingQuery = merchantId
-    ? existingQuery.eq("merchant_id", merchantId)
-    : existingQuery.is("merchant_id", null);
 
   const { data: existing, error: existingError } = await existingQuery.maybeSingle();
 
@@ -99,12 +98,12 @@ export async function POST(request: NextRequest) {
     const { data, error } = await client
       .from("sales_channels")
       .update({
-        source_type: body.source_type ?? existing.source_type,
+        code: code || existing.code,
         active: body.active ?? existing.active,
         name,
       })
       .eq("id", existing.id)
-      .select("id, company_id, merchant_id, name, source_type, active, created_at, updated_at")
+      .select("id, company_id, name, code, active, created_at")
       .single();
 
     if (error) {
@@ -118,12 +117,11 @@ export async function POST(request: NextRequest) {
     .from("sales_channels")
     .insert({
       company_id: companyId,
-      merchant_id: merchantId,
       name,
-      source_type: body.source_type ?? null,
+      code,
       active: body.active ?? true,
     })
-    .select("id, company_id, merchant_id, name, source_type, active, created_at, updated_at")
+    .select("id, company_id, name, code, active, created_at")
     .single();
 
   if (error) {

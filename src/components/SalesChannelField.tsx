@@ -5,7 +5,6 @@ import type { SalesChannelRecord } from "@/lib/salesChannels";
 
 type Props = {
   companyId: string;
-  merchantId?: string | null;
   value: string;
   selectedId: string;
   onChange: (next: { id: string; name: string }) => void;
@@ -15,7 +14,6 @@ type Props = {
 
 export default function SalesChannelField({
   companyId,
-  merchantId = null,
   value,
   selectedId,
   onChange,
@@ -38,7 +36,7 @@ export default function SalesChannelField({
 
     const timer = window.setTimeout(() => {
       void fetch(
-        `/api/reference/sales-channels?company_id=${encodeURIComponent(companyId)}&merchant_id=${encodeURIComponent(merchantId ?? "")}&query=${encodeURIComponent(query)}`
+        `/api/reference/sales-channels?company_id=${encodeURIComponent(companyId)}&query=${encodeURIComponent(query)}`
       )
         .then((response) => response.json())
         .then((payload: { items?: SalesChannelRecord[] }) => setItems(Array.isArray(payload.items) ? payload.items : []))
@@ -46,7 +44,7 @@ export default function SalesChannelField({
     }, 150);
 
     return () => window.clearTimeout(timer);
-  }, [companyId, merchantId, open, query]);
+  }, [companyId, open, query]);
 
   const exactMatch = useMemo(
     () => items.find((item) => item.name.trim().toLowerCase() === query.trim().toLowerCase()) ?? null,
@@ -62,7 +60,7 @@ export default function SalesChannelField({
       const response = await fetch("/api/reference/sales-channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: companyId, merchant_id: merchantId, name: trimmed, active: true }),
+        body: JSON.stringify({ company_id: companyId, name: trimmed, active: true }),
       });
       const payload = (await response.json().catch(() => ({}))) as { item?: SalesChannelRecord; error?: string };
       if (!response.ok || !payload.item) {
