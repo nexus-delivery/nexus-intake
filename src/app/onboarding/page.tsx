@@ -52,7 +52,8 @@ export default function OnboardingPage() {
         const profile = await fetchProfileByUserId(user.id);
 
         if (profile) {
-          router.replace("/");
+          const role = (profile.role ?? "").trim().toLowerCase();
+          router.replace(role === "customer" ? "/customer" : "/");
           return;
         }
 

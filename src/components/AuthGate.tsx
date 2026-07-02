@@ -125,10 +125,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           try {
             const profile = await fetchProfileByUserId(user.id);
             const profileExists = Boolean(profile);
+            const profileRole = (profile?.role ?? "").trim().toLowerCase();
             console.info("[AuthGate] profile fetch result", {
               route: pathname,
               sessionUserId: user.id,
               profileExists,
+              profileRole,
               profileId: profile?.id ?? null,
             });
 
@@ -138,7 +140,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             }
 
             if (profileExists && pathname === "/onboarding") {
-              redirectOnce("/", "profile already exists");
+              redirectOnce(profileRole === "customer" ? "/customer" : "/", "profile already exists");
+              return;
+            }
+
+            if (pathname.startsWith("/customer") && profileRole !== "customer") {
+              redirectOnce("/", "customer portal requires customer role");
               return;
             }
           } catch (profileError) {

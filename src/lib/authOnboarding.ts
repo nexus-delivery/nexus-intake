@@ -144,10 +144,16 @@ export async function fetchCompanyById(companyId: string): Promise<Company | nul
   return data;
 }
 
-export async function resolvePostSignInPath(authUserId: string): Promise<"/" | "/onboarding"> {
+export async function resolvePostSignInPath(
+  authUserId: string
+): Promise<"/" | "/onboarding" | "/customer"> {
   try {
     const profile = await fetchProfileByUserId(authUserId);
     if (profile) {
+      const role = (profile.role ?? "").trim().toLowerCase();
+      if (role === "customer") {
+        return "/customer";
+      }
       return "/";
     }
     return "/onboarding";

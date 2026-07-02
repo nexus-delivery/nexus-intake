@@ -34,7 +34,79 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteCompanyId, setInviteCompanyId] = useState<string | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const token = (params.get("invite") ?? "").trim();
+    const emailParam = (params.get("email") ?? "").trim();
+
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+
+    if (!token) {
+      setInviteToken(null);
+      setInviteCompanyId(null);
+      return;
+    }
+
+    let active = true;
+    setInviteLoading(true);
+    setInviteToken(token);
+    setError(null);
+
+    void fetch(`/api/auth/invite?token=${encodeURIComponent(token)}`)
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          invite?: {
+            email?: string;
+            contactName?: string | null;
+            companyId?: string;
+          };
+        };
+
+        if (!active) return;
+
+        if (!response.ok || !payload.invite) {
+          setInviteToken(null);
+          setInviteCompanyId(null);
+          setError(payload.error ?? "Invite link is invalid or expired");
+          return;
+        }
+
+        if (payload.invite.email) {
+          setEmail(payload.invite.email);
+        }
+        if (payload.invite.contactName && !contactName.trim()) {
+          setContactName(payload.invite.contactName);
+        }
+        setInviteCompanyId(payload.invite.companyId ?? null);
+        setInfo("Invite verified. Create your password to access the customer portal.");
+      })
+      .catch(() => {
+        if (!active) return;
+        setInviteToken(null);
+        setInviteCompanyId(null);
+        setError("Invite validation failed. Please request a new invite link.");
+      })
+      .finally(() => {
+        if (active) {
+          setInviteLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [contactName]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -55,6 +127,8 @@ export default function SignUpPage() {
     void bootstrap();
   }, [router]);
 
+  const inviteMode = Boolean(inviteToken);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -69,12 +143,12 @@ export default function SignUpPage() {
       return;
     }
 
-    if (!companyName.trim() || !contactName.trim()) {
+    if (!inviteMode && (!companyName.trim() || !contactName.trim())) {
       setError("Company and contact names are required.");
       return;
     }
 
-    if (!validatePhone(contactPhone)) {
+    if (!inviteMode && !validatePhone(contactPhone)) {
       setError("Please provide a valid phone number.");
       return;
     }
@@ -98,11 +172,12 @@ export default function SignUpPage() {
         password,
         options: {
           data: {
-            company_name: companyName.trim(),
+            company_name: inviteMode ? "Customer Portal" : companyName.trim(),
             contact_name: contactName.trim(),
             contact_phone: contactPhone.trim(),
-            business_type: businessType,
-            company_id: companyId,
+            business_type: inviteMode ? "other" : businessType,
+            company_id: inviteMode ? inviteCompanyId ?? companyId : companyId,
+            invite_token: inviteToken,
           },
         },
       });
@@ -116,6 +191,28 @@ export default function SignUpPage() {
       if (!data.user) {
         setError("Signup succeeded, but your session is not ready yet. Please continue from sign in.");
         return;
+      }
+
+      if (inviteMode && inviteToken) {
+        const acceptResponse = await fetch("/api/auth/invite/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: inviteToken,
+            userId: data.user.id,
+            email: email.trim(),
+            fullName: contactName.trim(),
+          }),
+        });
+
+        const acceptPayload = (await acceptResponse.json().catch(() => ({}))) as {
+          error?: string;
+        };
+
+        if (!acceptResponse.ok) {
+          setError(acceptPayload.error ?? "Failed to accept invite");
+          return;
+        }
       }
 
       // Sync session with server (this can now throw meaningful errors)
@@ -161,12 +258,27 @@ export default function SignUpPage() {
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#7C3AED]">Nexus it</p>
           <h1 className="mt-1 text-2xl font-semibold text-white">Create your Nexus it account</h1>
-          <p className="mt-1 text-sm text-slate-400">Intelligent Transport by Nexus</p>
+          <p className="mt-1 text-sm text-slate-400">
+            {inviteMode ? "Customer portal invite" : "Intelligent Transport by Nexus"}
+          </p>
         </div>
       </div>
 
       <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-white/5 backdrop-blur p-8 shadow-2xl">
+        {inviteLoading ? (
+          <p className="mb-4 rounded-xl border border-slate-400/30 bg-slate-500/10 px-3 py-2 text-xs text-slate-200">
+            Validating invite link...
+          </p>
+        ) : null}
+
+        {info ? (
+          <p className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+            {info}
+          </p>
+        ) : null}
+
         <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+          {!inviteMode ? (
           <div>
             <label htmlFor="companyName" className="mb-1.5 block text-xs font-medium text-slate-300">
               Company Name
@@ -181,6 +293,7 @@ export default function SignUpPage() {
               required
             />
           </div>
+          ) : null}
 
           <div>
             <label htmlFor="contactName" className="mb-1.5 block text-xs font-medium text-slate-300">
@@ -197,6 +310,7 @@ export default function SignUpPage() {
             />
           </div>
 
+          {!inviteMode ? (
           <div>
             <label htmlFor="contactPhone" className="mb-1.5 block text-xs font-medium text-slate-300">
               Phone Number
@@ -211,7 +325,9 @@ export default function SignUpPage() {
               required
             />
           </div>
+          ) : null}
 
+          {!inviteMode ? (
           <div>
             <label htmlFor="businessType" className="mb-1.5 block text-xs font-medium text-slate-300">
               Business Type
@@ -230,6 +346,7 @@ export default function SignUpPage() {
               ))}
             </select>
           </div>
+          ) : null}
 
           <div>
             <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-slate-300">
@@ -242,6 +359,7 @@ export default function SignUpPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="jane@yourcompany.com"
+              readOnly={inviteMode}
               className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-[#7C3AED] focus:outline-none focus:ring-1 focus:ring-[#7C3AED]"
               required
             />
