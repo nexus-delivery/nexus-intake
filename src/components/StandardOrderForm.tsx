@@ -15,6 +15,8 @@ import {
   type CollectionMode,
   type DefaultCollectionProfile,
 } from "@/lib/defaultCollectionProfiles";
+import { applyCustomerDefaults } from "@/lib/customerBookingDefaults";
+import type { MerchantCustomer } from "@/lib/merchantCustomers";
 
 type Props = {
   sourceSystem: IntakeSourceSystem;
@@ -41,6 +43,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
   const [defaultCollectionProfile, setDefaultCollectionProfile] = useState<DefaultCollectionProfile | null>(null);
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
@@ -60,6 +64,40 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCustomers() {
+      if (!isMerchantView || !supabase) return;
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const response = await fetch("/api/merchant/customers", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) return;
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        customers?: MerchantCustomer[];
+      };
+
+      if (!cancelled) {
+        setCustomers(payload.customers ?? []);
+      }
+    }
+
+    void loadCustomers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isMerchantView]);
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +231,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             salesChannel: resolvedSalesChannelName,
           },
           company_id: effectiveCompanyId,
+          customer_id: customerId || null,
           sales_channel_id: resolvedSalesChannelId || null,
           sales_channel_name: resolvedSalesChannelName || null,
         }),
@@ -229,6 +268,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
             }
           : empty
       );
+          setCustomerId("");
       setSalesChannelId("");
       setSalesChannelName("");
     } catch (error) {
@@ -325,6 +365,33 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle }: Pro
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Order</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {isMerchantView ? (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="text-sm font-medium text-slate-700" htmlFor="customerSelect">Select Customer</label>
+                <select
+                  id="customerSelect"
+                  className={inputClass}
+                  value={customerId}
+                  onChange={(event) => {
+                    const nextId = event.target.value;
+                    setCustomerId(nextId);
+                    const selected = customers.find((customer) => customer.id === nextId);
+                    if (!selected) return;
+                    setOrder((prev) => applyCustomerDefaults(prev, selected));
+                  }}
+                >
+                  <option value="">Select customer...</option>
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.customerName} {customer.company ? `(${customer.company})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  Selecting a customer auto-populates defaults for collection, delivery, instructions, and service profile.
+                </p>
+              </div>
+            ) : null}
             <div>
               <label className="text-sm font-medium text-slate-700" htmlFor="orderReference">Order Reference</label>
               <input id="orderReference" className={inputClass} value={order.orderReference} onChange={(e) => setOrder((prev) => ({ ...prev, orderReference: e.target.value }))} />

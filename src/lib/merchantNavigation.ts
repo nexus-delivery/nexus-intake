@@ -11,7 +11,7 @@ export const merchantNavItems: NavItem[] = [
     icon: "Home",
   },
   {
-    label: "Book it",
+    label: "Book Create-it",
     href: "/portal/book-it",
     icon: "PlusCircle",
   },
@@ -19,11 +19,6 @@ export const merchantNavItems: NavItem[] = [
     label: "Orders",
     href: "/portal/orders",
     icon: "FileText",
-  },
-  {
-    label: "Track it",
-    href: "/portal/track-it",
-    icon: "Truck",
   },
   {
     label: "Documents",
@@ -36,29 +31,14 @@ export const merchantNavItems: NavItem[] = [
     icon: "BarChart3",
   },
   {
-    label: "Catalogue it",
-    href: "/portal/catalogue-it",
-    icon: "FileCheck",
-  },
-  {
-    label: "Price it",
-    href: "/portal/price-it",
+    label: "Integrate-it",
+    href: "/portal/integrate-it",
     icon: "Box",
   },
   {
-    label: "Market it",
-    href: "/portal/market-it",
-    icon: "Upload",
-  },
-  {
-    label: "Notify it",
-    href: "/portal/notify-it",
-    icon: "FileText",
-  },
-  {
-    label: "Discuss it",
-    href: "/portal/discuss-it",
-    icon: "Truck",
+    label: "Reports",
+    href: "/portal/reports",
+    icon: "BarChart3",
   },
   {
     label: "Settings",

@@ -90,6 +90,7 @@ export type IntakeOrderInput = {
   collectionMode?: "depot" | "new_address";
   companyId: string;
   createdByUserId?: string | null;
+  customerId?: string | null;
   salesChannelId?: string | null;
   salesChannelName?: string | null;
   externalOrderId?: string | null;
@@ -377,6 +378,8 @@ export async function processIntake(
         created_by_user_id: input.createdByUserId ?? null,
         status: "job_created",
         lifecycle_status: lifecycleStatus,
+        customer_id: input.customerId ?? null,
+        customer_email: input.delivery.email || null,
         sales_channel_id: salesChannel.id,
         sales_channel_name: salesChannel.name,
         // Source
@@ -430,6 +433,8 @@ export async function processIntake(
         commercial_total: input.commercial?.total || null,
         commercial_cod: input.commercial?.cod || null,
         invoice_required: input.commercial?.invoiceRequired ?? false,
+        pricing_profile: input.commercial?.purchaseOrder || null,
+        default_service: input.operations?.serviceType || null,
         // Operations
         depot: input.operations?.depot || null,
         warehouse: input.operations?.warehouse || null,

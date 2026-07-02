@@ -405,6 +405,7 @@ export function toIntakeOrderInput(
   args: {
     companyId: string;
     createdByUserId?: string | null;
+    customerId?: string | null;
     salesChannelId?: string | null;
     salesChannelName?: string | null;
   }
@@ -415,6 +416,7 @@ export function toIntakeOrderInput(
     collectionMode: order.collectionMode,
     companyId: args.companyId,
     createdByUserId: args.createdByUserId ?? null,
+    customerId: args.customerId ?? null,
     salesChannelId: args.salesChannelId ?? null,
     salesChannelName: args.salesChannelName ?? order.salesChannel ?? null,
     externalOrderId: order.externalOrderId || null,

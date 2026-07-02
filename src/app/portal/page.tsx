@@ -1,16 +1,12 @@
 import Link from "next/link";
 
 const moduleCards = [
-  { title: "Book it", href: "/portal/book-it", detail: "Create the Doorway demo booking and any future merchant booking." },
-  { title: "Orders", href: "/portal/orders", detail: "Review bookings before they progress to Track-POD." },
-  { title: "Track it", href: "/portal/track-it", detail: "Open tracking and delivery visibility." },
-  { title: "Documents", href: "/portal/documents", detail: "Upload, store, and retrieve source files and PODs." },
-  { title: "Customers", href: "/portal/customers", detail: "View merchant and customer accounts." },
-  { title: "Catalogue it", href: "/portal/catalogue-it", detail: "Merchant catalogue for products and services." },
-  { title: "Price it", href: "/portal/price-it", detail: "Commercial pricing foundation by merchant and catalogue item." },
-  { title: "Market it", href: "/portal/market-it", detail: "Placeholder navigation for future merchant growth workflows." },
-  { title: "Notify it", href: "/portal/notify-it", detail: "Placeholder module foundation for internal communication." },
-  { title: "Discuss it", href: "/portal/discuss-it", detail: "Placeholder module foundation for an operational timeline." },
+  { title: "Book Create-it", href: "/portal/book-it", detail: "Create merchant bookings with customer defaults and intake controls." },
+  { title: "Orders", href: "/portal/orders", detail: "Live order lifecycle with Track-POD synchronized timeline visibility." },
+  { title: "Customers", href: "/portal/customers", detail: "Manage customers, contacts, defaults, pricing profiles, and invites." },
+  { title: "Integrate-it", href: "/portal/integrate-it", detail: "Manage provider connections and tenant-scoped integration configuration." },
+  { title: "Documents", href: "/portal/documents", detail: "Upload and manage operational/customer documents." },
+  { title: "Reports", href: "/portal/reports", detail: "Company-scoped reporting and exports." },
   { title: "Settings", href: "/portal/settings", detail: "Portal preferences, access, and defaults." },
 ];
 
@@ -21,7 +17,7 @@ export default function MerchantPortalPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Workspace access</p>
         <h1 className="text-3xl font-semibold text-slate-950">Merchant Portal Dashboard</h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Doorway can book work, review orders, open tracking, and return to Workspace from every module.
+          Merchant admins can manage customers, create bookings, and monitor orders for their own company only.
         </p>
       </div>
 
@@ -35,7 +31,7 @@ export default function MerchantPortalPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        Merchant defaults are loaded from the current company. Sales channels are learned over time and reused in future bookings.
+        NEXUS is the system of record for intake, customer management, and order visibility across all source channels.
       </div>
     </section>
   );

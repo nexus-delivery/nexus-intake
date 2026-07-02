@@ -22,6 +22,7 @@ export default function SettingsPage() {
             "Brand and identity",
             "Users and permissions",
             "Integration credentials",
+            "Integrate-it",
             "Commercial rules",
           ].map((item) => (
             <div key={item} className="nexus-card rounded-2xl px-4 py-4 text-sm text-slate-200">

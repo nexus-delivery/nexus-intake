@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as {
       order?: unknown;
       company_id?: string;
+      customer_id?: string;
       merchant_id?: string;
       sales_channel_id?: string;
       sales_channel_name?: string;
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
     const intakeInput = toIntakeOrderInput(order, {
       companyId,
       createdByUserId: userId,
+      customerId: body.customer_id?.trim() || null,
       salesChannelId: body.sales_channel_id?.trim() || null,
       salesChannelName: body.sales_channel_name?.trim() || order.salesChannel.trim() || null,
     });

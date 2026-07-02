@@ -55,6 +55,7 @@ export type CreateJobBody = {
   merchantName?: string;
   notes?: string;
   trackpodPhotoNote?: string;
+  customer_id?: string;
 };
 
 export async function POST(request: NextRequest) {
@@ -118,6 +119,8 @@ export async function POST(request: NextRequest) {
       .insert({
         company_id: resolvedCompanyId,
         created_by_user_id: user.id,
+        customer_id: body.customer_id?.trim() || null,
+        customer_email: body.deliveryEmail?.trim() || null,
         status: "job_created",
         lifecycle_status: "READY_FOR_TRACKPOD",
       })
