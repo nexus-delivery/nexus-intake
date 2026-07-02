@@ -60,7 +60,7 @@ export default function SalesChannelField({
       const response = await fetch("/api/reference/sales-channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_id: companyId, name: trimmed, active: true }),
+        body: JSON.stringify({ company_id: companyId, name: trimmed }),
       });
       const payload = (await response.json().catch(() => ({}))) as { item?: SalesChannelRecord; error?: string };
       if (!response.ok || !payload.item) {
@@ -109,7 +109,6 @@ export default function SalesChannelField({
               className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
             >
               <span>{item.name}</span>
-              <span className="text-xs text-slate-500">{item.active ? "Active" : "Inactive"}</span>
             </button>
           ))}
           {query.trim() && !exactMatch ? (

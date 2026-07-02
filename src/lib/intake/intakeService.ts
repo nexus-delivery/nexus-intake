@@ -209,7 +209,7 @@ async function resolveSalesChannel(args: {
   // Create new channel
   const { data: created, error: createError } = await client
     .from("sales_channels")
-    .insert({ company_id: companyId, name: normalizedName, active: true })
+    .insert({ company_id: companyId, name: normalizedName })
     .select("id, name")
     .single();
 

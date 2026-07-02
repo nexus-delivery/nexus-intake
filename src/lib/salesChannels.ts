@@ -2,8 +2,6 @@ export type SalesChannelRecord = {
   id: string;
   company_id: string;
   name: string;
-  active: boolean;
-  created_at: string;
 };
 
 export async function resolveSalesChannel(params: {
@@ -23,7 +21,6 @@ export async function resolveSalesChannel(params: {
     body: JSON.stringify({
       company_id: companyId,
       name,
-      active: true,
     }),
   });
 

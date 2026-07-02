@@ -31,9 +31,8 @@ export async function GET(request: NextRequest) {
 
   let dbQuery = client
     .from("sales_channels")
-    .select("id, company_id, name, active, created_at")
+    .select("id, company_id, name")
     .eq("company_id", companyId)
-    .eq("active", true)
     .order("name", { ascending: true })
     .limit(12);
 
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as {
     company_id?: string;
     name?: string;
-    active?: boolean;
   };
 
   const companyId = body.company_id?.trim() ?? "";
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   const { data: existing, error: existingError } = await client
     .from("sales_channels")
-    .select("id, company_id, name, active, created_at")
+    .select("id, company_id, name")
     .eq("company_id", companyId)
     .ilike("name", name)
     .maybeSingle();
@@ -82,20 +80,6 @@ export async function POST(request: NextRequest) {
   }
 
   if (existing?.id) {
-    // Return existing record unchanged unless active flag differs
-    if (existing.active !== (body.active ?? true)) {
-      const { data, error } = await client
-        .from("sales_channels")
-        .update({ active: body.active ?? existing.active })
-        .eq("id", existing.id)
-        .select("id, company_id, name, active, created_at")
-        .single();
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
-      return NextResponse.json({ item: data });
-    }
     return NextResponse.json({ item: existing });
   }
 
@@ -104,9 +88,8 @@ export async function POST(request: NextRequest) {
     .insert({
       company_id: companyId,
       name,
-      active: body.active ?? true,
     })
-    .select("id, company_id, name, active, created_at")
+    .select("id, company_id, name")
     .single();
 
   if (error) {
