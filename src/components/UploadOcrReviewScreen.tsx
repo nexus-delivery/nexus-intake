@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 import {
   formatDocumentTypeLabel,
   mapToTrackPodPayload,
@@ -11,10 +13,24 @@ type UploadOcrReviewScreenProps = {
   data: OcrReviewData;
   onChange: (next: OcrReviewData) => void;
   onBack: () => void;
-  onCreateJob: () => void;
+  onCreateJob: (options: { readyForTrackPod: boolean }) => void;
   isCreating: boolean;
   error?: string | null;
 };
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const HOLD_RELEASE_THRESHOLD_DAYS = 10;
+
+function parseDateOnly(value: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateLabel(value: Date | null): string {
+  if (!value) return "";
+  return value.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
 
 const priorityOptions: PriorityLevel[] = ["Not Set", "High", "Normal", "Low"];
 
@@ -62,8 +78,24 @@ export default function UploadOcrReviewScreen({
   error,
 }: UploadOcrReviewScreenProps) {
   const trackPodPreview = mapToTrackPodPayload(data);
+  const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
   const needsCollectionDateInput = !data.collectionDate || data.collectionDateConfidence === "low";
   const needsDeliveryDateInput = !data.deliveryDate || data.deliveryDateConfidence === "low";
+
+  const deliveryDate = useMemo(() => parseDateOnly(data.deliveryDate), [data.deliveryDate]);
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+  const daysUntilDelivery = useMemo(() => {
+    if (!deliveryDate) return 0;
+    return Math.floor((deliveryDate.getTime() - today.getTime()) / MS_PER_DAY);
+  }, [deliveryDate, today]);
+  const hasFutureDateWarning = deliveryDate !== null && daysUntilDelivery > HOLD_RELEASE_THRESHOLD_DAYS;
+  const holdReleaseDate = useMemo(() => {
+    if (!deliveryDate) return null;
+    return new Date(deliveryDate.getTime() - HOLD_RELEASE_THRESHOLD_DAYS * MS_PER_DAY);
+  }, [deliveryDate]);
 
   const setField = <K extends keyof OcrReviewData>(field: K, value: OcrReviewData[K]) => {
     onChange({ ...data, [field]: value });
@@ -436,6 +468,55 @@ export default function UploadOcrReviewScreen({
         </div>
       ) : null}
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <h2 className="text-base font-semibold text-[var(--nexus-graphite)]">Track-POD Release Check</h2>
+        {hasFutureDateWarning ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <p className="font-semibold">
+              Delivery date is far in the future. This order will not be released until 10 days prior to that date.
+            </p>
+            <p className="mt-1">
+              Planned release date: {formatDateLabel(holdReleaseDate)}. Reminder: notify the customer to update Track-POD when that date approaches.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">
+            No date warning detected. This order can move to Track-POD immediately.
+          </p>
+        )}
+
+        <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+            <span className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="upload_trackpod_release"
+                checked={trackPodReleaseDecision === "send_now"}
+                onChange={() => setTrackPodReleaseDecision("send_now")}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Ready to send to Track-POD now</span>
+                <span className="mt-1 block text-xs text-slate-500">Use when date checks are complete and operations can proceed immediately.</span>
+              </span>
+            </span>
+          </label>
+          <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+            <span className="flex items-start gap-2">
+              <input
+                type="radio"
+                name="upload_trackpod_release"
+                checked={trackPodReleaseDecision === "hold_for_date"}
+                onChange={() => setTrackPodReleaseDecision("hold_for_date")}
+              />
+              <span>
+                <span className="font-semibold text-slate-900">Hold for date-related warning</span>
+                <span className="mt-1 block text-xs text-slate-500">Keeps the order in review until the planned release window.</span>
+              </span>
+            </span>
+          </label>
+        </fieldset>
+      </section>
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         <button
           type="button"
@@ -447,7 +528,7 @@ export default function UploadOcrReviewScreen({
         </button>
         <button
           type="button"
-          onClick={onCreateJob}
+          onClick={() => onCreateJob({ readyForTrackPod: trackPodReleaseDecision === "send_now" })}
           disabled={isCreating}
           className="rounded-lg bg-[var(--nexus-purple)] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-[var(--nexus-purple)]/40 disabled:opacity-60"
         >

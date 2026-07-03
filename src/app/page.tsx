@@ -99,6 +99,18 @@ const manageItModules = [
     href: "/improve-it",
     icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>),
   },
+  {
+    title: "Send it",
+    description: "Inactive placeholder module for future handoff and dispatch expansion.",
+    href: "/send-it",
+    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M22 2L11 13" /><path d="M22 2L15 22l-4-9-9-4z" /></svg>),
+  },
+  {
+    title: "Get it",
+    description: "Inactive placeholder module for future returns and inbound intake operations.",
+    href: "/get-it",
+    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-7 w-7"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>),
+  },
 ];
 
 const createItMethods = [
@@ -110,7 +122,13 @@ const createItMethods = [
   { title: "Import it", description: "CSV and spreadsheet imports for batch creation at scale.", href: "/portal/book-it", status: "live", icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>) },
   { title: "Embed it", description: "Publish booking forms on your own website.", href: "/booking-forms/embedded", status: "live", icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>) },
   { title: "Shopify", description: "Sync orders from your Shopify store.", href: "/booking-forms/shopify", status: "live", icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6"><path d="M6 20l1.2-12h9.6L18 20z" /><path d="M9 9c0-3 1.8-5 4-5s4 2 4 5" /></svg>) },
-  { title: "WooCommerce", description: "Sync orders from your WooCommerce store.", href: "/booking-forms/woocommerce", status: "live", icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6"><path d="M6 7h12l-1 10H7L6 7z" /><path d="M9 7a3 3 0 116 0" /></svg>) },
+  {
+    title: "WooCommerce",
+    description: "Deferred until Wodely replacement is confirmed fully live and stable.",
+    href: "/booking-forms/woocommerce",
+    status: "coming-soon",
+    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6"><path d="M6 7h12l-1 10H7L6 7z" /><path d="M9 7a3 3 0 116 0" /></svg>),
+  },
 ];
 
 const QUICK_ACTIONS = [
@@ -253,8 +271,8 @@ export default function HubPage() {
   // Filter modules based on user type
   const moduleAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {
     admin: new Set(manageItModules.map(m => m.title)), // All modules
-    merchant: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it", "Improve it"]),
-    customer: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it"]),
+    merchant: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it", "Improve it", "Send it", "Get it"]),
+    customer: new Set(["Create it", "Upload it", "Process it", "Track it", "Store it", "Account it", "Report it", "Send it", "Get it"]),
   };
   
   const createAccessMap: Record<"admin" | "merchant" | "customer", Set<string>> = {

@@ -493,6 +493,7 @@ export function toIntakeOrderInput(
       route: order.operations.route || undefined,
       shipper: order.operations.shipper || undefined,
       serviceType: order.operations.serviceType || undefined,
+      readyForTrackPod: order.operations.readyForTrackPod,
       distanceKm: order.operations.distanceKm || undefined,
       journeyMinutes: order.operations.journeyMinutes || undefined,
     },

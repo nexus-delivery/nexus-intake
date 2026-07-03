@@ -5,6 +5,7 @@ type ConfirmUploadRequest = {
   draftJobId?: string;
   documentId?: string;
   trackPodMapping?: Record<string, string | null> | null;
+  readyForTrackPod?: boolean;
 };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest) {
     }
 
     const existingMeta = asRecord(draftJob.integration_metadata);
+    const releaseApproved = body.readyForTrackPod !== false;
+    const nextLifecycleStatus = releaseApproved ? "READY_FOR_TRACKPOD" : "REVIEW_REQUIRED";
     const existingTrackPodMapping = asRecord(existingMeta.trackPodMapping) as Record<string, string | null>;
 
     const existingCollectionMode =
@@ -186,8 +189,8 @@ export async function POST(request: NextRequest) {
       .from("draft_jobs")
       .update({
         status: "job_created",
-        lifecycle_status: "READY_FOR_TRACKPOD",
-        current_status: "READY_FOR_TRACKPOD",
+        lifecycle_status: nextLifecycleStatus,
+        current_status: nextLifecycleStatus,
         job_reference: jobReference,
         collection_company: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_name"),
         collection_address_line1: preferIncoming(mergedMapping, existingTrackPodMapping, "collection_address"),
@@ -213,6 +216,7 @@ export async function POST(request: NextRequest) {
         integration_metadata: {
           ...existingMeta,
           collectionMode: resolvedCollectionMode,
+          readyForTrackPod: releaseApproved,
           trackPodMapping: mergedMapping,
           updatedAt: now,
         },
@@ -235,8 +239,8 @@ export async function POST(request: NextRequest) {
       success: true,
       jobId: draftJob.id,
       jobReference,
-      lifecycleStatus: "READY_FOR_TRACKPOD",
-      currentStatus: "READY_FOR_TRACKPOD",
+      lifecycleStatus: nextLifecycleStatus,
+      currentStatus: nextLifecycleStatus,
       primaryDocumentId: draftJob.primary_document_id ?? null,
     });
   } catch (err) {

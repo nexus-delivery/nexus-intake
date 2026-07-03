@@ -37,6 +37,20 @@ function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partia
   return items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...next } : item));
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const HOLD_RELEASE_THRESHOLD_DAYS = 10;
+
+function parseDateOnly(value: string): Date | null {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateLabel(value: Date | null): string {
+  if (!value) return "";
+  return value.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export default function StandardOrderForm({ sourceSystem, title, subtitle, bookingVariant = "standard" }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
   const [profileCompanyId, setProfileCompanyId] = useState("");
@@ -48,6 +62,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [salesChannelName, setSalesChannelName] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
+  const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
@@ -206,6 +221,21 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
         }
       : order.delivery;
 
+  const deliveryDate = useMemo(() => parseDateOnly(resolvedDelivery.date), [resolvedDelivery.date]);
+  const today = useMemo(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }, []);
+  const daysUntilDelivery = useMemo(() => {
+    if (!deliveryDate) return 0;
+    return Math.floor((deliveryDate.getTime() - today.getTime()) / MS_PER_DAY);
+  }, [deliveryDate, today]);
+  const hasFutureDateWarning = deliveryDate !== null && daysUntilDelivery > HOLD_RELEASE_THRESHOLD_DAYS;
+  const holdReleaseDate = useMemo(() => {
+    if (!deliveryDate) return null;
+    return new Date(deliveryDate.getTime() - HOLD_RELEASE_THRESHOLD_DAYS * MS_PER_DAY);
+  }, [deliveryDate]);
+
   const getAuthHeaders = async () => {
     if (!supabase) {
       return {} as Record<string, string>;
@@ -269,6 +299,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             collection: resolvedCollection,
             delivery: resolvedDelivery,
             salesChannel: resolvedSalesChannelName,
+            operations: {
+              ...order.operations,
+              readyForTrackPod: trackPodReleaseDecision === "send_now",
+            },
           },
           company_id: effectiveCompanyId,
           customer_id: customerId || null,
@@ -292,9 +326,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       const ref = payload.jobReference ?? "reference pending";
       const status = payload.lifecycleStatus === "READY_FOR_TRACKPOD"
         ? " — ready for operations"
+        : " — held for date warning review";
+      const reminder = hasFutureDateWarning && trackPodReleaseDecision === "hold_for_date"
+        ? ` Reminder: notify customer to update Track-POD on ${formatDateLabel(holdReleaseDate)}.`
         : "";
       setSubmitState("success");
-      setSubmitMessage(`Order created: ${ref}${status}`);
+      setSubmitMessage(`Order created: ${ref}${status}.${reminder}`.trim());
       const empty = createEmptyStandardOrder(sourceSystem);
       setOrder(
         (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
@@ -319,6 +356,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setCustomerId("");
       setSalesChannelId("");
       setSalesChannelName("");
+      setTrackPodReleaseDecision("send_now");
     } catch (error) {
       setSubmitState("error");
       setSubmitMessage(error instanceof Error ? error.message : "Network error. Please try again.");
@@ -654,6 +692,54 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               </div>
             ))}
           </div>
+        </section>
+
+        <section className={sectionClass}>
+          <h2 className="text-base font-semibold text-slate-900">Track-POD Release Check</h2>
+          {hasFutureDateWarning ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-semibold">
+                Delivery date is far in the future. This order will not be released until 10 days prior to that date.
+              </p>
+              <p className="mt-1">
+                Planned release date: {formatDateLabel(holdReleaseDate)}. Reminder: notify the customer to update Track-POD when that date approaches.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-slate-600">
+              No date warning detected. You can send this order to Track-POD immediately.
+            </p>
+          )}
+          <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <span className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="trackpod_release"
+                  checked={trackPodReleaseDecision === "send_now"}
+                  onChange={() => setTrackPodReleaseDecision("send_now")}
+                />
+                <span>
+                  <span className="font-semibold text-slate-900">Ready to send to Track-POD now</span>
+                  <span className="mt-1 block text-xs text-slate-500">Use when date checks are complete and operations can proceed immediately.</span>
+                </span>
+              </span>
+            </label>
+            <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+              <span className="flex items-start gap-2">
+                <input
+                  type="radio"
+                  name="trackpod_release"
+                  checked={trackPodReleaseDecision === "hold_for_date"}
+                  onChange={() => setTrackPodReleaseDecision("hold_for_date")}
+                />
+                <span>
+                  <span className="font-semibold text-slate-900">Hold for date-related warning</span>
+                  <span className="mt-1 block text-xs text-slate-500">Keeps the order in review until the planned release window.</span>
+                </span>
+              </span>
+            </label>
+          </fieldset>
         </section>
 
         <section className={sectionClass}>

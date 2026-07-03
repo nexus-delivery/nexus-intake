@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import AppShell from "@/components/AppShell";
+import { fetchCurrentProfile, supabase } from "@/lib/supabaseClient";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -106,33 +107,6 @@ function meetsSecurityRule(terms: Record<string, string>): {
 
   return { ok: true };
 }
-
-// ── Mock search ───────────────────────────────────────────────────────────────
-
-const MOCK_RESULTS: SearchResult[] = [
-  {
-    id: "res-001",
-    type: "document",
-    label: "manifest-di-0628.pdf",
-    status: "Needs Review",
-    merchant: "DI Designs",
-    customer: "Doorway Group",
-    matchedOn: ["Order Reference: DI-0628", "Delivery Postcode: BT1 1AA"],
-    uploadDate: "28 Jun 2026",
-    trackPodRef: null as unknown as string,
-  },
-  {
-    id: "res-002",
-    type: "draft_job",
-    label: "DFT-0928",
-    status: "Ready to Create",
-    merchant: "DI Designs",
-    customer: "Doorway Group",
-    matchedOn: ["Order Reference: DI-0628", "Delivery Postcode: BT1 1AA"],
-    jobRef: "DFT-0928",
-    trackPodRef: null as unknown as string,
-  },
-];
 
 // ── Result card ───────────────────────────────────────────────────────────────
 
@@ -241,11 +215,13 @@ export default function SearchItPage() {
   );
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [securityError, setSecurityError] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
 
   function setTerm(key: string, value: string) {
     setTerms((prev) => ({ ...prev, [key]: value }));
     setSecurityError(null);
+    setSearchError(null);
     setResults(null);
   }
 
@@ -253,6 +229,7 @@ export default function SearchItPage() {
     setTerms(Object.fromEntries(SEARCH_FIELDS.map((f) => [f.key, ""])));
     setResults(null);
     setSecurityError(null);
+    setSearchError(null);
   }
 
   const populatedCount = Object.values(terms).filter((v) => v.trim().length > 0).length;
@@ -260,6 +237,7 @@ export default function SearchItPage() {
   async function handleSearch() {
     setResults(null);
     setSecurityError(null);
+    setSearchError(null);
 
     const check = meetsSecurityRule(terms);
     if (!check.ok) {
@@ -269,60 +247,107 @@ export default function SearchItPage() {
 
     setSearching(true);
     try {
-      // Attempt live Supabase search
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!supabase) {
+        setSearchError("Supabase is not configured for live search in this environment.");
+        return;
+      }
 
-      if (url && key) {
-        const sb = createClient(url, key);
-        const liveResults: SearchResult[] = [];
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (sessionError || !token) {
+        setSearchError("Sign in is required to run secure order and data search.");
+        return;
+      }
 
-        // Search uploaded_documents by filename if provided
-        if (terms.filename.trim()) {
-          const { data } = await sb
+      const populatedSearchValues = Object.entries(terms)
+        .filter(([, value]) => value.trim().length > 0)
+        .map(([, value]) => value.trim());
+      const searchQuery = populatedSearchValues.join(" ");
+
+      const response = await fetch(
+        `/api/orders/dashboard?search=${encodeURIComponent(searchQuery)}&limit=100`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        jobs?: Array<{
+          id: string;
+          internalOrderNumber: string;
+          lifecycleStatus: string;
+          customerMerchant: string;
+          salesChannelName: string;
+          createdAt: string;
+          trackPodDeliveryOrderId: string | null;
+          trackPodCollectionOrderId: string | null;
+        }>;
+      };
+
+      if (!response.ok) {
+        setSearchError(payload.error ?? "Search failed.");
+        return;
+      }
+
+      const orderResults: SearchResult[] = (payload.jobs ?? []).map((job) => ({
+        id: `job-${job.id}`,
+        type: "draft_job",
+        label: job.internalOrderNumber || job.id,
+        status: job.lifecycleStatus,
+        merchant: job.salesChannelName || "—",
+        customer: job.customerMerchant || "—",
+        matchedOn: ["Order and data criteria matched"],
+        uploadDate: job.createdAt
+          ? new Date(job.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : undefined,
+        jobRef: job.internalOrderNumber || undefined,
+        trackPodRef: job.trackPodDeliveryOrderId ?? job.trackPodCollectionOrderId ?? undefined,
+      }));
+
+      const fileName = terms.filename.trim();
+      const documentResults: SearchResult[] = [];
+      if (fileName) {
+        const profile = await fetchCurrentProfile();
+        if (profile.success) {
+          const { data: docs } = await supabase
             .from("uploaded_documents")
             .select("id, file_name, status, created_at")
-            .ilike("file_name", `%${terms.filename.trim()}%`)
-            .limit(10);
+            .eq("company_id", profile.data.companyId)
+            .ilike("file_name", `%${fileName}%`)
+            .limit(20);
 
-          if (data) {
-            for (const d of data) {
-              liveResults.push({
-                id: `doc-${d.id}`,
-                type: "document",
-                label: d.file_name ?? d.id,
-                status: d.status ?? "Uploaded",
-                merchant: "—",
-                customer: "—",
-                matchedOn: [`Filename: ${d.file_name}`],
-                uploadDate: d.created_at
-                  ? new Date(d.created_at).toLocaleDateString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : undefined,
-              });
-            }
+          for (const d of docs ?? []) {
+            documentResults.push({
+              id: `doc-${d.id}`,
+              type: "document",
+              label: d.file_name ?? d.id,
+              status: d.status ?? "Uploaded",
+              merchant: "—",
+              customer: "—",
+              matchedOn: [`Filename: ${d.file_name ?? "document"}`],
+              uploadDate: d.created_at
+                ? new Date(d.created_at).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : undefined,
+            });
           }
         }
-
-        if (liveResults.length > 0) {
-          setResults(liveResults);
-          return;
-        }
       }
-    } catch {
-      // fall through to demo results
+
+      setResults([...documentResults, ...orderResults]);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Search failed.");
     } finally {
       setSearching(false);
     }
-
-    // Demo results when no live data
-    await new Promise((r) => setTimeout(r, 400));
-    setResults(MOCK_RESULTS);
-    setSearching(false);
   }
 
   // Group fields by category
@@ -434,6 +459,19 @@ export default function SearchItPage() {
                 Examples of valid combinations: Customer Name + Postcode, Reference + Email,
                 Reference + Phone, PO Number + Customer Name, Phone + Postcode.
               </p>
+            </div>
+          </div>
+        )}
+
+        {searchError && (
+          <div className="flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-5">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" className="h-5 w-5 mt-0.5 shrink-0">
+              <path d="M12 9v4" />
+              <path d="M12 17h.01" />
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-semibold text-red-800">{searchError}</p>
             </div>
           </div>
         )}

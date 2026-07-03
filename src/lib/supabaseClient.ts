@@ -442,6 +442,7 @@ export async function confirmJob(params: {
   companyId?: string;
   userId?: string;
   trackPodMapping?: Record<string, string | null> | null;
+  readyForTrackPod?: boolean;
 }): Promise<{
   success: boolean;
   jobId?: string;
@@ -493,6 +494,7 @@ export async function confirmJob(params: {
           draftJobId: params.draftJobId,
           documentId: params.documentId,
           trackPodMapping: params.trackPodMapping,
+          readyForTrackPod: params.readyForTrackPod !== false,
         }),
       });
 

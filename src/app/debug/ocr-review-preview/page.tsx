@@ -44,7 +44,7 @@ export default function OcrReviewPreviewPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [created, setCreated] = useState(false);
 
-  const handleCreateJob = () => {
+  const handleCreateJob = (_options: { readyForTrackPod: boolean }) => {
     setIsCreating(true);
     setCreated(false);
     setTimeout(() => {
@@ -78,7 +78,7 @@ export default function OcrReviewPreviewPage() {
           data={data}
           onChange={setData}
           onBack={() => setCreated(false)}
-          onCreateJob={handleCreateJob}
+          onCreateJob={(options) => handleCreateJob(options)}
           isCreating={isCreating}
           error={null}
         />

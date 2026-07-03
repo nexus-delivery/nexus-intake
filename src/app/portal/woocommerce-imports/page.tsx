@@ -174,10 +174,10 @@ export default function PortalWooCommerceImportsPage() {
   return (
     <div className="space-y-6 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">WooCommerce Cutover</p>
-        <h1 className="text-2xl font-semibold text-slate-950">WooCommerce Direct Import (No Make)</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">WooCommerce Next Phase</p>
+        <h1 className="text-2xl font-semibold text-slate-950">WooCommerce Direct Import (Deferred)</h1>
         <p className="text-sm text-slate-600">
-          WooCommerce now posts directly to NEXUS API <span className="font-mono">/api/woocommerce/orders</span>. Collection fields are captured at checkout and stored in order meta for import into Supabase.
+          This integration is staged for the next phase. Current delivery focus remains the Wodely replacement and Track-POD handoff stability.
         </p>
       </header>
 

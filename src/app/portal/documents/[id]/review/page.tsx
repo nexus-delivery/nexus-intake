@@ -174,7 +174,7 @@ export default function DocumentReviewPage() {
     };
   }, [documentId, draftJobId]);
 
-  async function handleCreateJob() {
+  async function handleCreateJob(options: { readyForTrackPod: boolean }) {
     if (!metadata || !reviewData) return;
     setIsCreating(true);
     setCreateError(null);
@@ -183,6 +183,7 @@ export default function DocumentReviewPage() {
       draftJobId: metadata.jobId,
       documentId: metadata.documentId,
       trackPodMapping: mapToTrackPodPayload(reviewData),
+      readyForTrackPod: options.readyForTrackPod,
     });
 
     if (!result.success) {
@@ -294,7 +295,7 @@ export default function DocumentReviewPage() {
         data={reviewData}
         onChange={setReviewData}
         onBack={() => router.push("/portal/documents")}
-        onCreateJob={() => void handleCreateJob()}
+        onCreateJob={(options) => void handleCreateJob(options)}
         isCreating={isCreating}
         error={createError}
       />

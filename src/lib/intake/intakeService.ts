@@ -80,6 +80,7 @@ export type IntakeOperations = {
   route?: string;
   shipper?: string;
   serviceType?: string;
+  readyForTrackPod?: boolean;
   distanceKm?: string;
   journeyMinutes?: string;
 };
@@ -162,7 +163,9 @@ export function validateIntakeOrder(input: IntakeOrderInput): IntakeValidationEr
 }
 
 export function isTrackPodReady(input: IntakeOrderInput): boolean {
+  const releaseApproved = input.operations?.readyForTrackPod !== false;
   return Boolean(
+    releaseApproved &&
     input.collection.addressLine1?.trim() &&
     input.delivery.addressLine1?.trim() &&
     input.goods.some((g) => g.description?.trim())

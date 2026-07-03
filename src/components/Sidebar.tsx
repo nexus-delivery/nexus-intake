@@ -17,8 +17,10 @@ const moduleDescriptions: Record<string, string> = {
   Dashboard: "Operational overview and live workspace status",
   "Manage it": "Company, users, security and platform controls",
   "Create it": "Create new work from any source",
+  "Send it": "Inactive placeholder for future dispatch handoff workflows",
   "Process it": "Send confirmed jobs to Track-POD and monitor dispatch",
   "Track it": "Track vehicles, jobs and deliveries in real time",
+  "Get it": "Inactive placeholder for future inbound and return workflows",
   "Route it": "Planning, route sequencing and schedule confirmation",
   "Store it": "Warehouse, inventory and documents",
   "Choose it": "Marketplace, installed apps and subscriptions",
@@ -29,8 +31,10 @@ const moduleStatus: Record<string, string> = {
   Dashboard: "installed",
   "Manage it": "installed",
   "Create it": "installed",
+  "Send it": "available",
   "Process it": "installed",
   "Track it": "installed",
+  "Get it": "available",
   "Route it": "installed",
   "Store it": "available",
   "Choose it": "installed",
@@ -56,10 +60,23 @@ const navIcons: Record<string, ReactNode> = {
       <circle cx="7" cy="12" r="2" fill="#7C3AED" stroke="none" />
     </svg>
   ),
+  "Send it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M22 2L11 13" />
+      <path d="M22 2L15 22l-4-9-9-4z" />
+    </svg>
+  ),
   "Track it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
       <circle cx="12" cy="9" r="2.5" />
+    </svg>
+  ),
+  "Get it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   ),
   "Route it": (
@@ -130,12 +147,30 @@ export default function Sidebar({ items, activePath, userType = "admin", onUserT
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20">
-            <p className="font-medium text-slate-100">Build → Replace → Scale → Sell</p>
-            <p className="mt-2 text-xs leading-5 text-slate-400">
-              One transport operating system with workflow-first navigation.
-            </p>
-          </div>
+          <form
+            action="/manage-it/search-it"
+            method="get"
+            className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300 shadow-sm shadow-slate-950/20"
+          >
+            <label htmlFor="sidebarSearch" className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">
+              Search Orders And Data
+            </label>
+            <input
+              id="sidebarSearch"
+              name="q"
+              type="search"
+              placeholder="Order ref, Track-POD ref, customer"
+              className="mt-2 w-full rounded-xl border border-white/15 bg-slate-900/50 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-[#7C3AED] focus:outline-none"
+            />
+            <div className="mt-3 flex gap-2">
+              <button type="submit" className="rounded-lg bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white">
+                Search
+              </button>
+              <Link href="/orders" className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/5">
+                Orders
+              </Link>
+            </div>
+          </form>
         </div>
 
         <nav className="space-y-3">
