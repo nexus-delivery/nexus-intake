@@ -3,18 +3,15 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import StandardOrderForm from "@/components/StandardOrderForm";
+import WorkflowStageBanner from "@/components/WorkflowStageBanner";
 
 const workspaceCards = [
-  { title: "Dashboard", href: "/portal/create-it", detail: "Create-it operational overview and quick actions." },
-  { title: "New Order", href: "#new-order", detail: "Create a delivery, return, or manual request." },
+  { title: "Book it", href: "/booking-forms/public", detail: "Customer-facing order capture for structured intake." },
+  { title: "Upload it", href: "/portal/documents", detail: "Upload order files and route them into the same intake object." },
+  { title: "Send it", href: "/send-it", detail: "Email and channel handoff into Create-it intake." },
+  { title: "Get it", href: "/get-it", detail: "Inbound and return intake entrypoint managed by Create-it." },
+  { title: "Review Queue", href: "/process-it", detail: "Move new orders into Review it with clear release controls." },
   { title: "Order History", href: "/portal/orders", detail: "Review live and historical bookings." },
-  { title: "Draft Orders", href: "/portal/draft-orders", detail: "Review pending intake records before operational handoff." },
-  { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it." },
-  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
-  { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "Externally shared forms that still feed Create-it intake." },
-  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Prepare merchant storefront imports into Create-it." },
-  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon.", },
-  { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon.", },
 ];
 
 const bookingTypes = [
@@ -48,12 +45,18 @@ export default function MerchantCreateItWorkspace() {
 
   return (
     <section className="space-y-8">
+      <WorkflowStageBanner
+        currentStage="create"
+        orderStatus="Order intake in progress"
+        nextRequiredAction="Submit order and hand off to Review it queue"
+      />
+
       <header className="space-y-3 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Create-it</p>
         <h1 className="text-3xl font-semibold text-slate-950">Merchant Order Workspace</h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          This is the main order workspace for merchants moving away from Wodely. Use one intake service across deliveries,
-          returns, and unusual requests.
+          Create-it is the operational intake stage. Book it, Upload it, Send it, and Get it all create the same order object,
+          then move into Review it and Process it without dead ends.
         </p>
       </header>
 

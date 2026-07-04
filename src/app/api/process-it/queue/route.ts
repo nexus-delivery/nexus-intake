@@ -173,6 +173,39 @@ export async function GET(request: NextRequest) {
           : {};
 
       const fields: Record<string, string> = { ...mappingFallback, ...extractedFields };
+      const lifecycleMeta =
+        meta && typeof meta === "object" &&
+        (meta as Record<string, unknown>).lifecycle &&
+        typeof (meta as Record<string, unknown>).lifecycle === "object"
+          ? ((meta as Record<string, unknown>).lifecycle as Record<string, unknown>)
+          : {};
+
+      const releasePolicy =
+        meta && typeof meta === "object" &&
+        (meta as Record<string, unknown>).releasePolicy &&
+        typeof (meta as Record<string, unknown>).releasePolicy === "object"
+          ? ((meta as Record<string, unknown>).releasePolicy as Record<string, unknown>)
+          : {};
+
+      const collectionConfirmedAt =
+        typeof lifecycleMeta.collectionConfirmedAt === "string"
+          ? lifecycleMeta.collectionConfirmedAt
+          : null;
+
+      const holdReason =
+        typeof releasePolicy.status === "string" && releasePolicy.status === "held_future_date"
+          ? "HELD - FUTURE DATE"
+          : null;
+
+      const hasCollectionOrder = Boolean(job.trackpod_collection_order_id);
+      const hasDeliveryOrder = Boolean(job.trackpod_delivery_order_id);
+      const nextRequiredAction = !hasCollectionOrder
+        ? "Release collection"
+        : !collectionConfirmedAt
+          ? "Confirm collection"
+          : !hasDeliveryOrder
+            ? "Release delivery"
+            : "Monitor live tracking";
 
       return {
         id: job.id,
@@ -218,6 +251,9 @@ export async function GET(request: NextRequest) {
         collectionStatus: job.collection_status ?? null,
         deliveryStatus: job.delivery_status ?? null,
         podAvailable: job.pod_available === true,
+        collectionConfirmedAt,
+        deliveryHoldReason: holdReason,
+        nextRequiredAction,
         createdAt: job.created_at,
         updatedAt: job.updated_at,
       };

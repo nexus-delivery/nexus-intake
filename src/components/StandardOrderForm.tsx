@@ -17,6 +17,10 @@ import {
 } from "@/lib/defaultCollectionProfiles";
 import { applyCustomerDefaults } from "@/lib/customerBookingDefaults";
 import type { MerchantCustomer } from "@/lib/merchantCustomers";
+import {
+  DELIVERY_RELEASE_WORKING_DAYS,
+  evaluateFutureDeliveryHold,
+} from "@/lib/orderLifecycle";
 
 type Props = {
   sourceSystem: IntakeSourceSystem;
@@ -26,6 +30,22 @@ type Props = {
 };
 
 type SubmitState = "idle" | "submitting" | "success" | "error";
+
+type SavedBookingFormTemplate = {
+  id: string;
+  name: string;
+  savedAt: string;
+  customerId: string;
+  salesChannelId: string;
+  salesChannelName: string;
+  collectionMode: CollectionMode;
+  merchant: string;
+  customer: string;
+  collection: StandardOrder["collection"];
+  delivery: StandardOrder["delivery"];
+  notes: string;
+  defaultService: string;
+};
 
 const inputClass =
   "mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20";
@@ -37,13 +57,13 @@ function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partia
   return items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...next } : item));
 }
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const HOLD_RELEASE_THRESHOLD_DAYS = 10;
+const SAVED_BOOKING_FORMS_KEY = "nexus.saved.booking.forms.v1";
 
-function parseDateOnly(value: string): Date | null {
-  if (!value) return null;
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+function createTemplateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function formatDateLabel(value: Date | null): string {
@@ -63,11 +83,33 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
+  const [adminOverrideRelease, setAdminOverrideRelease] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savedTemplates, setSavedTemplates] = useState<SavedBookingFormTemplate[]>([]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
 
   const effectiveCompanyId = profileCompanyId;
   const isMerchantView = sourceSystem === "merchant_portal";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(SAVED_BOOKING_FORMS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as SavedBookingFormTemplate[];
+      if (Array.isArray(parsed)) {
+        setSavedTemplates(parsed);
+      }
+    } catch {
+      // Ignore invalid persisted templates.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SAVED_BOOKING_FORMS_KEY, JSON.stringify(savedTemplates));
+  }, [savedTemplates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,20 +263,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
         }
       : order.delivery;
 
-  const deliveryDate = useMemo(() => parseDateOnly(resolvedDelivery.date), [resolvedDelivery.date]);
-  const today = useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }, []);
-  const daysUntilDelivery = useMemo(() => {
-    if (!deliveryDate) return 0;
-    return Math.floor((deliveryDate.getTime() - today.getTime()) / MS_PER_DAY);
-  }, [deliveryDate, today]);
-  const hasFutureDateWarning = deliveryDate !== null && daysUntilDelivery > HOLD_RELEASE_THRESHOLD_DAYS;
-  const holdReleaseDate = useMemo(() => {
-    if (!deliveryDate) return null;
-    return new Date(deliveryDate.getTime() - HOLD_RELEASE_THRESHOLD_DAYS * MS_PER_DAY);
-  }, [deliveryDate]);
+  const holdEvaluation = useMemo(
+    () => evaluateFutureDeliveryHold(resolvedDelivery.date),
+    [resolvedDelivery.date]
+  );
+  const hasFutureDateWarning = holdEvaluation.shouldHoldDelivery;
+  const holdReleaseDate = holdEvaluation.autoReleaseDate;
 
   const getAuthHeaders = async () => {
     if (!supabase) {
@@ -250,6 +284,62 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     }
 
     return { Authorization: `Bearer ${session.access_token}` };
+  };
+
+  const saveCurrentAsTemplate = () => {
+    const normalizedName = templateName.trim();
+    if (!normalizedName) {
+      setSubmitState("error");
+      setSubmitMessage("Enter a template name before saving the booking form.");
+      return;
+    }
+
+    const template: SavedBookingFormTemplate = {
+      id: createTemplateId(),
+      name: normalizedName,
+      savedAt: new Date().toISOString(),
+      customerId,
+      salesChannelId,
+      salesChannelName,
+      collectionMode,
+      merchant: order.merchant,
+      customer: order.customer,
+      collection: { ...order.collection },
+      delivery: { ...order.delivery },
+      notes: order.notes,
+      defaultService: order.operations.serviceType,
+    };
+
+    setSavedTemplates((current) => [template, ...current].slice(0, 25));
+    setTemplateName("");
+    setSubmitState("success");
+    setSubmitMessage(`Saved reusable booking form: ${template.name}.`);
+  };
+
+  const applyTemplate = (template: SavedBookingFormTemplate) => {
+    setCustomerId(template.customerId);
+    setSalesChannelId(template.salesChannelId);
+    setSalesChannelName(template.salesChannelName);
+    setCollectionMode(template.collectionMode);
+    setOrder((prev) => ({
+      ...prev,
+      merchant: template.merchant,
+      customer: template.customer,
+      notes: template.notes,
+      collectionMode: template.collectionMode,
+      collection: { ...prev.collection, ...template.collection },
+      delivery: { ...prev.delivery, ...template.delivery },
+      operations: {
+        ...prev.operations,
+        serviceType: template.defaultService,
+      },
+    }));
+    setSubmitState("success");
+    setSubmitMessage(`Loaded reusable booking form: ${template.name}. Enter Order Number, Job Reference, External ID, and Goods for this run.`);
+  };
+
+  const deleteTemplate = (templateId: string) => {
+    setSavedTemplates((current) => current.filter((item) => item.id !== templateId));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -301,7 +391,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             salesChannel: resolvedSalesChannelName,
             operations: {
               ...order.operations,
-              readyForTrackPod: trackPodReleaseDecision === "send_now",
+              readyForTrackPod:
+                trackPodReleaseDecision === "send_now" &&
+                (!hasFutureDateWarning || adminOverrideRelease),
+              adminReleaseOverride: adminOverrideRelease,
             },
           },
           company_id: effectiveCompanyId,
@@ -326,9 +419,11 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       const ref = payload.jobReference ?? "reference pending";
       const status = payload.lifecycleStatus === "READY_FOR_TRACKPOD"
         ? " — ready for operations"
-        : " — held for date warning review";
+        : payload.lifecycleStatus === "HELD_FUTURE_DATE"
+          ? " — HELD - FUTURE DATE"
+          : " — held for operational review";
       const reminder = hasFutureDateWarning && trackPodReleaseDecision === "hold_for_date"
-        ? ` Reminder: notify customer to update Track-POD on ${formatDateLabel(holdReleaseDate)}.`
+        ? ` Reminder scheduled for ${formatDateLabel(holdReleaseDate)} when the order is within ${DELIVERY_RELEASE_WORKING_DAYS} working days.`
         : "";
       setSubmitState("success");
       setSubmitMessage(`Order created: ${ref}${status}.${reminder}`.trim());
@@ -357,6 +452,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setSalesChannelId("");
       setSalesChannelName("");
       setTrackPodReleaseDecision("send_now");
+      setAdminOverrideRelease(false);
     } catch (error) {
       setSubmitState("error");
       setSubmitMessage(error instanceof Error ? error.message : "Network error. Please try again.");
@@ -372,6 +468,55 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <section className={sectionClass}>
+          <h2 className="text-base font-semibold text-slate-900">Saved Booking Forms</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Save reusable defaults for merchant, customer, addresses, contacts, telephone, email, instructions, and service profile.
+            For each new order, always set Order Number, Job Reference, External ID, and Goods/Items.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+            <input
+              className={inputClass}
+              value={templateName}
+              onChange={(event) => setTemplateName(event.target.value)}
+              placeholder="Template name e.g. London Retail Daily"
+            />
+            <button
+              type="button"
+              onClick={saveCurrentAsTemplate}
+              className="self-end rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Save Form
+            </button>
+          </div>
+          {savedTemplates.length > 0 ? (
+            <div className="mt-4 grid gap-2 lg:grid-cols-2">
+              {savedTemplates.map((template) => (
+                <div key={template.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-sm font-semibold text-slate-900">{template.name}</p>
+                  <p className="mt-1 text-xs text-slate-500">Saved {new Date(template.savedAt).toLocaleString()}</p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyTemplate(template)}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      Use
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteTemplate(template.id)}
+                      className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Booking Mode</h2>
           <p className="mt-2 text-sm text-slate-600">
@@ -699,17 +844,27 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           {hasFutureDateWarning ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-semibold">
-                Delivery date is far in the future. This order will not be released until 10 days prior to that date.
+                Delivery date is more than {DELIVERY_RELEASE_WORKING_DAYS} working days away. Delivery release is held.
               </p>
               <p className="mt-1">
-                Planned release date: {formatDateLabel(holdReleaseDate)}. Reminder: notify the customer to update Track-POD when that date approaches.
+                Planned release date: {formatDateLabel(holdReleaseDate)}. A release reminder should be scheduled and the order should auto-release once it is inside the allowed window.
               </p>
             </div>
           ) : (
             <p className="mt-2 text-sm text-slate-600">
-              No date warning detected. You can send this order to Track-POD immediately.
+              No future-date hold detected. Collection can be released immediately, and delivery can be released after collection confirmation.
             </p>
           )}
+          {!isMerchantView ? (
+            <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={adminOverrideRelease}
+                onChange={(event) => setAdminOverrideRelease(event.target.checked)}
+              />
+              Admin override: allow delivery release despite hold checks.
+            </label>
+          ) : null}
           <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
               <span className="flex items-start gap-2">
@@ -718,6 +873,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   name="trackpod_release"
                   checked={trackPodReleaseDecision === "send_now"}
                   onChange={() => setTrackPodReleaseDecision("send_now")}
+                  disabled={hasFutureDateWarning && !adminOverrideRelease}
                 />
                 <span>
                   <span className="font-semibold text-slate-900">Ready to send to Track-POD now</span>
@@ -740,6 +896,11 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               </span>
             </label>
           </fieldset>
+          {hasFutureDateWarning && !adminOverrideRelease ? (
+            <p className="mt-3 text-xs font-semibold text-amber-700">
+              Delivery release is locked until the auto-release window opens or an admin override is applied.
+            </p>
+          ) : null}
         </section>
 
         <section className={sectionClass}>

@@ -9,16 +9,14 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "Dashboard", href: "/" },
-  { label: "Choose it", href: "/choose-it" },
+  { label: "Oversee it", href: "/dashboard" },
   { label: "Create it", href: "/create-it" },
-  { label: "Send it", href: "/send-it" },
+  { label: "Manage it", href: "/manage-it" },
   { label: "Process it", href: "/process-it" },
   { label: "Track it", href: "/track-it" },
-  { label: "Get it", href: "/get-it" },
-  { label: "Route it", href: "/route-it" },
   { label: "Store it", href: "/store-it" },
-  { label: "Manage it", href: "/manage-it" },
+  { label: "Account it", href: "/account-it" },
+  { label: "Integrate it", href: "/integrate-it" },
   { label: "Settings", href: "/settings" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {

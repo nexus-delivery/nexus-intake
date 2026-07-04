@@ -46,6 +46,9 @@ export type ProcessItJob = {
   collectionStatus: string | null;
   deliveryStatus: string | null;
   podAvailable: boolean;
+  collectionConfirmedAt: string | null;
+  deliveryHoldReason: string | null;
+  nextRequiredAction: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -56,6 +59,12 @@ type ViewFilter = "all" | "pending" | "sent" | "error";
 
 function getLifecycleBadge(job: ProcessItJob) {
   const ls = job.lifecycleStatus;
+    if (ls === "HELD_FUTURE_DATE") {
+      return { label: "HELD - FUTURE DATE", className: "bg-amber-100 text-amber-800 border border-amber-200" };
+    }
+    if (ls === "COLLECTION_RELEASED_DELIVERY_HELD" || ls === "COLLECTION_CONFIRMED_AWAITING_DELIVERY_RELEASE") {
+      return { label: "Delivery Held", className: "bg-sky-100 text-sky-800 border border-sky-200" };
+    }
   const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
   const hasCollection = Boolean(job.trackpodCollectionOrderId);
 
@@ -615,6 +624,7 @@ export default function ProcessItQueue() {
   const [selectedJob, setSelectedJob] = useState<ProcessItJob | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   const loadJobs = useCallback(async () => {
@@ -649,8 +659,8 @@ export default function ProcessItQueue() {
     void loadJobs();
   }, [loadJobs]);
 
-  const sendToTrackPod = useCallback(
-    async (job: ProcessItJob) => {
+  const releaseToTrackPod = useCallback(
+    async (job: ProcessItJob, releaseMode: "collection" | "delivery", adminOverride = false) => {
       if (!supabase) return;
       setSendingId(job.id);
       setSendResult((prev) => {
@@ -671,7 +681,7 @@ export default function ProcessItQueue() {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ draftJobId: job.id }),
+          body: JSON.stringify({ draftJobId: job.id, releaseMode, adminOverride }),
         });
 
         const json = (await res.json()) as {
@@ -689,11 +699,12 @@ export default function ProcessItQueue() {
             [job.id]: { ok: false, msg: json.error ?? `Error ${res.status}` },
           }));
         } else {
+          const modeLabel = releaseMode === "collection" ? "Collection released" : "Delivery released";
           setSendResult((prev) => ({
             ...prev,
             [job.id]: {
               ok: true,
-              msg: `Sent — Delivery: ${json.trackpodDeliveryOrderId?.slice(-12)} | Collection: ${json.trackpodCollectionOrderId?.slice(-12)}`,
+              msg: `${modeLabel} — Delivery: ${json.trackpodDeliveryOrderId?.slice(-12) ?? "pending"} | Collection: ${json.trackpodCollectionOrderId?.slice(-12) ?? "pending"}`,
             },
           }));
           // Refresh queue after short delay
@@ -706,6 +717,50 @@ export default function ProcessItQueue() {
         }));
       } finally {
         setSendingId(null);
+      }
+    },
+    [loadJobs]
+  );
+
+  const confirmCollection = useCallback(
+    async (job: ProcessItJob) => {
+      if (!supabase) return;
+      setConfirmingId(job.id);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+        const res = await fetch("/api/process-it/confirm-collection", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ draftJobId: job.id }),
+        });
+
+        const json = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: { ok: false, msg: json.error ?? `Error ${res.status}` },
+          }));
+        } else {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: { ok: true, msg: "Collection confirmed. Delivery can now be released." },
+          }));
+          setTimeout(() => void loadJobs(), 800);
+        }
+      } catch (error) {
+        setSendResult((prev) => ({
+          ...prev,
+          [job.id]: { ok: false, msg: error instanceof Error ? error.message : "Unknown error" },
+        }));
+      } finally {
+        setConfirmingId(null);
       }
     },
     [loadJobs]
@@ -732,7 +787,7 @@ export default function ProcessItQueue() {
           </p>
           <h1 className="mt-1 text-3xl font-semibold text-slate-950">Track-POD Queue</h1>
           <p className="mt-1.5 text-sm text-slate-500">
-            Send confirmed jobs to Track-POD. Each job creates a Delivery order and a Collection order.
+            Release collections first, confirm collection completion, then release deliveries.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -869,6 +924,10 @@ export default function ProcessItQueue() {
                 const hasCollection = Boolean(job.trackpodCollectionOrderId);
                 const bothSent = hasDelivery && hasCollection;
                 const hasError = job.lifecycleStatus === "TRACKPOD_ERROR";
+                const canReleaseCollection = !hasCollection;
+                const canConfirmCollection = hasCollection && !job.collectionConfirmedAt;
+                const canReleaseDelivery = hasCollection && !hasDelivery;
+                const blockedByFutureDate = job.deliveryHoldReason === "HELD - FUTURE DATE";
 
                 return (
                   <tr key={job.id} className="hover:bg-slate-50/60">
@@ -935,6 +994,7 @@ export default function ProcessItQueue() {
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${tpStatus.className}`}>
                         {tpStatus.label}
                       </span>
+                      <div className="mt-1 text-[11px] text-slate-500">{job.nextRequiredAction}</div>
                       {job.pushCompletedAt && (
                         <div className="mt-1 text-xs text-slate-400">
                           {new Date(job.pushCompletedAt).toLocaleDateString()}
@@ -1067,12 +1127,34 @@ export default function ProcessItQueue() {
 
                         {/* Send / Retry */}
                         {!bothSent && (
-                          <ActionButton
-                            label={isSending ? "Sending…" : hasError ? "Retry" : "Send"}
-                            onClick={() => void sendToTrackPod(job)}
-                            disabled={isSending}
-                            variant={hasError ? "warning" : "primary"}
-                          />
+                          <>
+                            {canReleaseCollection ? (
+                              <ActionButton
+                                label={isSending ? "Releasing…" : "Release Collection"}
+                                onClick={() => void releaseToTrackPod(job, "collection")}
+                                disabled={isSending}
+                                variant={hasError ? "warning" : "primary"}
+                              />
+                            ) : null}
+
+                            {canConfirmCollection ? (
+                              <ActionButton
+                                label={confirmingId === job.id ? "Confirming…" : "Confirm Collection"}
+                                onClick={() => void confirmCollection(job)}
+                                disabled={confirmingId === job.id}
+                                variant="ghost"
+                              />
+                            ) : null}
+
+                            {canReleaseDelivery ? (
+                              <ActionButton
+                                label={isSending ? "Releasing…" : blockedByFutureDate ? "Admin Override Release" : "Release Delivery"}
+                                onClick={() => void releaseToTrackPod(job, "delivery", blockedByFutureDate)}
+                                disabled={isSending || (!job.collectionConfirmedAt && !blockedByFutureDate)}
+                                variant={blockedByFutureDate ? "warning" : "primary"}
+                              />
+                            ) : null}
+                          </>
                         )}
 
                         {/* Open collection tracking */}

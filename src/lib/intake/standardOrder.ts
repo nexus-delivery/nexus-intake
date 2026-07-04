@@ -70,6 +70,7 @@ export type StandardOperations = {
   shipper: string;
   serviceType: string;
   readyForTrackPod: boolean;
+  adminReleaseOverride: boolean;
   distanceKm: string;
   journeyMinutes: string;
 };
@@ -196,6 +197,7 @@ export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): Stan
       shipper: "",
       serviceType: "",
       readyForTrackPod: false,
+      adminReleaseOverride: false,
       distanceKm: "",
       journeyMinutes: "",
     },
@@ -306,6 +308,7 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
       shipper: toText(source.operations?.shipper),
       serviceType: toText(source.operations?.serviceType),
       readyForTrackPod: toBool(source.operations?.readyForTrackPod),
+      adminReleaseOverride: toBool(source.operations?.adminReleaseOverride),
       distanceKm: toText(source.operations?.distanceKm),
       journeyMinutes: toText(source.operations?.journeyMinutes),
     },
@@ -494,6 +497,7 @@ export function toIntakeOrderInput(
       shipper: order.operations.shipper || undefined,
       serviceType: order.operations.serviceType || undefined,
       readyForTrackPod: order.operations.readyForTrackPod,
+      adminReleaseOverride: order.operations.adminReleaseOverride,
       distanceKm: order.operations.distanceKm || undefined,
       journeyMinutes: order.operations.journeyMinutes || undefined,
     },

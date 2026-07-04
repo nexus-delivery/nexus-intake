@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { notifyOrderCreated } from "@/lib/notify/orderCreated";
+import { evaluateFutureDeliveryHold } from "@/lib/orderLifecycle";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServerKey =
@@ -113,6 +114,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Delivery Address is required" }, { status: 400 });
     }
 
+    const holdEvaluation = evaluateFutureDeliveryHold(body.deliveryDate ?? "");
+    const initialLifecycle = holdEvaluation.shouldHoldDelivery ? "HELD_FUTURE_DATE" : "READY_FOR_TRACKPOD";
+
     // Create the draft_jobs record
     const { data: newJob, error: insertError } = await privilegedClient
       .from("draft_jobs")
@@ -122,7 +126,7 @@ export async function POST(request: NextRequest) {
         customer_id: body.customer_id?.trim() || null,
         customer_email: body.deliveryEmail?.trim() || null,
         status: "job_created",
-        lifecycle_status: "READY_FOR_TRACKPOD",
+        lifecycle_status: initialLifecycle,
       })
       .select("id")
       .single();
@@ -167,7 +171,23 @@ export async function POST(request: NextRequest) {
 
     await privilegedClient
       .from("draft_jobs")
-      .update({ integration_metadata: { trackPodMapping: fields } })
+      .update({
+        integration_metadata: {
+          trackPodMapping: fields,
+          releasePolicy: {
+            status: holdEvaluation.shouldHoldDelivery ? "held_future_date" : "ready",
+            requestedDeliveryDate: body.deliveryDate?.trim() || null,
+            workingDaysUntilDelivery: holdEvaluation.workingDaysUntilDelivery,
+            autoReleaseDate: holdEvaluation.autoReleaseDate ? holdEvaluation.autoReleaseDate.toISOString().slice(0, 10) : null,
+          },
+          lifecycle: {
+            collectionReleasedAt: null,
+            collectionConfirmedAt: null,
+            deliveryReleasedAt: null,
+            adminOverrideUsed: false,
+          },
+        },
+      })
       .eq("id", jobId);
 
     await notifyOrderCreated({
@@ -184,7 +204,7 @@ export async function POST(request: NextRequest) {
       success: true,
       jobId,
       jobReference,
-      lifecycleStatus: "READY_FOR_TRACKPOD",
+      lifecycleStatus: initialLifecycle,
     });
   } catch (err) {
     return NextResponse.json(

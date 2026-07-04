@@ -14,30 +14,26 @@ type SidebarProps = {
 };
 
 const moduleDescriptions: Record<string, string> = {
-  Dashboard: "Operational overview and live workspace status",
-  "Manage it": "Company, users, security and platform controls",
-  "Create it": "Create new work from any source",
-  "Send it": "Inactive placeholder for future dispatch handoff workflows",
-  "Process it": "Send confirmed jobs to Track-POD and monitor dispatch",
+  "Oversee it": "Operational dashboard with queue health and live status",
+  "Manage it": "CRM for merchants, customers, addresses and users",
+  "Create it": "Order intake with Book it, Upload it, Send it, and Get it",
+  "Process it": "Review, dispatch, route planning, driver allocation and exceptions",
   "Track it": "Track vehicles, jobs and deliveries in real time",
-  "Get it": "Inactive placeholder for future inbound and return workflows",
-  "Route it": "Planning, route sequencing and schedule confirmation",
-  "Store it": "Warehouse, inventory and documents",
-  "Choose it": "Marketplace, installed apps and subscriptions",
+  "Store it": "Inventory and warehouse operations",
+  "Account it": "Operational invoicing, payments and accounting visibility",
+  "Integrate it": "Connect Xero, commerce, messaging and dispatch providers",
   Settings: "Workspace governance and configuration",
 };
 
 const moduleStatus: Record<string, string> = {
-  Dashboard: "installed",
+  "Oversee it": "installed",
   "Manage it": "installed",
   "Create it": "installed",
-  "Send it": "available",
   "Process it": "installed",
   "Track it": "installed",
-  "Get it": "available",
-  "Route it": "installed",
-  "Store it": "available",
-  "Choose it": "installed",
+  "Store it": "installed",
+  "Account it": "installed",
+  "Integrate it": "installed",
   Settings: "installed",
 };
 
@@ -60,32 +56,18 @@ const navIcons: Record<string, ReactNode> = {
       <circle cx="7" cy="12" r="2" fill="#7C3AED" stroke="none" />
     </svg>
   ),
-  "Send it": (
+  "Oversee it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M22 2L11 13" />
-      <path d="M22 2L15 22l-4-9-9-4z" />
+      <path d="M3 13h8V3H3v10z" />
+      <path d="M13 21h8V11h-8v10z" />
+      <path d="M13 3h8v6h-8V3z" />
+      <path d="M3 21h8v-6H3v6z" />
     </svg>
   ),
   "Track it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
       <circle cx="12" cy="9" r="2.5" />
-    </svg>
-  ),
-  "Get it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  ),
-  "Route it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M4 7h10" />
-      <path d="M4 12h16" />
-      <path d="M4 17h8" />
-      <circle cx="17" cy="7" r="2" />
-      <circle cx="14" cy="17" r="2" />
     </svg>
   ),
   "Store it": (
@@ -95,11 +77,20 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M8 12h8" />
     </svg>
   ),
-  "Choose it": (
+  "Account it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <path d="M16 10a4 4 0 01-8 0" />
+      <path d="M3 6h18v12H3z" />
+      <path d="M3 10h18" />
+      <path d="M7 15h4" />
+    </svg>
+  ),
+  "Integrate it": (
+    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
+      <circle cx="7" cy="12" r="3" />
+      <circle cx="17" cy="7" r="3" />
+      <circle cx="17" cy="17" r="3" />
+      <path d="M9.5 10.5l5-2" />
+      <path d="M9.5 13.5l5 2" />
     </svg>
   ),
   Dashboard: (

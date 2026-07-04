@@ -16,6 +16,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IntakeSourceSystem } from "./standardOrder";
+import { evaluateFutureDeliveryHold } from "@/lib/orderLifecycle";
 
 export type { IntakeSourceSystem };
 
@@ -81,6 +82,7 @@ export type IntakeOperations = {
   shipper?: string;
   serviceType?: string;
   readyForTrackPod?: boolean;
+  adminReleaseOverride?: boolean;
   distanceKm?: string;
   journeyMinutes?: string;
 };
@@ -131,7 +133,7 @@ export type IntakeResult =
       success: true;
       jobId: string;
       jobReference: string;
-      lifecycleStatus: "READY_FOR_TRACKPOD" | "REVIEW_REQUIRED";
+  lifecycleStatus: "READY_FOR_TRACKPOD" | "REVIEW_REQUIRED" | "HELD_FUTURE_DATE";
     }
   | {
       success: false;
@@ -170,6 +172,11 @@ export function isTrackPodReady(input: IntakeOrderInput): boolean {
     input.delivery.addressLine1?.trim() &&
     input.goods.some((g) => g.description?.trim())
   );
+}
+
+function toIsoDate(value: Date | null): string | null {
+  if (!value) return null;
+  return value.toISOString().slice(0, 10);
 }
 
 // ---------------------------------------------------------------------------
@@ -357,9 +364,13 @@ export async function processIntake(
     });
 
     // 3. Determine lifecycle status
-    const lifecycleStatus: "READY_FOR_TRACKPOD" | "REVIEW_REQUIRED" = isTrackPodReady(input)
-      ? "READY_FOR_TRACKPOD"
-      : "REVIEW_REQUIRED";
+    const futureDateHold = evaluateFutureDeliveryHold(input.delivery.date);
+    const lifecycleStatus: "READY_FOR_TRACKPOD" | "REVIEW_REQUIRED" | "HELD_FUTURE_DATE" =
+      futureDateHold.shouldHoldDelivery
+        ? "HELD_FUTURE_DATE"
+        : isTrackPodReady(input)
+          ? "READY_FOR_TRACKPOD"
+          : "REVIEW_REQUIRED";
 
     // 4. Aggregate goods totals
     const totalQuantity = input.goods.reduce((s, g) => s + (g.quantity ?? 0), 0);
@@ -509,6 +520,18 @@ export async function processIntake(
               itemType: g.itemType ?? "product",
               photosRequired: false,
             })),
+          },
+          releasePolicy: {
+            status: futureDateHold.shouldHoldDelivery ? "held_future_date" : "ready",
+            requestedDeliveryDate: input.delivery.date || null,
+            workingDaysUntilDelivery: futureDateHold.workingDaysUntilDelivery,
+            autoReleaseDate: toIsoDate(futureDateHold.autoReleaseDate),
+          },
+          lifecycle: {
+            collectionReleasedAt: null,
+            collectionConfirmedAt: null,
+            deliveryReleasedAt: null,
+            adminOverrideUsed: false,
           },
         },
       })

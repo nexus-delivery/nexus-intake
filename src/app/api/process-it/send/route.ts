@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { buildTrackPodOrderReference } from "@/lib/trackpodReference";
+import { evaluateFutureDeliveryHold } from "@/lib/orderLifecycle";
 
 // Production Track-POD API endpoint and auth — as per reference/trackpod/PROCESS-IT.md
 const TRACKPOD_API_BASE_URL =
@@ -316,6 +317,8 @@ type SendRequest = {
   sourceSystem?: "Wodely" | "WooCommerce";
   /** Skip if already sent (default true) */
   checkDuplicate?: boolean;
+  releaseMode?: "auto" | "collection" | "delivery";
+  adminOverride?: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -360,7 +363,7 @@ export async function POST(request: NextRequest) {
       .from("draft_jobs")
       .select(
         "id, company_id, status, lifecycle_status, job_reference, primary_document_id, " +
-          "trackpod_delivery_order_id, trackpod_collection_order_id, " +
+          "trackpod_delivery_order_id, trackpod_collection_order_id, requested_delivery_date, " +
           "integration_metadata"
       )
       .eq("id", body.draftJobId)
@@ -378,9 +381,9 @@ export async function POST(request: NextRequest) {
 
     // ── Duplicate prevention ────────────────────────────────────────────────
     const checkDuplicate = body.checkDuplicate !== false;
+    const hasDelivery = Boolean(jobRecord.trackpod_delivery_order_id);
+    const hasCollection = Boolean(jobRecord.trackpod_collection_order_id);
     if (checkDuplicate) {
-      const hasDelivery = Boolean(jobRecord.trackpod_delivery_order_id);
-      const hasCollection = Boolean(jobRecord.trackpod_collection_order_id);
       if (hasDelivery && hasCollection) {
         return NextResponse.json(
           {
@@ -416,17 +419,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const integrationMetadata =
+      jobRecord.integration_metadata && typeof jobRecord.integration_metadata === "object"
+        ? (jobRecord.integration_metadata as Record<string, unknown>)
+        : {};
+
+    const lifecycleMeta =
+      integrationMetadata.lifecycle && typeof integrationMetadata.lifecycle === "object"
+        ? (integrationMetadata.lifecycle as Record<string, unknown>)
+        : {};
+
     // Also merge from integration_metadata if it has a trackPodMapping
-    if (jobRecord.integration_metadata && typeof jobRecord.integration_metadata === "object") {
-      const meta = jobRecord.integration_metadata as Record<string, unknown>;
-      if (meta.trackPodMapping && typeof meta.trackPodMapping === "object") {
-        for (const [k, v] of Object.entries(
-          meta.trackPodMapping as Record<string, string | null>
-        )) {
-          if (v != null && !clean(fields[k])) fields[k] = v;
-        }
+    if (integrationMetadata.trackPodMapping && typeof integrationMetadata.trackPodMapping === "object") {
+      for (const [k, v] of Object.entries(
+        integrationMetadata.trackPodMapping as Record<string, string | null>
+      )) {
+        if (v != null && !clean(fields[k])) fields[k] = v;
       }
     }
+
+    const collectionConfirmedAt =
+      typeof lifecycleMeta.collectionConfirmedAt === "string" && lifecycleMeta.collectionConfirmedAt.trim()
+        ? lifecycleMeta.collectionConfirmedAt
+        : null;
+
+    const releaseMode = body.releaseMode ?? "auto";
+    const releasingCollection = releaseMode === "collection" || (releaseMode === "auto" && !hasCollection);
+    const releasingDelivery = releaseMode === "delivery" || (releaseMode === "auto" && hasCollection && !hasDelivery);
+    const adminOverride = body.adminOverride === true;
 
     // Determine order reference
     const orderRef =
@@ -466,46 +486,118 @@ export async function POST(request: NextRequest) {
       .eq("id", jobRecord.id)
       .eq("company_id", profile.company_id);
 
-    // ── Create Collection order (Type 1) first ─────────────────────────────
-    const collectionPayload = buildCollectionPayload(fields, orderRef);
+    const metadataNext: Record<string, unknown> = {
+      ...integrationMetadata,
+      lifecycle: {
+        ...(integrationMetadata.lifecycle && typeof integrationMetadata.lifecycle === "object"
+          ? (integrationMetadata.lifecycle as Record<string, unknown>)
+          : {}),
+      },
+    };
 
-    let collectionResult: TrackPodResult;
-    try {
-      collectionResult = await callTrackPod(collectionPayload);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const httpStatus =
-        (err as { httpStatus?: number }).httpStatus ?? 500;
-      const errBody = (err as { body?: unknown }).body ?? null;
+    // ── Create Collection order (Type 1) ───────────────────────────────────
+    let collectionResult: TrackPodResult | null = null;
+    if (releasingCollection && !hasCollection) {
+      const collectionPayload = buildCollectionPayload(fields, orderRef);
+
+      try {
+        collectionResult = await callTrackPod(collectionPayload);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        const httpStatus =
+          (err as { httpStatus?: number }).httpStatus ?? 500;
+        const errBody = (err as { body?: unknown }).body ?? null;
+
+        await privilegedClient
+          .from("draft_jobs")
+          .update({
+            lifecycle_status: "TRACKPOD_ERROR",
+            trackpod_error_detail: {
+              step: "collection_order",
+              message: errMsg,
+              httpStatus,
+              body: errBody,
+              payload: collectionPayload,
+            },
+            trackpod_error_at: new Date().toISOString(),
+          })
+          .eq("id", jobRecord.id)
+          .eq("company_id", profile.company_id);
+
+        return NextResponse.json(
+          { error: `Collection order failed: ${errMsg}`, httpStatus },
+          { status: 502 }
+        );
+      }
+
+      const nowIso = new Date().toISOString();
+      (metadataNext.lifecycle as Record<string, unknown>).collectionReleasedAt = nowIso;
 
       await privilegedClient
         .from("draft_jobs")
         .update({
-          lifecycle_status: "TRACKPOD_ERROR",
-          trackpod_error_detail: {
-            step: "collection_order",
-            message: errMsg,
-            httpStatus,
-            body: errBody,
-            payload: collectionPayload,
-          },
-          trackpod_error_at: new Date().toISOString(),
+          trackpod_collection_order_id: collectionResult.locationHeader,
+          trackpod_collection_tracking_url: collectionResult.trackLink ?? "",
+          lifecycle_status: "COLLECTION_RELEASED_DELIVERY_HELD",
+          current_status: "COLLECTION_RELEASED_DELIVERY_HELD",
+          integration_metadata: metadataNext,
         })
         .eq("id", jobRecord.id)
         .eq("company_id", profile.company_id);
 
+      return NextResponse.json({
+        success: true,
+        jobId: jobRecord.id,
+        orderRef,
+        trackpodCollectionOrderId: collectionResult.locationHeader,
+        trackpodCollectionTrackingUrl: collectionResult.trackLink ?? null,
+        lifecycleStatus: "COLLECTION_RELEASED_DELIVERY_HELD",
+        nextRequiredAction: "Confirm collection completion, then release delivery",
+      });
+    }
+
+    if (releasingDelivery && !hasCollection) {
       return NextResponse.json(
-        { error: `Collection order failed: ${errMsg}`, httpStatus },
-        { status: 502 }
+        { error: "Release collection first before creating delivery" },
+        { status: 409 }
       );
     }
 
-    // Store collection ID immediately
-    await privilegedClient
-      .from("draft_jobs")
-      .update({ trackpod_collection_order_id: collectionResult.locationHeader })
-      .eq("id", jobRecord.id)
-      .eq("company_id", profile.company_id);
+    if (!releasingDelivery) {
+      return NextResponse.json(
+        { error: "No release action required for this job" },
+        { status: 409 }
+      );
+    }
+
+    if (hasDelivery) {
+      return NextResponse.json(
+        { error: "Delivery order already exists for this job" },
+        { status: 409 }
+      );
+    }
+
+    if (!collectionConfirmedAt && !adminOverride) {
+      return NextResponse.json(
+        { error: "Collection must be confirmed before delivery release" },
+        { status: 409 }
+      );
+    }
+
+    const requestedDeliveryDate =
+      firstNonBlank(fields, ["requested_delivery_date", "delivery_date"]) ||
+      clean(jobRecord.requested_delivery_date as string | null);
+    const holdEvaluation = evaluateFutureDeliveryHold(requestedDeliveryDate);
+    if (holdEvaluation.shouldHoldDelivery && !adminOverride) {
+      return NextResponse.json(
+        {
+          error: "Delivery is held because requested delivery date is more than 10 working days away",
+          lifecycleStatus: "HELD_FUTURE_DATE",
+          autoReleaseDate: holdEvaluation.autoReleaseDate?.toISOString().slice(0, 10) ?? null,
+        },
+        { status: 409 }
+      );
+    }
 
     // ── Create Delivery order (Type 0) after collection ─────────────────────
     const deliveryPayload = buildDeliveryPayload(fields, orderRef);
@@ -529,7 +621,7 @@ export async function POST(request: NextRequest) {
             httpStatus,
             body: errBody,
             payload: deliveryPayload,
-            collectionOrderAlreadyCreated: collectionResult.locationHeader,
+            collectionOrderAlreadyCreated: jobRecord.trackpod_collection_order_id,
           },
           trackpod_error_at: new Date().toISOString(),
         })
@@ -541,28 +633,31 @@ export async function POST(request: NextRequest) {
           error: `Delivery order failed (collection order was created): ${errMsg}`,
           httpStatus,
           partialSuccess: {
-            trackpodCollectionOrderId: collectionResult.locationHeader,
+            trackpodCollectionOrderId: jobRecord.trackpod_collection_order_id,
           },
         },
         { status: 502 }
       );
     }
 
-    // ── Atomic final update: both IDs, status → READY_FOR_ROUTE ─────────────
+    // ── Atomic final update: delivery released ───────────────────────────────
     const now = new Date().toISOString();
+    const lifecycleUpdate = metadataNext.lifecycle as Record<string, unknown>;
+    lifecycleUpdate.deliveryReleasedAt = now;
+    lifecycleUpdate.adminOverrideUsed = adminOverride;
+
     const { error: finalUpdateError } = await privilegedClient
       .from("draft_jobs")
       .update({
         trackpod_delivery_order_id: deliveryResult.locationHeader,
-        trackpod_collection_order_id: collectionResult.locationHeader,
         trackpod_delivery_tracking_url: deliveryResult.trackLink ?? "",
-        trackpod_collection_tracking_url: collectionResult.trackLink ?? "",
         lifecycle_status: "READY_FOR_ROUTE",
         trackpod_push_completed_at: now,
         trackpod_error_detail: null,
         trackpod_error_at: null,
         last_sync: now,
         current_status: "READY_FOR_ROUTE",
+        integration_metadata: metadataNext,
         last_api_response: {
           delivery: {
             locationHeader: deliveryResult.locationHeader,
@@ -572,11 +667,11 @@ export async function POST(request: NextRequest) {
             raw: deliveryResult.rawResponse,
           },
           collection: {
-            locationHeader: collectionResult.locationHeader,
-            trackLink: collectionResult.trackLink,
-            trackKey: collectionResult.trackKey,
-            trackId: collectionResult.trackId,
-            raw: collectionResult.rawResponse,
+            locationHeader: jobRecord.trackpod_collection_order_id,
+            trackLink: null,
+            trackKey: null,
+            trackId: null,
+            raw: null,
           },
         },
       })
@@ -597,9 +692,9 @@ export async function POST(request: NextRequest) {
         actor_profile_id: profile.id,
         metadata: {
           deliveryOrderId: deliveryResult.locationHeader,
-          collectionOrderId: collectionResult.locationHeader,
+            collectionOrderId: jobRecord.trackpod_collection_order_id,
           deliveryTrackLink: deliveryResult.trackLink,
-          collectionTrackLink: collectionResult.trackLink,
+            collectionTrackLink: null,
           orderRef,
           sourceSystem,
         },
@@ -611,11 +706,11 @@ export async function POST(request: NextRequest) {
       jobId: jobRecord.id,
       orderRef,
       trackpodDeliveryOrderId: deliveryResult.locationHeader,
-      trackpodCollectionOrderId: collectionResult.locationHeader,
+      trackpodCollectionOrderId: jobRecord.trackpod_collection_order_id,
       trackpodDeliveryTrackingUrl: deliveryResult.trackLink ?? null,
-      trackpodCollectionTrackingUrl: collectionResult.trackLink ?? null,
+      trackpodCollectionTrackingUrl: null,
       trackpodDeliveryTrackKey: deliveryResult.trackKey ?? null,
-      trackpodCollectionTrackKey: collectionResult.trackKey ?? null,
+      trackpodCollectionTrackKey: null,
       lifecycleStatus: "READY_FOR_ROUTE",
     });
   } catch (err) {
