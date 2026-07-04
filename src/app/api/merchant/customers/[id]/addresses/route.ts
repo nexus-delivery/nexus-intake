@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getMerchantContext } from "@/lib/serverAuth";
 
-type AddressType = "collection" | "delivery";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
+
+const ALLOWED_ADDRESS_TYPES: AddressType[] = [
+  "collection",
+  "delivery",
+  "billing",
+  "warehouse",
+  "branch",
+];
 
 type AddressRow = {
   id: string;
@@ -130,7 +138,7 @@ export async function GET(
     query = query.is("archived_at", null);
   }
 
-  if (typeFilter === "collection" || typeFilter === "delivery") {
+  if (ALLOWED_ADDRESS_TYPES.includes(typeFilter as AddressType)) {
     query = query.eq("address_type", typeFilter);
   }
 
@@ -169,8 +177,8 @@ export async function POST(
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const addressType = text(body.addressType) as AddressType;
-  if (addressType !== "collection" && addressType !== "delivery") {
-    return NextResponse.json({ error: "Address type must be collection or delivery" }, { status: 400 });
+  if (!ALLOWED_ADDRESS_TYPES.includes(addressType)) {
+    return NextResponse.json({ error: "Address type is invalid" }, { status: 400 });
   }
 
   const addressLine1 = text(body.addressLine1);
@@ -179,7 +187,8 @@ export async function POST(
     return NextResponse.json({ error: "Address line 1 and postcode are required" }, { status: 400 });
   }
 
-  const shouldDefault = body.isDefault === true;
+  const shouldDefault =
+    body.isDefault === true && (addressType === "collection" || addressType === "delivery");
 
   const insertPayload: Record<string, unknown> = {
     company_id: auth.value.companyId,

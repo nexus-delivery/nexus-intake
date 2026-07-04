@@ -32,6 +32,17 @@ type Props = {
 type SubmitState = "idle" | "submitting" | "success" | "error";
 type SubmitIntent = "draft" | "process";
 
+type SavedServiceOptions = {
+  fragile: boolean;
+  twoMan: boolean;
+  roomOfChoice: boolean;
+  assembly: boolean;
+  tailLiftRequired: boolean;
+  dedicatedVehicle: boolean;
+  northernIrelandDelivery: boolean;
+  sameDay: boolean;
+};
+
 type SavedBookingFormTemplate = {
   id: string;
   name: string;
@@ -46,6 +57,9 @@ type SavedBookingFormTemplate = {
   delivery: StandardOrder["delivery"];
   notes: string;
   defaultService: string;
+  commercial: StandardOrder["commercial"];
+  operations: StandardOrder["operations"];
+  serviceOptions: SavedServiceOptions;
 };
 
 type CustomerAddressType = "collection" | "delivery";
@@ -112,7 +126,7 @@ function applyAddressToStop(
 export default function StandardOrderForm({ sourceSystem, title, subtitle, bookingVariant = "standard" }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
   const [profileCompanyId, setProfileCompanyId] = useState("");
-  const [collectionMode, setCollectionMode] = useState<CollectionMode>(bookingVariant === "deliver" ? "depot" : "new_address");
+  const [collectionMode, setCollectionMode] = useState<CollectionMode>("new_address");
   const [defaultCollectionProfile, setDefaultCollectionProfile] = useState<DefaultCollectionProfile | null>(null);
   const [collectionProfiles, setCollectionProfiles] = useState<DefaultCollectionProfile[]>([]);
   const [selectedCollectionProfileId, setSelectedCollectionProfileId] = useState("");
@@ -130,6 +144,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitIntent, setSubmitIntent] = useState<SubmitIntent>("process");
+  const [autoSelectionApplied, setAutoSelectionApplied] = useState(false);
+  const [deepLinkCustomerId, setDeepLinkCustomerId] = useState("");
+  const [deepLinkTemplateId, setDeepLinkTemplateId] = useState("");
 
   const effectiveCompanyId = profileCompanyId;
   const isMerchantView = sourceSystem === "merchant_portal";
@@ -146,6 +163,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     } catch {
       // Ignore invalid persisted templates.
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setDeepLinkCustomerId(params.get("customerId")?.trim() ?? "");
+    setDeepLinkTemplateId(params.get("templateId")?.trim() ?? "");
   }, []);
 
   useEffect(() => {
@@ -270,6 +294,31 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     };
   }, [customerId, isMerchantView]);
 
+  useEffect(() => {
+    if (autoSelectionApplied) return;
+
+    const customerIdFromQuery = deepLinkCustomerId;
+    const templateIdFromQuery = deepLinkTemplateId;
+
+    if (customerIdFromQuery && customers.some((customer) => customer.id === customerIdFromQuery)) {
+      setCustomerId(customerIdFromQuery);
+      const selected = customers.find((customer) => customer.id === customerIdFromQuery);
+      if (selected) {
+        setOrder((prev) => applyCustomerDefaults(prev, selected));
+      }
+      setAutoSelectionApplied(true);
+      return;
+    }
+
+    if (templateIdFromQuery) {
+      const template = savedTemplates.find((entry) => entry.id === templateIdFromQuery);
+      if (template) {
+        applyTemplate(template);
+        setAutoSelectionApplied(true);
+      }
+    }
+  }, [autoSelectionApplied, customers, deepLinkCustomerId, deepLinkTemplateId, savedTemplates]);
+
   const customerCollectionAddresses = useMemo(
     () => customerAddresses.filter((address) => address.addressType === "collection" && !address.archivedAt),
     [customerAddresses]
@@ -310,7 +359,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
         setCollectionProfiles(profiles);
         setDefaultCollectionProfile(preferredProfile);
         setSelectedCollectionProfileId(preferredProfile.id);
-        if (payload.suggestedDepotMode || bookingVariant === "deliver") {
+        if (payload.suggestedDepotMode) {
           setCollectionMode("depot");
           setOrder((prev) => ({
             ...prev,
@@ -346,7 +395,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
   const canSubmit = useMemo(() => {
     const hasCollection =
-      (bookingVariant === "deliver" || collectionMode === "depot")
+      (collectionMode === "depot")
         ? Boolean(
             activeCollectionProfile?.addressLine1.trim() &&
             activeCollectionProfile?.postcode.trim()
@@ -369,7 +418,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   }, [activeCollectionProfile, bookingVariant, collectionMode, order]);
 
   const resolvedCollection =
-    (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
+    (collectionMode === "depot") && activeCollectionProfile
       ? {
           ...order.collection,
           ...profileToStop(activeCollectionProfile),
@@ -415,6 +464,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       return;
     }
 
+    const firstGoods = order.goods[0] ?? createEmptyStandardOrder(sourceSystem).goods[0];
     const template: SavedBookingFormTemplate = {
       id: createTemplateId(),
       name: normalizedName,
@@ -429,6 +479,18 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       delivery: { ...order.delivery },
       notes: order.notes,
       defaultService: order.operations.serviceType,
+      commercial: { ...order.commercial },
+      operations: { ...order.operations },
+      serviceOptions: {
+        fragile: Boolean(firstGoods.fragile),
+        twoMan: Boolean(firstGoods.twoMan),
+        roomOfChoice: Boolean(firstGoods.roomOfChoice),
+        assembly: Boolean(firstGoods.assembly),
+        tailLiftRequired: Boolean(firstGoods.tailLiftRequired),
+        dedicatedVehicle: Boolean(firstGoods.dedicatedVehicle),
+        northernIrelandDelivery: Boolean(firstGoods.northernIrelandDelivery),
+        sameDay: Boolean(firstGoods.sameDay),
+      },
     };
 
     setSavedTemplates((current) => [template, ...current].slice(0, 25));
@@ -450,10 +512,27 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       collectionMode: template.collectionMode,
       collection: { ...prev.collection, ...template.collection },
       delivery: { ...prev.delivery, ...template.delivery },
+      commercial: { ...prev.commercial, ...template.commercial },
       operations: {
         ...prev.operations,
+        ...template.operations,
         serviceType: template.defaultService,
       },
+      goods: prev.goods.map((item, index) =>
+        index === 0
+          ? {
+              ...item,
+              fragile: template.serviceOptions.fragile,
+              twoMan: template.serviceOptions.twoMan,
+              roomOfChoice: template.serviceOptions.roomOfChoice,
+              assembly: template.serviceOptions.assembly,
+              tailLiftRequired: template.serviceOptions.tailLiftRequired,
+              dedicatedVehicle: template.serviceOptions.dedicatedVehicle,
+              northernIrelandDelivery: template.serviceOptions.northernIrelandDelivery,
+              sameDay: template.serviceOptions.sameDay,
+            }
+          : item
+      ),
     }));
     setSubmitState("success");
     setSubmitMessage(`Loaded reusable booking form: ${template.name}. Enter Order Number, Job Reference, External ID, and Goods for this run.`);
@@ -558,7 +637,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       );
       const empty = createEmptyStandardOrder(sourceSystem);
       setOrder(
-        (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
+        (collectionMode === "depot") && activeCollectionProfile
           ? {
               ...empty,
               collectionMode: "depot",
@@ -651,7 +730,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           <h2 className="text-base font-semibold text-slate-900">Booking Mode</h2>
           <p className="mt-2 text-sm text-slate-600">
             {bookingVariant === "deliver"
-              ? "Deliver it uses your saved depot profile for collection."
+              ? "Deliver it supports depot collection or a brand new collection address."
               : bookingVariant === "return"
                 ? "Return it uses your saved depot profile for delivery."
                 : bookingVariant === "request"
@@ -661,7 +740,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
-              disabled={bookingVariant !== "standard"}
               onClick={() => {
                 setCollectionMode("depot");
                 if (activeCollectionProfile) {
@@ -688,7 +766,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             </button>
             <button
               type="button"
-              disabled={bookingVariant !== "standard"}
               onClick={() => {
                 setCollectionMode("new_address");
                 setOrder((prev) => ({ ...prev, collectionMode: "new_address" }));

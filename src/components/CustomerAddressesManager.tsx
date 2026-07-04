@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { MerchantCustomer } from "@/lib/merchantCustomers";
 
-type AddressType = "collection" | "delivery";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
 
 type CustomerAddress = {
   id: string;
@@ -54,6 +54,8 @@ const emptyForm: AddressForm = {
   isDefault: false,
 };
 
+const ADDRESS_TYPES: AddressType[] = ["collection", "delivery", "billing", "warehouse", "branch"];
+
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supabase) return {};
   const {
@@ -67,15 +69,36 @@ export default function CustomerAddressesManager() {
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | AddressType>("all");
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState<AddressForm>(emptyForm);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const visibleAddresses = useMemo(() => {
-    return addresses.filter((address) => typeFilter === "all" || address.addressType === typeFilter);
-  }, [addresses, typeFilter]);
+    const needle = search.trim().toLowerCase();
+    return addresses.filter((address) => {
+      const typeMatch = typeFilter === "all" || address.addressType === typeFilter;
+      if (!typeMatch) return false;
+      if (!needle) return true;
+      return [
+        address.label,
+        address.contactName,
+        address.addressLine1,
+        address.addressLine2,
+        address.addressLine3,
+        address.postcode,
+        address.country,
+        address.phone,
+        address.email,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [addresses, search, typeFilter]);
 
   async function loadCustomers() {
     const response = await fetch("/api/merchant/customers", { headers: await authHeaders() });
@@ -175,8 +198,12 @@ export default function CustomerAddressesManager() {
     setMessage(null);
 
     try {
-      const response = await fetch(`/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses`, {
-        method: "POST",
+      const targetUrl = editingAddressId
+        ? `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(editingAddressId)}`
+        : `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses`;
+
+      const responseFinal = await fetch(targetUrl, {
+        method: editingAddressId ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
           ...(await authHeaders()),
@@ -184,16 +211,17 @@ export default function CustomerAddressesManager() {
         body: JSON.stringify(form),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as {
+      const payload = (await responseFinal.json().catch(() => ({}))) as {
         error?: string;
       };
 
-      if (!response.ok) {
+      if (!responseFinal.ok) {
         throw new Error(payload.error ?? "Failed to save address");
       }
 
       setForm((prev) => ({ ...emptyForm, addressType: prev.addressType }));
-      setMessage("Address saved.");
+      setEditingAddressId(null);
+      setMessage(editingAddressId ? "Address updated." : "Address saved.");
       await loadAddresses(selectedCustomerId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save address");
@@ -256,6 +284,24 @@ export default function CustomerAddressesManager() {
     }
   }
 
+  function editAddress(address: CustomerAddress) {
+    setEditingAddressId(address.id);
+    setForm({
+      addressType: address.addressType,
+      label: address.label,
+      contactName: address.contactName,
+      phone: address.phone,
+      email: address.email,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      addressLine3: address.addressLine3,
+      postcode: address.postcode,
+      country: address.country,
+      instructions: address.instructions,
+      isDefault: address.isDefault,
+    });
+  }
+
   return (
     <section className="space-y-5 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
       <div>
@@ -269,6 +315,15 @@ export default function CustomerAddressesManager() {
       {loading ? <p className="text-sm text-slate-500">Loading address workspace...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
+
+      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+        <input
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search addresses"
+        />
+      </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
         <select
@@ -290,8 +345,11 @@ export default function CustomerAddressesManager() {
           onChange={(event) => setTypeFilter(event.target.value as "all" | AddressType)}
         >
           <option value="all">All address types</option>
-          <option value="collection">Collection</option>
-          <option value="delivery">Delivery</option>
+          {ADDRESS_TYPES.map((addressType) => (
+            <option key={addressType} value={addressType}>
+              {addressType.charAt(0).toUpperCase() + addressType.slice(1)}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -303,8 +361,11 @@ export default function CustomerAddressesManager() {
             value={form.addressType}
             onChange={(event) => setForm((prev) => ({ ...prev, addressType: event.target.value as AddressType }))}
           >
-            <option value="collection">Collection</option>
-            <option value="delivery">Delivery</option>
+            {ADDRESS_TYPES.map((addressType) => (
+              <option key={addressType} value={addressType}>
+                {addressType.charAt(0).toUpperCase() + addressType.slice(1)}
+              </option>
+            ))}
           </select>
           <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Label (e.g. Main depot)" value={form.label} onChange={(event) => setForm((prev) => ({ ...prev, label: event.target.value }))} />
           <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Contact" value={form.contactName} onChange={(event) => setForm((prev) => ({ ...prev, contactName: event.target.value }))} />
@@ -318,12 +379,31 @@ export default function CustomerAddressesManager() {
           <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2 xl:col-span-3" placeholder="Instructions" value={form.instructions} onChange={(event) => setForm((prev) => ({ ...prev, instructions: event.target.value }))} />
         </div>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={form.isDefault} onChange={(event) => setForm((prev) => ({ ...prev, isDefault: event.target.checked }))} />
+          <input
+            type="checkbox"
+            checked={form.isDefault}
+            disabled={!(form.addressType === "collection" || form.addressType === "delivery")}
+            onChange={(event) => setForm((prev) => ({ ...prev, isDefault: event.target.checked }))}
+          />
           Set as default for selected type
         </label>
-        <button type="submit" disabled={saving || !selectedCustomerId} className="mt-3 rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-          {saving ? "Saving..." : "Save address"}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="submit" disabled={saving || !selectedCustomerId} className="rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            {saving ? "Saving..." : editingAddressId ? "Update address" : "Save address"}
+          </button>
+          {editingAddressId ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingAddressId(null);
+                setForm(emptyForm);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Cancel edit
+            </button>
+          ) : null}
+        </div>
       </form>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -360,9 +440,10 @@ export default function CustomerAddressesManager() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {!address.isDefault ? (
+                      {!address.isDefault && (address.addressType === "collection" || address.addressType === "delivery") ? (
                         <button onClick={() => void setDefaultAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Set default</button>
                       ) : null}
+                      <button onClick={() => editAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Edit</button>
                       <button onClick={() => void archiveAddress(address)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">Archive</button>
                     </div>
                   </td>

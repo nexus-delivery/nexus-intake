@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMerchantContext } from "@/lib/serverAuth";
 
-type AddressType = "collection" | "delivery";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
 
 type AddressRow = {
   id: string;
@@ -119,6 +119,15 @@ export async function PATCH(
   }
 
   if (typeof body.isDefault === "boolean") {
+    if (
+      body.isDefault === true &&
+      !(existing.address_type === "collection" || existing.address_type === "delivery")
+    ) {
+      return NextResponse.json(
+        { error: "Default can only be set for collection or delivery addresses" },
+        { status: 400 }
+      );
+    }
     updatePayload.is_default = body.isDefault;
   }
 
