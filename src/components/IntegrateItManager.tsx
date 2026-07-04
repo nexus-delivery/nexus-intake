@@ -44,6 +44,17 @@ export default function IntegrateItManager() {
   const [editingProviderKey, setEditingProviderKey] = useState<string | null>(null);
   const [credentialsText, setCredentialsText] = useState("{\n  \"apiKey\": \"\"\n}");
   const [configurationText, setConfigurationText] = useState("{\n  \"syncMode\": \"manual\"\n}");
+  const [xeroSettings, setXeroSettings] = useState({
+    provider: "xero",
+    tenantId: "",
+    contactId: "",
+    brandingTheme: "",
+    salesAccount: "",
+    vatCode: "",
+    itemCode: "",
+    paymentTerms: "",
+    invoiceDefaults: "",
+  });
 
   const grouped = useMemo(() => {
     return integrations.reduce<Record<string, MerchantIntegrationView[]>>((acc, integration) => {
@@ -79,6 +90,29 @@ export default function IntegrateItManager() {
   useEffect(() => {
     void loadIntegrations();
   }, [loadIntegrations]);
+
+  useEffect(() => {
+    const xero = integrations.find((integration) => integration.providerKey === "xero");
+    if (!xero) return;
+
+    const config = xero.configuration ?? {};
+    setXeroSettings({
+      provider: "xero",
+      tenantId: typeof config.tenantId === "string" ? config.tenantId : "",
+      contactId: typeof config.contactId === "string" ? config.contactId : "",
+      brandingTheme: typeof config.brandingTheme === "string" ? config.brandingTheme : "",
+      salesAccount: typeof config.salesAccount === "string" ? config.salesAccount : "",
+      vatCode: typeof config.vatCode === "string" ? config.vatCode : "",
+      itemCode: typeof config.itemCode === "string" ? config.itemCode : "",
+      paymentTerms: typeof config.paymentTerms === "string" ? config.paymentTerms : "",
+      invoiceDefaults:
+        typeof config.invoiceDefaults === "string"
+          ? config.invoiceDefaults
+          : config.invoiceDefaults && typeof config.invoiceDefaults === "object"
+            ? JSON.stringify(config.invoiceDefaults)
+            : "",
+    });
+  }, [integrations]);
 
   function openConfiguration(integration: MerchantIntegrationView) {
     setEditingProviderKey(integration.providerKey);
@@ -198,16 +232,80 @@ export default function IntegrateItManager() {
     }
   }
 
+  async function saveXeroSettings() {
+    setBusyProviderKey("xero");
+    setError(null);
+    setStatusMessage(null);
+
+    try {
+      let invoiceDefaults: Record<string, unknown> | string = xeroSettings.invoiceDefaults.trim();
+      if (xeroSettings.invoiceDefaults.trim().startsWith("{")) {
+        invoiceDefaults = JSON.parse(xeroSettings.invoiceDefaults);
+      }
+
+      const response = await fetch(`/api/merchant/integrations/xero/configuration`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({
+          configuration: {
+            provider: "xero",
+            tenantId: xeroSettings.tenantId.trim(),
+            contactId: xeroSettings.contactId.trim(),
+            brandingTheme: xeroSettings.brandingTheme.trim(),
+            salesAccount: xeroSettings.salesAccount.trim(),
+            vatCode: xeroSettings.vatCode.trim(),
+            itemCode: xeroSettings.itemCode.trim(),
+            paymentTerms: xeroSettings.paymentTerms.trim(),
+            invoiceDefaults,
+          },
+        }),
+      });
+
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to save Xero settings");
+      }
+
+      setStatusMessage("Xero settings saved");
+      await loadIntegrations();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save Xero settings");
+    } finally {
+      setBusyProviderKey(null);
+    }
+  }
+
   return (
     <section className="space-y-6 rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm shadow-slate-200/40">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Core Platform Module</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Connection Hub</p>
         <h1 className="text-3xl font-semibold text-slate-950">Integrate-it</h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Merchant-scoped integration management for accounting, commerce, operations, communications, and payments.
-          NEXUS remains the operational system of record while integrations are selected per merchant company.
+          Integrate-it only handles external system connections. Once connected, providers are used automatically in
+          Create it, Process it, Track it, and Account it.
         </p>
       </header>
+
+      <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2 xl:grid-cols-3">
+        {[
+          "Connect Xero",
+          "Connect QuickFile",
+          "Connect WooCommerce",
+          "Connect Shopify",
+          "Connect Stripe",
+          "Connect Dispatch Provider",
+          "Connect Resend",
+          "Connect Twilio",
+          "Future integrations",
+        ].map((item) => (
+          <div key={item} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+            {item}
+          </div>
+        ))}
+      </div>
 
       <div className="flex flex-wrap gap-2 text-xs font-semibold">
         <button
@@ -225,6 +323,31 @@ export default function IntegrateItManager() {
 
       {!loading ? (
         <div className="space-y-6">
+          <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">Xero Accounting Settings</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Stored per merchant: Provider, Tenant ID, Contact ID, Branding Theme, Sales Account, VAT Code, Item Code, Payment Terms, Invoice Defaults.
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.provider} onChange={(event) => setXeroSettings((prev) => ({ ...prev, provider: event.target.value }))} placeholder="Provider" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.tenantId} onChange={(event) => setXeroSettings((prev) => ({ ...prev, tenantId: event.target.value }))} placeholder="Tenant ID" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.contactId} onChange={(event) => setXeroSettings((prev) => ({ ...prev, contactId: event.target.value }))} placeholder="Contact ID" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.brandingTheme} onChange={(event) => setXeroSettings((prev) => ({ ...prev, brandingTheme: event.target.value }))} placeholder="Branding Theme" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.salesAccount} onChange={(event) => setXeroSettings((prev) => ({ ...prev, salesAccount: event.target.value }))} placeholder="Sales Account" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.vatCode} onChange={(event) => setXeroSettings((prev) => ({ ...prev, vatCode: event.target.value }))} placeholder="VAT Code" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.itemCode} onChange={(event) => setXeroSettings((prev) => ({ ...prev, itemCode: event.target.value }))} placeholder="Item Code" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={xeroSettings.paymentTerms} onChange={(event) => setXeroSettings((prev) => ({ ...prev, paymentTerms: event.target.value }))} placeholder="Payment Terms (days)" />
+              <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2 xl:col-span-3" value={xeroSettings.invoiceDefaults} onChange={(event) => setXeroSettings((prev) => ({ ...prev, invoiceDefaults: event.target.value }))} placeholder='Invoice Defaults (text or JSON e.g. {"currency":"GBP"})' />
+            </div>
+            <button
+              onClick={() => void saveXeroSettings()}
+              disabled={busyProviderKey === "xero"}
+              className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+            >
+              {busyProviderKey === "xero" ? "Saving..." : "Save Xero Settings"}
+            </button>
+          </article>
+
           {Object.entries(grouped).map(([category, items]) => (
             <article key={category} className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
