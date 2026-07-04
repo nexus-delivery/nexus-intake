@@ -364,7 +364,7 @@ export default function SearchItPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#7C3AED]">Manage it.</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#7C3AED]">Oversee it.</p>
           <h1 className="text-2xl font-bold text-slate-900">Search it.</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Locate documents, draft jobs, live jobs and completed deliveries.

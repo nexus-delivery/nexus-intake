@@ -239,7 +239,7 @@ export default function ManageItCRMWorkspace() {
       />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Manage it = CRM</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Oversee it = CRM</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-950">Merchant CRM Workspace</h1>
         <p className="mt-2 max-w-4xl text-sm text-slate-600">
           Manage merchants, customers, reusable addresses, and users from one CRM surface. Admins can create a merchant workspace,

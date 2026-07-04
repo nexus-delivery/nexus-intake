@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import WorkspaceSelector from "@/components/WorkspaceSelector";
+import PlatformBreadcrumbs from "@/components/PlatformBreadcrumbs";
 
 const navItems = [
   { label: "Dashboard", href: "/customer" },
@@ -25,6 +27,10 @@ export default function CustomerPortalShell({ children }: { children: ReactNode 
           <p className="mt-2 text-sm text-slate-600">
             View your own orders, live delivery status, documents, invoices, and notifications.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <WorkspaceSelector />
+            <PlatformBreadcrumbs />
+          </div>
           <nav className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
             {navItems.map((item) => {
               const active = pathname === item.href;

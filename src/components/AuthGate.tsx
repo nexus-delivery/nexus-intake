@@ -72,8 +72,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
             getSessionId: sessionData.session.user.id,
           });
         }
-        const user = userData.user ?? sessionData.session?.user ?? null;
-        const accessToken = sessionData.session?.access_token ?? null;
+        let user = userData.user ?? sessionData.session?.user ?? null;
+        let accessToken = sessionData.session?.access_token ?? null;
 
         console.info("[AuthGate] session check", {
           route: pathname,
@@ -81,6 +81,15 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           resolvedUserId: user?.id ?? null,
           supabaseProjectRef: getSupabaseProjectRefFromUrl(),
         });
+
+        if (!user) {
+          // Avoid redirect loops on valid sessions during hydration by retrying session read once.
+          const recovered = await supabase.auth.getSession();
+          if (recovered.data.session?.user) {
+            user = recovered.data.session.user;
+            accessToken = recovered.data.session.access_token ?? null;
+          }
+        }
 
         if (!user) {
           try {

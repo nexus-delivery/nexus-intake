@@ -4,6 +4,8 @@ import { ReactNode, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import MerchantSidebar from "@/components/MerchantSidebar";
+import WorkspaceSelector from "@/components/WorkspaceSelector";
+import PlatformBreadcrumbs from "@/components/PlatformBreadcrumbs";
 
 type MerchantPortalShellProps = {
   children: ReactNode;
@@ -32,16 +34,18 @@ export default function MerchantPortalShell({ children }: MerchantPortalShellPro
                   Workspace access
                 </p>
                 <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">
-                  Manage it
+                  Oversee it
                 </h1>
+                <PlatformBreadcrumbs />
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <WorkspaceSelector />
                 <Link
                   href="/portal"
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--nexus-graphite)] shadow-sm transition hover:bg-slate-50"
                 >
-                  Back to Manage it
+                  Back to Oversee it
                 </Link>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-[var(--nexus-graphite)] shadow-sm">
                   <span className="font-semibold">Live</span> • updated now

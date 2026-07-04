@@ -20,8 +20,9 @@ export default function ProcessItPage() {
         <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-2 xl:grid-cols-5">
           {[
             "Review Queue",
+            "Route it",
             "Dispatch Queue",
-            "Route Planning",
+            "Track it",
             "Driver Allocation",
             "Exceptions",
           ].map((item) => (

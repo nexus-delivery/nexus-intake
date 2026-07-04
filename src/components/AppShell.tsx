@@ -9,15 +9,13 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const navItems = [
-  { label: "Oversee it", href: "/dashboard" },
+  { label: "Oversee it", href: "/manage-it" },
   { label: "Create it", href: "/create-it" },
-  { label: "Manage it", href: "/manage-it" },
   { label: "Process it", href: "/process-it" },
-  { label: "Track it", href: "/track-it" },
-  { label: "Store it", href: "/store-it" },
   { label: "Account it", href: "/account-it" },
-  { label: "Integrate it", href: "/integrate-it" },
-  { label: "Settings", href: "/settings" },
+  { label: "Store it", href: "/store-it" },
+  { label: "Report it", href: "/report-it" },
+  { label: "Improve it", href: "/improve-it" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -55,7 +53,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  const filteredNavItems = navItems.filter((item) => item.href !== "/manage-it" || showManageIt);
+  const filteredNavItems = navItems.filter(
+    (item) => item.label !== "Oversee it" || showManageIt || pathname.startsWith("/manage-it")
+  );
 
   return (
     <div className="min-h-screen text-[var(--nexus-graphite)] nexus-page-enter">

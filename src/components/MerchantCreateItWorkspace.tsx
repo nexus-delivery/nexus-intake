@@ -6,11 +6,13 @@ import StandardOrderForm from "@/components/StandardOrderForm";
 import WorkflowStageBanner from "@/components/WorkflowStageBanner";
 
 const workspaceCards = [
-  { title: "Book it", href: "/booking-forms/public", detail: "Customer-facing order capture for structured intake." },
-  { title: "Upload it", href: "/portal/documents", detail: "Upload order files and route them into the same intake object." },
-  { title: "Send it", href: "/send-it", detail: "Email and channel handoff into Create-it intake." },
-  { title: "Get it", href: "/get-it", detail: "Inbound and return intake entrypoint managed by Create-it." },
-  { title: "Review Queue", href: "/process-it", detail: "Move new orders into Review it with clear release controls." },
+  { title: "Book it", href: "/create-it#new-order", detail: "Manual booking, quick booking, templates and API-driven intake." },
+  { title: "Upload it", href: "/create-it", detail: "Document uploads routed through Create it intake workflow." },
+  { title: "Send it", href: "/create-it", detail: "Email and channel intake orchestration inside Create it." },
+  { title: "Get it", href: "/create-it", detail: "Inbound and return intake managed inside Create it." },
+  { title: "Saved Forms", href: "/create-it#new-order", detail: "Use and manage reusable booking form templates." },
+  { title: "Public Forms", href: "/booking-forms/public", detail: "Customer-facing intake forms connected to Create it." },
+  { title: "Review Queue", href: "/process-it", detail: "Move new orders into Process it with release controls." },
   { title: "Order History", href: "/portal/orders", detail: "Review live and historical bookings." },
 ];
 

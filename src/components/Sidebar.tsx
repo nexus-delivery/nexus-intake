@@ -15,35 +15,25 @@ type SidebarProps = {
 
 const moduleDescriptions: Record<string, string> = {
   "Oversee it": "Operational dashboard with queue health and live status",
-  "Manage it": "CRM for merchants, customers, addresses and users",
   "Create it": "Order intake with Book it, Upload it, Send it, and Get it",
-  "Process it": "Review, dispatch, route planning, driver allocation and exceptions",
-  "Track it": "Track vehicles, jobs and deliveries in real time",
+  "Process it": "Review Queue, Route it, Dispatch, Driver Allocation, Track it and Exceptions",
   "Store it": "Inventory and warehouse operations",
-  "Account it": "Operational invoicing, payments and accounting visibility",
-  "Integrate it": "Connect Xero, commerce, messaging and dispatch providers",
-  Settings: "Workspace governance and configuration",
+  "Account it": "Operational invoicing, payments, Xero flow and finance visibility",
+  "Report it": "Operational performance, SLA and KPI reporting",
+  "Improve it": "Continuous optimisation, audits and process enhancements",
 };
 
 const moduleStatus: Record<string, string> = {
   "Oversee it": "installed",
-  "Manage it": "installed",
   "Create it": "installed",
   "Process it": "installed",
-  "Track it": "installed",
   "Store it": "installed",
   "Account it": "installed",
-  "Integrate it": "installed",
-  Settings: "installed",
+  "Report it": "installed",
+  "Improve it": "installed",
 };
 
 const navIcons: Record<string, ReactNode> = {
-  "Manage it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M3 11.5L12 4l9 7.5" />
-      <path d="M4 12v8h6v-5h4v5h6v-8" />
-    </svg>
-  ),
   "Create it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M12 5v14M5 12h14" />
@@ -64,12 +54,6 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M3 21h8v-6H3v6z" />
     </svg>
   ),
-  "Track it": (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-      <circle cx="12" cy="9" r="2.5" />
-    </svg>
-  ),
   "Store it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
       <path d="M4 8l8-5 8 5v11H4V8z" />
@@ -84,27 +68,19 @@ const navIcons: Record<string, ReactNode> = {
       <path d="M7 15h4" />
     </svg>
   ),
-  "Integrate it": (
+  "Report it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <circle cx="7" cy="12" r="3" />
-      <circle cx="17" cy="7" r="3" />
-      <circle cx="17" cy="17" r="3" />
-      <path d="M9.5 10.5l5-2" />
-      <path d="M9.5 13.5l5 2" />
+      <path d="M4 19h16" />
+      <path d="M7 16V9" />
+      <path d="M12 16V5" />
+      <path d="M17 16v-3" />
     </svg>
   ),
-  Dashboard: (
+  "Improve it": (
     <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M3 13h8V3H3v10z" />
-      <path d="M13 21h8V11h-8v10z" />
-      <path d="M13 3h8v6h-8V3z" />
-      <path d="M3 21h8v-6H3v6z" />
-    </svg>
-  ),
-  Settings: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="1.8" className="h-5 w-5">
-      <path d="M12 8a4 4 0 100 8 4 4 0 000-8z" />
-      <path d="M2 12h2m16 0h2M12 2v2m0 16v2m7.07-15.07l-1.41 1.41M6.34 17.66l-1.41 1.41m0-14.14l1.41 1.41m11.32 11.32l1.41 1.41" />
+      <path d="M4 13l4 4 12-12" />
+      <path d="M4 7h6" />
+      <path d="M4 11h4" />
     </svg>
   ),
   // Legacy icons kept for backward compatibility
