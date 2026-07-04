@@ -10,7 +10,7 @@ const workspaceCards = [
   { title: "Upload it", href: "/create-it", detail: "Document uploads routed through Create it intake workflow." },
   { title: "Send it", href: "/create-it", detail: "Email and channel intake orchestration inside Create it." },
   { title: "Get it", href: "/create-it", detail: "Inbound and return intake managed inside Create it." },
-  { title: "Saved Forms", href: "/create-it#new-order", detail: "Use and manage reusable booking form templates." },
+  { title: "Manage Booking Profiles", href: "/manage-it", detail: "Create reusable booking profiles in CRM and load them in Create it." },
   { title: "Public Forms", href: "/booking-forms/public", detail: "Customer-facing intake forms connected to Create it." },
   { title: "Review Queue", href: "/process-it", detail: "Move new orders into Process it with release controls." },
   { title: "Order History", href: "/portal/orders", detail: "Review live and historical bookings." },
@@ -57,8 +57,8 @@ export default function MerchantCreateItWorkspace() {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Create-it</p>
         <h1 className="text-3xl font-semibold text-slate-950">Merchant Order Workspace</h1>
         <p className="max-w-3xl text-sm text-slate-600">
-          Create-it is the operational intake stage. Book it, Upload it, Send it, and Get it all create the same order object,
-          then move into Review it and Process it without dead ends.
+          Create-it is the operational intake stage. Select customer, load booking profile defaults, then enter only order-specific
+          fields before moving the order into Review it and Process it.
         </p>
       </header>
 

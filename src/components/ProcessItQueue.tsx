@@ -8,6 +8,9 @@ import { supabase } from "@/lib/supabaseClient";
 export type ProcessItJob = {
   id: string;
   jobReference: string | null;
+  orderNumber?: string;
+  bookingProfileId?: string | null;
+  bookingProfileName?: string | null;
   status: string;
   lifecycleStatus: string | null;
   companyId: string;
@@ -936,9 +939,15 @@ export default function ProcessItQueue() {
                       <div className="font-semibold text-slate-800">
                         {job.jobReference ?? job.id.slice(0, 8).toUpperCase()}
                       </div>
+                      {job.orderNumber ? (
+                        <div className="mt-0.5 text-xs text-slate-500">Order Number: {job.orderNumber}</div>
+                      ) : null}
                       {job.orderReference && job.orderReference !== job.jobReference && (
                         <div className="mt-0.5 text-xs text-slate-400">{job.orderReference}</div>
                       )}
+                      {job.bookingProfileName ? (
+                        <div className="mt-0.5 text-xs text-violet-700">Profile: {job.bookingProfileName}</div>
+                      ) : null}
                       <div className="mt-1">
                         <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${lifecycle.className}`}>
                           {lifecycle.label}
@@ -1202,7 +1211,7 @@ export default function ProcessItQueue() {
       {showCreateForm && (
         <CreateJobForm
           onClose={() => setShowCreateForm(false)}
-          onCreated={(_jobId, _ref, _sent) => {
+          onCreated={() => {
             setShowCreateForm(false);
             void loadJobs();
           }}

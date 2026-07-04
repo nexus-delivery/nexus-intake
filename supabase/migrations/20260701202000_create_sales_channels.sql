@@ -9,6 +9,12 @@ CREATE TABLE IF NOT EXISTS sales_channels (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- If the table already exists from an earlier schema variant, ensure the
+-- columns expected by indexes below are present.
+ALTER TABLE IF EXISTS sales_channels
+  ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_sales_channels_company_id
   ON sales_channels (company_id);
 

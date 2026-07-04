@@ -25,6 +25,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Idempotent trigger setup: ensure exactly one trigger definition exists.
+DROP TRIGGER IF EXISTS draft_jobs_updated_at ON draft_jobs;
+
 CREATE TRIGGER draft_jobs_updated_at
 BEFORE UPDATE ON draft_jobs
 FOR EACH ROW

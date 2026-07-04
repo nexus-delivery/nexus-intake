@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import BookingProfilesManager from "@/components/BookingProfilesManager";
 import CollectionAddressesManager from "@/components/CollectionAddressesManager";
 import CustomerAddressesManager from "@/components/CustomerAddressesManager";
 import MerchantCustomersManager from "@/components/MerchantCustomersManager";
@@ -38,7 +39,7 @@ const workspaceSections = [
   "Customers",
   "Collection Addresses",
   "Delivery Addresses",
-  "Saved Forms",
+  "Booking Profiles",
   "Orders",
   "Documents",
   "Inventory",
@@ -53,28 +54,28 @@ function localId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function loadStoredMerchantWorkspaces(): MerchantWorkspace[] {
+  if (typeof window === "undefined") {
+    return initialMerchants;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY);
+    if (!raw) return initialMerchants;
+    const parsed = JSON.parse(raw) as MerchantWorkspace[];
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : initialMerchants;
+  } catch {
+    return initialMerchants;
+  }
+}
+
 export default function ManageItCRMWorkspace() {
-  const [merchants, setMerchants] = useState<MerchantWorkspace[]>(initialMerchants);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(initialMerchants[0]?.id ?? "");
+  const [merchants, setMerchants] = useState<MerchantWorkspace[]>(() => loadStoredMerchantWorkspaces());
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => loadStoredMerchantWorkspaces()[0]?.id ?? "");
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [seedingDoorway, setSeedingDoorway] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as MerchantWorkspace[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setMerchants(parsed);
-        setActiveWorkspaceId(parsed[0].id);
-      }
-    } catch {
-      // Ignore malformed local storage data.
-    }
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -205,7 +206,7 @@ export default function ManageItCRMWorkspace() {
         window.localStorage.setItem(storageKey, JSON.stringify([doorwayTemplate, ...filtered]));
       }
 
-      setMessage("Doorway workspace seeded with customers, reusable addresses, saved booking template, and operational orders.");
+      setMessage("Doorway workspace seeded with customers, reusable addresses, booking profile defaults, and operational orders.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Doorway seed failed.");
     } finally {
@@ -367,6 +368,7 @@ export default function ManageItCRMWorkspace() {
 
       <MerchantCustomersManager />
       <CustomerAddressesManager />
+      <BookingProfilesManager />
       <CollectionAddressesManager />
     </div>
   );

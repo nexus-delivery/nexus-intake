@@ -94,10 +94,13 @@ export type IntakeOrderInput = {
   companyId: string;
   createdByUserId?: string | null;
   customerId?: string | null;
+  bookingProfileId?: string | null;
+  bookingProfileName?: string | null;
   salesChannelId?: string | null;
   salesChannelName?: string | null;
   externalOrderId?: string | null;
   orderReference?: string | null;
+  orderNumber?: string | null;
 
   // Customer / order identity
   customer?: string;
@@ -261,7 +264,10 @@ function buildTrackPodMapping(input: IntakeOrderInput, ref: string): Record<stri
 
   return {
     order_reference: ref,
+    order_number: input.orderNumber ?? "",
     external_order_id: input.externalOrderId ?? "",
+    booking_profile_id: input.bookingProfileId ?? "",
+    booking_profile_name: input.bookingProfileName ?? "",
     source_system: input.sourceSystem,
     collection_mode: input.collectionMode ?? "new_address",
     sales_channel_name: input.salesChannelName ?? "",
@@ -393,6 +399,7 @@ export async function processIntake(
         status: "job_created",
         lifecycle_status: lifecycleStatus,
         customer_id: input.customerId ?? null,
+        booking_profile_id: input.bookingProfileId ?? null,
         customer_email: input.delivery.email || null,
         sales_channel_id: salesChannel.id,
         sales_channel_name: salesChannel.name,
@@ -491,6 +498,9 @@ export async function processIntake(
           source: "nexus_intake_v2",
           sourceSystem: input.sourceSystem,
           collectionMode: input.collectionMode ?? "new_address",
+          bookingProfileId: input.bookingProfileId ?? null,
+          bookingProfileName: input.bookingProfileName ?? null,
+          orderNumber: input.orderNumber ?? null,
           trackPodMapping,
           goods: input.goods,
           commercial: input.commercial ?? {},

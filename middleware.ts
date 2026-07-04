@@ -5,6 +5,10 @@ import { MANAGE_IT_ACCESS_COOKIE, MANAGE_IT_SESSION_COOKIE } from "@/lib/manageI
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/manage-it/search-it") {
+    return NextResponse.next();
+  }
+
   if (!pathname.startsWith("/manage-it")) {
     return NextResponse.next();
   }

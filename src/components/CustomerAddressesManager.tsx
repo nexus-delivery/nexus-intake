@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { MerchantCustomer } from "@/lib/merchantCustomers";
 
-type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch" | "depot" | "supplier";
 
 type CustomerAddress = {
   id: string;
@@ -54,7 +54,7 @@ const emptyForm: AddressForm = {
   isDefault: false,
 };
 
-const ADDRESS_TYPES: AddressType[] = ["collection", "delivery", "billing", "warehouse", "branch"];
+const ADDRESS_TYPES: AddressType[] = ["collection", "delivery", "billing", "warehouse", "branch", "depot", "supplier"];
 
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supabase) return {};
@@ -141,6 +141,7 @@ export default function CustomerAddressesManager() {
 
   useEffect(() => {
     let active = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setError(null);
 
@@ -161,11 +162,13 @@ export default function CustomerAddressesManager() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     let active = true;
     if (!selectedCustomerId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAddresses([]);
       return;
     }
@@ -281,6 +284,47 @@ export default function CustomerAddressesManager() {
       await loadAddresses(selectedCustomerId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to archive address");
+    }
+  }
+
+  async function duplicateAddress(address: CustomerAddress) {
+    if (!selectedCustomerId) return;
+
+    try {
+      const response = await fetch(
+        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await authHeaders()),
+          },
+          body: JSON.stringify({
+            addressType: address.addressType,
+            label: address.label ? `${address.label} (Copy)` : "Copy",
+            contactName: address.contactName,
+            phone: address.phone,
+            email: address.email,
+            addressLine1: address.addressLine1,
+            addressLine2: address.addressLine2,
+            addressLine3: address.addressLine3,
+            postcode: address.postcode,
+            country: address.country,
+            instructions: address.instructions,
+            isDefault: false,
+          }),
+        }
+      );
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to duplicate address");
+      }
+
+      setMessage("Address duplicated.");
+      await loadAddresses(selectedCustomerId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to duplicate address");
     }
   }
 
@@ -444,6 +488,7 @@ export default function CustomerAddressesManager() {
                         <button onClick={() => void setDefaultAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Set default</button>
                       ) : null}
                       <button onClick={() => editAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Edit</button>
+                      <button onClick={() => void duplicateAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Duplicate</button>
                       <button onClick={() => void archiveAddress(address)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700">Archive</button>
                     </div>
                   </td>

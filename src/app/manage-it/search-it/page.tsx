@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { supabase } from "@/lib/supabaseClient";
@@ -34,16 +34,19 @@ type CustomerAddress = {
 type OrderRow = {
   id: string;
   internalOrderNumber: string;
+  externalOrderReference: string;
+  trackpodDeliveryOrderId?: string;
+  trackpodCollectionOrderId?: string;
   lifecycleStatus: string;
   customerMerchant: string;
   salesChannelName: string;
 };
 
-type SavedBookingForm = {
+type BookingProfile = {
   id: string;
-  name: string;
-  merchant: string;
-  customer: string;
+  profileName: string;
+  instructions: string;
+  customerId: string;
 };
 
 type SearchResult = {
@@ -55,25 +58,31 @@ type SearchResult = {
 };
 
 const MERCHANT_WORKSPACES_KEY = "nexus.manageit.merchantWorkspaces.v1";
-const SAVED_FORMS_KEY = "nexus.saved.booking.forms.v1";
 
-async function authHeaders(): Promise<Record<string, string>> {
-  if (!supabase) return {};
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-}
+type SortKey = "type" | "title" | "context";
 
 export default function SearchItPage() {
+  return (
+    <AppShell>
+      <Suspense fallback={<SearchItFallback />}>
+        <SearchItPageContent />
+      </Suspense>
+    </AppShell>
+  );
+}
+
+function SearchItPageContent() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("type");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const urlQuery = searchParams.get("q") ?? "";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setQuery(urlQuery);
     if (urlQuery.trim()) {
       void runSearch(urlQuery.trim());
@@ -132,7 +141,8 @@ export default function SearchItPage() {
       }
       const customers = customersPayload.customers ?? [];
 
-      const addressLists = await Promise.all(
+      const [addressLists, profileLists] = await Promise.all([
+        Promise.all(
         customers.slice(0, 40).map(async (customer) => {
           const response = await fetch(
             `/api/merchant/customers/${encodeURIComponent(customer.id)}/addresses?archived=false`,
@@ -144,7 +154,22 @@ export default function SearchItPage() {
           };
           return payload.addresses ?? [];
         })
-      );
+        ),
+        Promise.all(
+          customers.slice(0, 40).map(async (customer) => {
+            const response = await fetch(
+              `/api/merchant/customers/${encodeURIComponent(customer.id)}/booking-profiles?archived=false`,
+              { headers }
+            );
+            if (!response.ok) return [] as BookingProfile[];
+            const payload = (await response.json().catch(() => ({}))) as {
+              profiles?: BookingProfile[];
+            };
+            return payload.profiles ?? [];
+          })
+        ),
+      ]);
+
       const addresses = addressLists
         .flat()
         .filter((address) =>
@@ -155,6 +180,15 @@ export default function SearchItPage() {
             address.postcode,
             address.addressType,
           ]
+            .join(" ")
+            .toLowerCase()
+            .includes(needle.toLowerCase())
+        );
+
+      const bookingProfiles = profileLists
+        .flat()
+        .filter((profile) =>
+          [profile.profileName, profile.instructions]
             .join(" ")
             .toLowerCase()
             .includes(needle.toLowerCase())
@@ -182,14 +216,6 @@ export default function SearchItPage() {
           .join(" ")
           .toLowerCase()
           .includes(needle.toLowerCase())
-      );
-
-      const savedForms =
-        typeof window !== "undefined"
-          ? ((JSON.parse(window.localStorage.getItem(SAVED_FORMS_KEY) ?? "[]") as SavedBookingForm[]) ?? [])
-          : [];
-      const forms = savedForms.filter((form) =>
-        [form.name, form.merchant, form.customer].join(" ").toLowerCase().includes(needle.toLowerCase())
       );
 
       const merged: SearchResult[] = [
@@ -227,25 +253,34 @@ export default function SearchItPage() {
           id: `order-${order.id}`,
           type: "order" as const,
           title: order.internalOrderNumber || order.id,
-          context: [order.lifecycleStatus, order.customerMerchant, order.salesChannelName].filter(Boolean).join(" · "),
+          context: [
+            order.lifecycleStatus,
+            order.customerMerchant,
+            order.salesChannelName,
+            order.externalOrderReference,
+            order.trackpodDeliveryOrderId,
+            order.trackpodCollectionOrderId,
+          ]
+            .filter(Boolean)
+            .join(" · "),
           actions: [
             { label: "Open Order", href: "/process-it" },
             { label: "Create Order from Customer", href: "/create-it" },
           ],
         })),
-        ...forms.map((form) => ({
-          id: `form-${form.id}`,
+        ...bookingProfiles.map((form) => ({
+          id: `profile-${form.id}`,
           type: "booking_form" as const,
-          title: form.name,
-          context: [form.merchant, form.customer].filter(Boolean).join(" · "),
+          title: form.profileName,
+          context: form.instructions || "Booking profile",
           actions: [
-            { label: "Open Saved Form", href: "/create-it#new-order" },
-            { label: "Create Order from Saved Form", href: `/create-it?templateId=${encodeURIComponent(form.id)}` },
+            { label: "Open Customer", href: "/manage-it" },
+            { label: "Create Order from Profile", href: `/create-it?customerId=${encodeURIComponent(form.customerId)}&profileId=${encodeURIComponent(form.id)}` },
           ],
         })),
       ];
 
-      setResults(merged);
+      setResults(sortResults(merged, sortKey, sortDirection));
     } catch (searchError) {
       setError(searchError instanceof Error ? searchError.message : "Search failed");
       setResults([]);
@@ -254,14 +289,25 @@ export default function SearchItPage() {
     }
   }
 
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      const nextDirection = sortDirection === "asc" ? "desc" : "asc";
+      setSortDirection(nextDirection);
+      setResults((prev) => sortResults(prev, key, nextDirection));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+    setResults((prev) => sortResults(prev, key, "asc"));
+  }
+
   return (
-    <AppShell>
       <div className="space-y-5">
         <header className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Oversee it</p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-950">Search it</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Search operational data in-app across merchants, customers, addresses, orders, and saved booking forms.
+            Search operational data in-app across merchants, customers, addresses, orders, and booking profiles.
           </p>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -294,7 +340,7 @@ export default function SearchItPage() {
             <SummaryTile label="Customers" value={grouped.customers.length} />
             <SummaryTile label="Addresses" value={grouped.addresses.length} />
             <SummaryTile label="Orders" value={grouped.orders.length} />
-            <SummaryTile label="Booking Forms" value={grouped.forms.length} />
+            <SummaryTile label="Booking Profiles" value={grouped.forms.length} />
           </div>
         </section>
 
@@ -302,9 +348,15 @@ export default function SearchItPage() {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Type</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Name</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Context</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">
+                  <button type="button" onClick={() => toggleSort("type")}>Type</button>
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">
+                  <button type="button" onClick={() => toggleSort("title")}>Name</button>
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">
+                  <button type="button" onClick={() => toggleSort("context")}>Context</button>
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Actions</th>
               </tr>
             </thead>
@@ -312,7 +364,7 @@ export default function SearchItPage() {
               {results.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-3 py-8 text-center text-sm text-slate-500">
-                    {loading ? "Searching..." : "No results yet. Run a search to view merchants, customers, addresses, orders, and booking forms."}
+                    {loading ? "Searching..." : "No results yet. Run a search to view merchants, customers, addresses, orders, and booking profiles."}
                   </td>
                 </tr>
               ) : (
@@ -345,8 +397,30 @@ export default function SearchItPage() {
           </table>
         </section>
       </div>
-    </AppShell>
   );
+}
+
+function SearchItFallback() {
+  return (
+    <div className="space-y-5">
+      <header className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Oversee it</p>
+        <h1 className="mt-1 text-2xl font-semibold text-slate-950">Search it</h1>
+        <p className="mt-1 text-sm text-slate-600">Loading search workspace...</p>
+      </header>
+    </div>
+  );
+}
+
+function sortResults(rows: SearchResult[], key: SortKey, direction: "asc" | "desc"): SearchResult[] {
+  const sorted = [...rows].sort((a, b) => {
+    const av = (a[key] ?? "").toString().toLowerCase();
+    const bv = (b[key] ?? "").toString().toLowerCase();
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+    return 0;
+  });
+  return direction === "asc" ? sorted : sorted.reverse();
 }
 
 function SummaryTile({ label, value }: { label: string; value: number }) {

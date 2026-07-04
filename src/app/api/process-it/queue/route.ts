@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
           "delivery_status",
           "pod_available",
           "xero_draft_invoice_id",
+          "booking_profile_id",
           "integration_metadata",
           "created_at",
           "updated_at",
@@ -227,6 +228,17 @@ export async function GET(request: NextRequest) {
         deliveryEmail: pick(fields, "delivery_email", "email"),
         goodsDescription: pick(fields, "goods_description", "goods"),
         orderReference: pick(fields, "order_reference"),
+        orderNumber: pick(fields, "order_number"),
+        bookingProfileId:
+          (typeof job.booking_profile_id === "string" && job.booking_profile_id) ||
+          (typeof (job.integration_metadata as Record<string, unknown> | null)?.bookingProfileId === "string"
+            ? ((job.integration_metadata as Record<string, unknown>).bookingProfileId as string)
+            : null),
+        bookingProfileName:
+          pick(fields, "booking_profile_name") ||
+          (typeof (job.integration_metadata as Record<string, unknown> | null)?.bookingProfileName === "string"
+            ? ((job.integration_metadata as Record<string, unknown>).bookingProfileName as string)
+            : null),
         deliveryDate: pick(fields, "delivery_date"),
         collectionDate: pick(fields, "collection_date"),
         shipperName: pick(fields, "merchant_shipper", "collection_name"),

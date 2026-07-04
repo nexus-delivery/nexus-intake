@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMerchantContext } from "@/lib/serverAuth";
 
-type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch" | "depot" | "supplier";
 
 type AddressRow = {
   id: string;

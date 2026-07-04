@@ -77,6 +77,7 @@ export type StandardOperations = {
 
 export type StandardOrder = {
   orderReference: string;
+  jobReference: string;
   externalOrderId: string;
   sourceSystem: IntakeSourceSystem;
   collectionMode: "depot" | "new_address";
@@ -116,6 +117,7 @@ function toText(value: unknown): string {
 export function createEmptyStandardOrder(sourceSystem: IntakeSourceSystem): StandardOrder {
   return {
     orderReference: "",
+    jobReference: "",
     externalOrderId: "",
     sourceSystem,
     collectionMode: "new_address",
@@ -213,6 +215,7 @@ export function sanitizeStandardOrder(input: unknown): StandardOrder {
   return {
     ...empty,
     orderReference: toText(source.orderReference),
+    jobReference: toText(source.jobReference),
     externalOrderId: toText(source.externalOrderId),
     sourceSystem: empty.sourceSystem,
     collectionMode:
@@ -337,6 +340,7 @@ export function toTrackPodMapping(order: StandardOrder): Record<string, string> 
 
   return {
     order_reference: order.orderReference,
+    job_reference: order.jobReference,
     external_order_id: order.externalOrderId,
     source_system: order.sourceSystem,
     collection_mode: order.collectionMode,
@@ -409,6 +413,8 @@ export function toIntakeOrderInput(
     companyId: string;
     createdByUserId?: string | null;
     customerId?: string | null;
+    bookingProfileId?: string | null;
+    bookingProfileName?: string | null;
     salesChannelId?: string | null;
     salesChannelName?: string | null;
   }
@@ -420,10 +426,13 @@ export function toIntakeOrderInput(
     companyId: args.companyId,
     createdByUserId: args.createdByUserId ?? null,
     customerId: args.customerId ?? null,
+    bookingProfileId: args.bookingProfileId ?? null,
+    bookingProfileName: args.bookingProfileName ?? null,
     salesChannelId: args.salesChannelId ?? null,
     salesChannelName: args.salesChannelName ?? order.salesChannel ?? null,
     externalOrderId: order.externalOrderId || null,
-    orderReference: order.orderReference || null,
+    orderReference: order.jobReference || order.orderReference || null,
+    orderNumber: order.orderReference || null,
     customer: order.customer || undefined,
     merchant: order.merchant || undefined,
     priority: (order.priority as "High" | "Normal" | "Low") ?? "Normal",

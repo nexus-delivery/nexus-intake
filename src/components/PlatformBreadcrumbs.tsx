@@ -30,7 +30,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   integrations: "Integrations",
   invoices: "Invoices",
   "booking-forms": "Booking Forms",
-  "booking-templates": "Saved Forms",
+  "booking-templates": "Booking Profiles",
   "public-booking-forms": "Public Forms",
   "book-it": "Book it",
   "upload-it": "Upload it",

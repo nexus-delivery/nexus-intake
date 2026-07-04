@@ -12,6 +12,7 @@ const PUBLIC_PATHS = new Set(["/signin", "/signup"]);
 function isPublicRoute(pathname: string): boolean {
   return (
     PUBLIC_PATHS.has(pathname) ||
+    pathname === "/manage-it/search-it" ||
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/order-input") ||
     pathname === "/booking-forms"

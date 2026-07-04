@@ -32,34 +32,30 @@ type Props = {
 type SubmitState = "idle" | "submitting" | "success" | "error";
 type SubmitIntent = "draft" | "process";
 
-type SavedServiceOptions = {
-  fragile: boolean;
-  twoMan: boolean;
-  roomOfChoice: boolean;
-  assembly: boolean;
-  tailLiftRequired: boolean;
-  dedicatedVehicle: boolean;
-  northernIrelandDelivery: boolean;
-  sameDay: boolean;
+type BookingProfile = {
+  id: string;
+  profileName: string;
+  customerId: string;
+  collectionAddressId: string | null;
+  deliveryAddressId: string | null;
+  collectionSnapshot: Partial<StandardOrder["collection"]>;
+  deliverySnapshot: Partial<StandardOrder["delivery"]>;
+  serviceDefaults: {
+    serviceType?: string;
+    collectionMode?: CollectionMode;
+  };
+  goodsDefaults: Array<Partial<StandardGoodsItem>>;
+  commercialDefaults: Partial<StandardOrder["commercial"]>;
+  instructions: string;
+  updatedAt: string;
 };
 
-type SavedBookingFormTemplate = {
-  id: string;
-  name: string;
-  savedAt: string;
-  customerId: string;
-  salesChannelId: string;
-  salesChannelName: string;
-  collectionMode: CollectionMode;
-  merchant: string;
-  customer: string;
-  collection: StandardOrder["collection"];
-  delivery: StandardOrder["delivery"];
-  notes: string;
-  defaultService: string;
-  commercial: StandardOrder["commercial"];
-  operations: StandardOrder["operations"];
-  serviceOptions: SavedServiceOptions;
+type NewCustomerForm = {
+  customerName: string;
+  company: string;
+  contactName: string;
+  email: string;
+  phone: string;
 };
 
 type CustomerAddressType = "collection" | "delivery";
@@ -89,15 +85,6 @@ const sectionClass =
 
 function updateGoodsItem(items: StandardGoodsItem[], index: number, next: Partial<StandardGoodsItem>) {
   return items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...next } : item));
-}
-
-const SAVED_BOOKING_FORMS_KEY = "nexus.saved.booking.forms.v1";
-
-function createTemplateId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function formatDateLabel(value: Date | null): string {
@@ -139,43 +126,33 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState("");
   const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
   const [adminOverrideRelease, setAdminOverrideRelease] = useState(false);
-  const [templateName, setTemplateName] = useState("");
-  const [savedTemplates, setSavedTemplates] = useState<SavedBookingFormTemplate[]>([]);
+  const [bookingProfileName, setBookingProfileName] = useState("");
+  const [bookingProfiles, setBookingProfiles] = useState<BookingProfile[]>([]);
+  const [selectedBookingProfileId, setSelectedBookingProfileId] = useState("");
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerSaving, setNewCustomerSaving] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState<NewCustomerForm>({
+    customerName: "",
+    company: "",
+    contactName: "",
+    email: "",
+    phone: "",
+  });
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
   const [submitIntent, setSubmitIntent] = useState<SubmitIntent>("process");
   const [autoSelectionApplied, setAutoSelectionApplied] = useState(false);
-  const [deepLinkCustomerId, setDeepLinkCustomerId] = useState("");
-  const [deepLinkTemplateId, setDeepLinkTemplateId] = useState("");
+  const [deepLinkCustomerId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("customerId")?.trim() ?? "";
+  });
+  const [deepLinkProfileId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("profileId")?.trim() ?? "";
+  });
 
   const effectiveCompanyId = profileCompanyId;
   const isMerchantView = sourceSystem === "merchant_portal";
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(SAVED_BOOKING_FORMS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as SavedBookingFormTemplate[];
-      if (Array.isArray(parsed)) {
-        setSavedTemplates(parsed);
-      }
-    } catch {
-      // Ignore invalid persisted templates.
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    setDeepLinkCustomerId(params.get("customerId")?.trim() ?? "");
-    setDeepLinkTemplateId(params.get("templateId")?.trim() ?? "");
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(SAVED_BOOKING_FORMS_KEY, JSON.stringify(savedTemplates));
-  }, [savedTemplates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,12 +272,55 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   }, [customerId, isMerchantView]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadCustomerBookingProfiles() {
+      if (!isMerchantView || !customerId || !supabase) {
+        if (!cancelled) {
+          setBookingProfiles([]);
+          setSelectedBookingProfileId("");
+        }
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const response = await fetch(
+        `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles?archived=false`,
+        {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }
+      );
+
+      if (!response.ok) return;
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        profiles?: BookingProfile[];
+      };
+
+      if (cancelled) return;
+      setBookingProfiles(payload.profiles ?? []);
+    }
+
+    void loadCustomerBookingProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId, isMerchantView]);
+
+  useEffect(() => {
     if (autoSelectionApplied) return;
 
     const customerIdFromQuery = deepLinkCustomerId;
-    const templateIdFromQuery = deepLinkTemplateId;
+    const profileIdFromQuery = deepLinkProfileId;
 
     if (customerIdFromQuery && customers.some((customer) => customer.id === customerIdFromQuery)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomerId(customerIdFromQuery);
       const selected = customers.find((customer) => customer.id === customerIdFromQuery);
       if (selected) {
@@ -310,14 +330,14 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       return;
     }
 
-    if (templateIdFromQuery) {
-      const template = savedTemplates.find((entry) => entry.id === templateIdFromQuery);
-      if (template) {
-        applyTemplate(template);
+    if (profileIdFromQuery) {
+      const profile = bookingProfiles.find((entry) => entry.id === profileIdFromQuery);
+      if (profile) {
+        applyTemplate(profile);
         setAutoSelectionApplied(true);
       }
     }
-  }, [autoSelectionApplied, customers, deepLinkCustomerId, deepLinkTemplateId, savedTemplates]);
+  }, [autoSelectionApplied, customers, deepLinkCustomerId, deepLinkProfileId, bookingProfiles]);
 
   const customerCollectionAddresses = useMemo(
     () => customerAddresses.filter((address) => address.addressType === "collection" && !address.archivedAt),
@@ -456,90 +476,262 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return { Authorization: `Bearer ${session.access_token}` };
   };
 
-  const saveCurrentAsTemplate = () => {
-    const normalizedName = templateName.trim();
+  const loadBookingProfiles = async (targetCustomerId: string) => {
+    if (!targetCustomerId || !supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const response = await fetch(
+      `/api/merchant/customers/${encodeURIComponent(targetCustomerId)}/booking-profiles?archived=false`,
+      { headers: { Authorization: `Bearer ${session.access_token}` } }
+    );
+    if (!response.ok) return;
+    const payload = (await response.json().catch(() => ({}))) as { profiles?: BookingProfile[] };
+    setBookingProfiles(payload.profiles ?? []);
+  };
+
+  const saveCurrentAsTemplate = async () => {
+    const normalizedName = bookingProfileName.trim();
     if (!normalizedName) {
       setSubmitState("error");
-      setSubmitMessage("Enter a template name before saving the booking form.");
+      setSubmitMessage("Enter a booking profile name before saving.");
+      return;
+    }
+
+    if (!customerId) {
+      setSubmitState("error");
+      setSubmitMessage("Select a customer before saving a booking profile.");
+      return;
+    }
+
+    const authHeaders = await getAuthHeaders();
+    if (!authHeaders.Authorization) {
+      setSubmitState("error");
+      setSubmitMessage("No active session found.");
       return;
     }
 
     const firstGoods = order.goods[0] ?? createEmptyStandardOrder(sourceSystem).goods[0];
-    const template: SavedBookingFormTemplate = {
-      id: createTemplateId(),
-      name: normalizedName,
-      savedAt: new Date().toISOString(),
-      customerId,
-      salesChannelId,
-      salesChannelName,
-      collectionMode,
-      merchant: order.merchant,
-      customer: order.customer,
-      collection: { ...order.collection },
-      delivery: { ...order.delivery },
-      notes: order.notes,
-      defaultService: order.operations.serviceType,
-      commercial: { ...order.commercial },
-      operations: { ...order.operations },
-      serviceOptions: {
-        fragile: Boolean(firstGoods.fragile),
-        twoMan: Boolean(firstGoods.twoMan),
-        roomOfChoice: Boolean(firstGoods.roomOfChoice),
-        assembly: Boolean(firstGoods.assembly),
-        tailLiftRequired: Boolean(firstGoods.tailLiftRequired),
-        dedicatedVehicle: Boolean(firstGoods.dedicatedVehicle),
-        northernIrelandDelivery: Boolean(firstGoods.northernIrelandDelivery),
-        sameDay: Boolean(firstGoods.sameDay),
+    const payload = {
+      profileName: normalizedName,
+      collectionAddressId: selectedCollectionAddressId || null,
+      deliveryAddressId: selectedDeliveryAddressId || null,
+      collectionSnapshot: { ...order.collection },
+      deliverySnapshot: { ...order.delivery },
+      serviceDefaults: {
+        serviceType: order.operations.serviceType,
+        collectionMode,
       },
+      goodsDefaults: [
+        {
+          fragile: Boolean(firstGoods.fragile),
+          twoMan: Boolean(firstGoods.twoMan),
+          roomOfChoice: Boolean(firstGoods.roomOfChoice),
+          assembly: Boolean(firstGoods.assembly),
+          tailLiftRequired: Boolean(firstGoods.tailLiftRequired),
+          dedicatedVehicle: Boolean(firstGoods.dedicatedVehicle),
+          northernIrelandDelivery: Boolean(firstGoods.northernIrelandDelivery),
+          sameDay: Boolean(firstGoods.sameDay),
+        },
+      ],
+      commercialDefaults: { ...order.commercial },
+      instructions: order.notes,
     };
 
-    setSavedTemplates((current) => [template, ...current].slice(0, 25));
-    setTemplateName("");
+    const url = selectedBookingProfileId
+      ? `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles/${encodeURIComponent(selectedBookingProfileId)}`
+      : `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles`;
+    const method = selectedBookingProfileId ? "PATCH" : "POST";
+
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify(payload),
+    });
+
+    const responseBody = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      profile?: BookingProfile;
+    };
+
+    if (!response.ok) {
+      setSubmitState("error");
+      setSubmitMessage(responseBody.error ?? "Could not save booking profile.");
+      return;
+    }
+
+    await loadBookingProfiles(customerId);
+    if (responseBody.profile?.id) {
+      setSelectedBookingProfileId(responseBody.profile.id);
+    }
+    setBookingProfileName("");
     setSubmitState("success");
-    setSubmitMessage(`Saved reusable booking form: ${template.name}.`);
+    setSubmitMessage(
+      selectedBookingProfileId
+        ? `Booking profile updated: ${normalizedName}.`
+        : `Booking profile created: ${normalizedName}.`
+    );
   };
 
-  const applyTemplate = (template: SavedBookingFormTemplate) => {
+  function applyTemplate(template: BookingProfile) {
     setCustomerId(template.customerId);
-    setSalesChannelId(template.salesChannelId);
-    setSalesChannelName(template.salesChannelName);
-    setCollectionMode(template.collectionMode);
+    setSelectedBookingProfileId(template.id);
+    if (template.serviceDefaults.collectionMode === "depot" || template.serviceDefaults.collectionMode === "new_address") {
+      setCollectionMode(template.serviceDefaults.collectionMode);
+    }
+    const defaults = template.goodsDefaults[0] ?? {};
     setOrder((prev) => ({
       ...prev,
-      merchant: template.merchant,
-      customer: template.customer,
-      notes: template.notes,
-      collectionMode: template.collectionMode,
-      collection: { ...prev.collection, ...template.collection },
-      delivery: { ...prev.delivery, ...template.delivery },
-      commercial: { ...prev.commercial, ...template.commercial },
+      notes: template.instructions || prev.notes,
+      collectionMode:
+        template.serviceDefaults.collectionMode === "depot" || template.serviceDefaults.collectionMode === "new_address"
+          ? template.serviceDefaults.collectionMode
+          : prev.collectionMode,
+      collection: { ...prev.collection, ...template.collectionSnapshot },
+      delivery: { ...prev.delivery, ...template.deliverySnapshot },
+      commercial: { ...prev.commercial, ...template.commercialDefaults },
       operations: {
         ...prev.operations,
-        ...template.operations,
-        serviceType: template.defaultService,
+        serviceType:
+          typeof template.serviceDefaults.serviceType === "string"
+            ? template.serviceDefaults.serviceType
+            : prev.operations.serviceType,
       },
       goods: prev.goods.map((item, index) =>
         index === 0
           ? {
               ...item,
-              fragile: template.serviceOptions.fragile,
-              twoMan: template.serviceOptions.twoMan,
-              roomOfChoice: template.serviceOptions.roomOfChoice,
-              assembly: template.serviceOptions.assembly,
-              tailLiftRequired: template.serviceOptions.tailLiftRequired,
-              dedicatedVehicle: template.serviceOptions.dedicatedVehicle,
-              northernIrelandDelivery: template.serviceOptions.northernIrelandDelivery,
-              sameDay: template.serviceOptions.sameDay,
+              fragile: Boolean(defaults.fragile),
+              twoMan: Boolean(defaults.twoMan),
+              roomOfChoice: Boolean(defaults.roomOfChoice),
+              assembly: Boolean(defaults.assembly),
+              tailLiftRequired: Boolean(defaults.tailLiftRequired),
+              dedicatedVehicle: Boolean(defaults.dedicatedVehicle),
+              northernIrelandDelivery: Boolean(defaults.northernIrelandDelivery),
+              sameDay: Boolean(defaults.sameDay),
             }
           : item
       ),
     }));
+
+    if (template.collectionAddressId) {
+      setSelectedCollectionAddressId(template.collectionAddressId);
+    }
+    if (template.deliveryAddressId) {
+      setSelectedDeliveryAddressId(template.deliveryAddressId);
+    }
+
     setSubmitState("success");
-    setSubmitMessage(`Loaded reusable booking form: ${template.name}. Enter Order Number, Job Reference, External ID, and Goods for this run.`);
+    setSubmitMessage(`Loaded booking profile: ${template.profileName}. Enter Order Number, Job Reference, External ID, and today\'s goods for this order.`);
+  }
+
+  const deleteTemplate = async (templateId: string) => {
+    if (!customerId) return;
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(
+      `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles/${encodeURIComponent(templateId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({ archive: true }),
+      }
+    );
+
+    const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setSubmitState("error");
+      setSubmitMessage(responseBody.error ?? "Could not archive booking profile.");
+      return;
+    }
+
+    await loadBookingProfiles(customerId);
+    if (selectedBookingProfileId === templateId) {
+      setSelectedBookingProfileId("");
+    }
+    setSubmitState("success");
+    setSubmitMessage("Booking profile archived.");
   };
 
-  const deleteTemplate = (templateId: string) => {
-    setSavedTemplates((current) => current.filter((item) => item.id !== templateId));
+  const duplicateTemplate = async (template: BookingProfile) => {
+    if (!customerId) return;
+    const authHeaders = await getAuthHeaders();
+    const response = await fetch(
+      `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({
+          profileName: `${template.profileName} (Copy)`,
+          duplicateFromProfileId: template.id,
+        }),
+      }
+    );
+
+    const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setSubmitState("error");
+      setSubmitMessage(responseBody.error ?? "Could not duplicate booking profile.");
+      return;
+    }
+
+    await loadBookingProfiles(customerId);
+    setSubmitState("success");
+    setSubmitMessage("Booking profile duplicated.");
+  };
+
+  const createCustomerInline = async () => {
+    if (!newCustomerForm.customerName.trim()) {
+      setSubmitState("error");
+      setSubmitMessage("Customer name is required.");
+      return;
+    }
+
+    const authHeaders = await getAuthHeaders();
+    if (!authHeaders.Authorization) {
+      setSubmitState("error");
+      setSubmitMessage("No active session found.");
+      return;
+    }
+
+    setNewCustomerSaving(true);
+    try {
+      const response = await fetch("/api/merchant/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders },
+        body: JSON.stringify({
+          customerName: newCustomerForm.customerName,
+          company: newCustomerForm.company,
+          contactName: newCustomerForm.contactName,
+          email: newCustomerForm.email,
+          phone: newCustomerForm.phone,
+          mobile: newCustomerForm.phone,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        customer?: MerchantCustomer;
+      };
+      if (!response.ok || !payload.customer) {
+        throw new Error(payload.error ?? "Could not create customer");
+      }
+
+      const nextCustomers = [payload.customer, ...customers.filter((entry) => entry.id !== payload.customer?.id)];
+      setCustomers(nextCustomers);
+      setCustomerId(payload.customer.id);
+      setOrder((prev) => applyCustomerDefaults(prev, payload.customer as MerchantCustomer));
+      await loadBookingProfiles(payload.customer.id);
+      setShowNewCustomerForm(false);
+      setNewCustomerForm({ customerName: "", company: "", contactName: "", email: "", phone: "" });
+      setSubmitState("success");
+      setSubmitMessage(`Customer created: ${payload.customer.customerName}. You can now add addresses and save booking profiles.`);
+    } catch (error) {
+      setSubmitState("error");
+      setSubmitMessage(error instanceof Error ? error.message : "Could not create customer");
+    } finally {
+      setNewCustomerSaving(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -605,6 +797,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           },
           company_id: effectiveCompanyId,
           customer_id: customerId || null,
+          booking_profile_id: selectedBookingProfileId || null,
+          booking_profile_name:
+            bookingProfiles.find((profile) => profile.id === selectedBookingProfileId)?.profileName ?? null,
           sales_channel_id: resolvedSalesChannelId || null,
           sales_channel_name: resolvedSalesChannelName || null,
         }),
@@ -678,46 +873,64 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className={sectionClass}>
-          <h2 className="text-base font-semibold text-slate-900">Saved Booking Forms</h2>
+          <h2 className="text-base font-semibold text-slate-900">Manage Booking Profiles</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Save reusable defaults for merchant, customer, addresses, contacts, telephone, email, instructions, and service profile.
-            For each new order, always set Order Number, Job Reference, External ID, and Goods/Items.
+            Booking profiles are reusable CRM defaults per customer. Create it loads these defaults so operators only enter
+            order-specific values: order number, job reference, external ID, dates, and today&apos;s goods.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
             <input
               className={inputClass}
-              value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
-              placeholder="Template name e.g. London Retail Daily"
+              value={bookingProfileName}
+              onChange={(event) => setBookingProfileName(event.target.value)}
+              placeholder="Booking profile name e.g. Daily Deliveries"
             />
             <button
               type="button"
-              onClick={saveCurrentAsTemplate}
+              onClick={() => void saveCurrentAsTemplate()}
               className="self-end rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
             >
-              Save Form
+              {selectedBookingProfileId ? "Edit Profile" : "New Profile"}
             </button>
           </div>
-          {savedTemplates.length > 0 ? (
+
+          {bookingProfiles.length > 0 ? (
             <div className="mt-4 grid gap-2 lg:grid-cols-2">
-              {savedTemplates.map((template) => (
+              {bookingProfiles.map((template) => (
                 <div key={template.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-slate-900">{template.name}</p>
-                  <p className="mt-1 text-xs text-slate-500">Saved {new Date(template.savedAt).toLocaleString()}</p>
+                  <p className="text-sm font-semibold text-slate-900">{template.profileName}</p>
+                  <p className="mt-1 text-xs text-slate-500">Updated {new Date(template.updatedAt).toLocaleString()}</p>
                   <div className="mt-2 flex gap-2">
                     <button
                       type="button"
                       onClick={() => applyTemplate(template)}
                       className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
                     >
-                      Use
+                      Load Profile
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteTemplate(template.id)}
+                      onClick={() => {
+                        setSelectedBookingProfileId(template.id);
+                        setBookingProfileName(template.profileName);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void duplicateTemplate(template)}
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                    >
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteTemplate(template.id)}
                       className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700"
                     >
-                      Delete
+                      Archive
                     </button>
                   </div>
                 </div>
@@ -852,7 +1065,16 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {isMerchantView ? (
               <div className="sm:col-span-2 lg:col-span-3">
-                <label className="text-sm font-medium text-slate-700" htmlFor="customerSelect">Select Customer</label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-medium text-slate-700" htmlFor="customerSelect">Select Existing Customer</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewCustomerForm((prev) => !prev)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    + New Customer
+                  </button>
+                </div>
                 <select
                   id="customerSelect"
                   className={inputClass}
@@ -860,6 +1082,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   onChange={(event) => {
                     const nextId = event.target.value;
                     setCustomerId(nextId);
+                    setSelectedBookingProfileId("");
                     const selected = customers.find((customer) => customer.id === nextId);
                     if (!selected) return;
                     setOrder((prev) => applyCustomerDefaults(prev, selected));
@@ -876,8 +1099,64 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   Selecting a customer auto-populates defaults for collection, delivery, instructions, and service profile.
                 </p>
 
+                {showNewCustomerForm ? (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-semibold text-slate-900">New Customer</p>
+                    <div className="mt-2 grid gap-2 md:grid-cols-2">
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Customer name" value={newCustomerForm.customerName} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, customerName: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Company" value={newCustomerForm.company} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, company: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Contact name" value={newCustomerForm.contactName} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, contactName: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Email" value={newCustomerForm.email} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, email: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2" placeholder="Phone" value={newCustomerForm.phone} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void createCustomerInline()} disabled={newCustomerSaving} className="rounded-lg bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
+                        {newCustomerSaving ? "Creating..." : "Create Customer"}
+                      </button>
+                      <button type="button" onClick={() => setShowNewCustomerForm(false)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+
                 {customerId ? (
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-slate-700" htmlFor="bookingProfileSelect">
+                        Booking Profile
+                      </label>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        <select
+                          id="bookingProfileSelect"
+                          className="block flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                          value={selectedBookingProfileId}
+                          onChange={(event) => {
+                            const nextId = event.target.value;
+                            setSelectedBookingProfileId(nextId);
+                            const selected = bookingProfiles.find((profile) => profile.id === nextId);
+                            if (!selected) return;
+                            applyTemplate(selected);
+                          }}
+                        >
+                          <option value="">Load profile...</option>
+                          {bookingProfiles.map((profile) => (
+                            <option key={profile.id} value={profile.id}>{profile.profileName}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedBookingProfileId("");
+                            setBookingProfileName("");
+                          }}
+                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                        >
+                          New Profile
+                        </button>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="text-sm font-medium text-slate-700" htmlFor="savedCollectionAddressSelect">
                         Saved Collection Address
@@ -940,11 +1219,15 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               </div>
             ) : null}
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="orderReference">Order Reference</label>
+              <label className="text-sm font-medium text-slate-700" htmlFor="orderReference">Order Number</label>
               <input id="orderReference" className={inputClass} value={order.orderReference} onChange={(e) => setOrder((prev) => ({ ...prev, orderReference: e.target.value }))} />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="externalOrderId">External Order ID</label>
+              <label className="text-sm font-medium text-slate-700" htmlFor="jobReference">Job Reference</label>
+              <input id="jobReference" className={inputClass} value={order.jobReference} onChange={(e) => setOrder((prev) => ({ ...prev, jobReference: e.target.value }))} placeholder="Operator job reference" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700" htmlFor="externalOrderId">External ID</label>
               <input id="externalOrderId" className={inputClass} value={order.externalOrderId} onChange={(e) => setOrder((prev) => ({ ...prev, externalOrderId: e.target.value }))} />
             </div>
             <div className="sm:col-span-2 lg:col-span-1">

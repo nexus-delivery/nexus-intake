@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getMerchantContext } from "@/lib/serverAuth";
 
-type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch";
+type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch" | "depot" | "supplier";
 
 const ALLOWED_ADDRESS_TYPES: AddressType[] = [
   "collection",
@@ -10,6 +10,8 @@ const ALLOWED_ADDRESS_TYPES: AddressType[] = [
   "billing",
   "warehouse",
   "branch",
+  "depot",
+  "supplier",
 ];
 
 type AddressRow = {
