@@ -30,6 +30,7 @@ type Props = {
 };
 
 type SubmitState = "idle" | "submitting" | "success" | "error";
+type SubmitIntent = "draft" | "process";
 
 type SavedBookingFormTemplate = {
   id: string;
@@ -45,6 +46,25 @@ type SavedBookingFormTemplate = {
   delivery: StandardOrder["delivery"];
   notes: string;
   defaultService: string;
+};
+
+type CustomerAddressType = "collection" | "delivery";
+
+type CustomerAddress = {
+  id: string;
+  addressType: CustomerAddressType;
+  label: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressLine3: string;
+  postcode: string;
+  country: string;
+  instructions: string;
+  isDefault: boolean;
+  archivedAt: string | null;
 };
 
 const inputClass =
@@ -71,6 +91,24 @@ function formatDateLabel(value: Date | null): string {
   return value.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function applyAddressToStop(
+  stop: StandardOrder["collection"] | StandardOrder["delivery"],
+  address: CustomerAddress
+): StandardOrder["collection"] | StandardOrder["delivery"] {
+  return {
+    ...stop,
+    contact: address.contactName || stop.contact,
+    addressLine1: address.addressLine1 || stop.addressLine1,
+    addressLine2: address.addressLine2 || stop.addressLine2,
+    addressLine3: address.addressLine3 || stop.addressLine3,
+    postcode: address.postcode || stop.postcode,
+    country: address.country || stop.country,
+    email: address.email || stop.email,
+    phone: address.phone || stop.phone,
+    instructions: address.instructions || stop.instructions,
+  };
+}
+
 export default function StandardOrderForm({ sourceSystem, title, subtitle, bookingVariant = "standard" }: Props) {
   const [order, setOrder] = useState<StandardOrder>(() => createEmptyStandardOrder(sourceSystem));
   const [profileCompanyId, setProfileCompanyId] = useState("");
@@ -82,12 +120,16 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [salesChannelName, setSalesChannelName] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
+  const [customerAddresses, setCustomerAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedCollectionAddressId, setSelectedCollectionAddressId] = useState("");
+  const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState("");
   const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
   const [adminOverrideRelease, setAdminOverrideRelease] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [savedTemplates, setSavedTemplates] = useState<SavedBookingFormTemplate[]>([]);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [submitIntent, setSubmitIntent] = useState<SubmitIntent>("process");
 
   const effectiveCompanyId = profileCompanyId;
   const isMerchantView = sourceSystem === "merchant_portal";
@@ -158,6 +200,85 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       cancelled = true;
     };
   }, [isMerchantView]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCustomerAddresses() {
+      if (!isMerchantView || !customerId || !supabase) {
+        if (!cancelled) {
+          setCustomerAddresses([]);
+          setSelectedCollectionAddressId("");
+          setSelectedDeliveryAddressId("");
+        }
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const response = await fetch(
+        `/api/merchant/customers/${encodeURIComponent(customerId)}/addresses`,
+        {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }
+      );
+
+      if (!response.ok) return;
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        addresses?: CustomerAddress[];
+      };
+
+      if (cancelled) return;
+
+      const addresses = payload.addresses ?? [];
+      setCustomerAddresses(addresses);
+
+      const defaultCollection = addresses.find(
+        (address) => address.addressType === "collection" && address.isDefault
+      );
+      const defaultDelivery = addresses.find(
+        (address) => address.addressType === "delivery" && address.isDefault
+      );
+
+      if (defaultCollection) {
+        setSelectedCollectionAddressId(defaultCollection.id);
+      }
+      if (defaultDelivery) {
+        setSelectedDeliveryAddressId(defaultDelivery.id);
+      }
+
+      setOrder((prev) => ({
+        ...prev,
+        collection: defaultCollection
+          ? (applyAddressToStop(prev.collection, defaultCollection) as StandardOrder["collection"])
+          : prev.collection,
+        delivery: defaultDelivery
+          ? (applyAddressToStop(prev.delivery, defaultDelivery) as StandardOrder["delivery"])
+          : prev.delivery,
+      }));
+    }
+
+    void loadCustomerAddresses();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId, isMerchantView]);
+
+  const customerCollectionAddresses = useMemo(
+    () => customerAddresses.filter((address) => address.addressType === "collection" && !address.archivedAt),
+    [customerAddresses]
+  );
+
+  const customerDeliveryAddresses = useMemo(
+    () => customerAddresses.filter((address) => address.addressType === "delivery" && !address.archivedAt),
+    [customerAddresses]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -344,6 +465,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const intent: SubmitIntent = submitter?.value === "draft" ? "draft" : "process";
+    setSubmitIntent(intent);
+
     if (!canSubmit) {
       setSubmitState("error");
       setSubmitMessage("Complete collection and delivery addresses, and at least one goods description.");
@@ -392,8 +517,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             operations: {
               ...order.operations,
               readyForTrackPod:
-                trackPodReleaseDecision === "send_now" &&
-                (!hasFutureDateWarning || adminOverrideRelease),
+                intent === "process"
+                  ? trackPodReleaseDecision === "send_now" &&
+                    (!hasFutureDateWarning || adminOverrideRelease)
+                  : false,
               adminReleaseOverride: adminOverrideRelease,
             },
           },
@@ -418,15 +545,17 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       const ref = payload.jobReference ?? "reference pending";
       const status = payload.lifecycleStatus === "READY_FOR_TRACKPOD"
-        ? " — ready for operations"
+        ? " — ready for Process it"
         : payload.lifecycleStatus === "HELD_FUTURE_DATE"
           ? " — HELD - FUTURE DATE"
-          : " — held for operational review";
+          : " — saved as draft";
       const reminder = hasFutureDateWarning && trackPodReleaseDecision === "hold_for_date"
         ? ` Reminder scheduled for ${formatDateLabel(holdReleaseDate)} when the order is within ${DELIVERY_RELEASE_WORKING_DAYS} working days.`
         : "";
       setSubmitState("success");
-      setSubmitMessage(`Order created: ${ref}${status}.${reminder}`.trim());
+      setSubmitMessage(
+        `${intent === "draft" ? "Draft saved" : "Order submitted"}: ${ref}${status}.${reminder}`.trim()
+      );
       const empty = createEmptyStandardOrder(sourceSystem);
       setOrder(
         (bookingVariant === "deliver" || collectionMode === "depot") && activeCollectionProfile
@@ -453,6 +582,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setSalesChannelName("");
       setTrackPodReleaseDecision("send_now");
       setAdminOverrideRelease(false);
+      setSubmitIntent("process");
     } catch (error) {
       setSubmitState("error");
       setSubmitMessage(error instanceof Error ? error.message : "Network error. Please try again.");
@@ -668,6 +798,68 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                 <p className="mt-1 text-xs text-slate-500">
                   Selecting a customer auto-populates defaults for collection, delivery, instructions, and service profile.
                 </p>
+
+                {customerId ? (
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium text-slate-700" htmlFor="savedCollectionAddressSelect">
+                        Saved Collection Address
+                      </label>
+                      <select
+                        id="savedCollectionAddressSelect"
+                        className={inputClass}
+                        value={selectedCollectionAddressId}
+                        onChange={(event) => {
+                          const nextId = event.target.value;
+                          setSelectedCollectionAddressId(nextId);
+                          const selected = customerCollectionAddresses.find((address) => address.id === nextId);
+                          if (!selected) return;
+                          setOrder((prev) => ({
+                            ...prev,
+                            collection: applyAddressToStop(prev.collection, selected) as StandardOrder["collection"],
+                          }));
+                        }}
+                      >
+                        <option value="">Select saved collection address...</option>
+                        {customerCollectionAddresses.map((address) => (
+                          <option key={address.id} value={address.id}>
+                            {address.label || address.addressLine1}
+                            {address.isDefault ? " (Default)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-slate-700" htmlFor="savedDeliveryAddressSelect">
+                        Saved Delivery Address
+                      </label>
+                      <select
+                        id="savedDeliveryAddressSelect"
+                        className={inputClass}
+                        value={selectedDeliveryAddressId}
+                        onChange={(event) => {
+                          const nextId = event.target.value;
+                          setSelectedDeliveryAddressId(nextId);
+                          const selected = customerDeliveryAddresses.find((address) => address.id === nextId);
+                          if (!selected) return;
+                          setOrder((prev) => ({
+                            ...prev,
+                            delivery: applyAddressToStop(prev.delivery, selected) as StandardOrder["delivery"],
+                          }));
+                        }}
+                      >
+                        <option value="">Select saved delivery address...</option>
+                        {customerDeliveryAddresses.map((address) => (
+                          <option key={address.id} value={address.id}>
+                            {address.label || address.addressLine1}
+                            {address.isDefault ? " (Default)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <div>
@@ -930,13 +1122,24 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
         ) : null}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <button
-            type="submit"
-            disabled={submitState === "submitting"}
-            className="rounded-xl bg-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {submitState === "submitting" ? "Creating..." : "Create it"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              value="draft"
+              disabled={submitState === "submitting"}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-60"
+            >
+              {submitState === "submitting" && submitIntent === "draft" ? "Saving Draft..." : "Save Draft"}
+            </button>
+            <button
+              type="submit"
+              value="process"
+              disabled={submitState === "submitting"}
+              className="rounded-xl bg-[#7C3AED] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {submitState === "submitting" && submitIntent === "process" ? "Submitting..." : "Submit to Process it"}
+            </button>
+          </div>
 
           {submitMessage && (
             <p className={`mt-3 text-sm ${submitState === "success" ? "text-emerald-700" : "text-red-700"}`}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CollectionAddressesManager from "@/components/CollectionAddressesManager";
 import CustomerAddressesManager from "@/components/CustomerAddressesManager";
 import MerchantCustomersManager from "@/components/MerchantCustomersManager";
@@ -32,6 +32,8 @@ const initialMerchants: MerchantWorkspace[] = [
   },
 ];
 
+const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
+
 const workspaceSections = [
   "Customers",
   "Collection Addresses",
@@ -58,6 +60,26 @@ export default function ManageItCRMWorkspace() {
   const [formEmail, setFormEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [seedingDoorway, setSeedingDoorway] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as MerchantWorkspace[];
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setMerchants(parsed);
+        setActiveWorkspaceId(parsed[0].id);
+      }
+    } catch {
+      // Ignore malformed local storage data.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(MERCHANT_WORKSPACES_STORAGE_KEY, JSON.stringify(merchants));
+  }, [merchants]);
 
   const activeWorkspace = useMemo(
     () => merchants.find((merchant) => merchant.id === activeWorkspaceId) ?? null,
