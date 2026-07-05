@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import {
+  buildCollectionProfileName,
+  parseCollectionProfileName,
   toEmptyDefaultCollectionProfile,
   type DefaultCollectionProfile,
 } from "@/lib/defaultCollectionProfiles";
@@ -28,7 +30,8 @@ const ROLE_OPTIONS: MerchantAddressRole[] = [
 ];
 
 function splitRoleAndName(profileName: string): { role: MerchantAddressRole; name: string } {
-  const trimmed = profileName.trim();
+  const parsedName = parseCollectionProfileName(profileName);
+  const trimmed = parsedName.name;
   const match = trimmed.match(/^(Warehouse|Depot|Supplier|Collection Location):\s*(.+)$/i);
   if (!match) {
     return { role: "Depot", name: trimmed };
@@ -52,7 +55,6 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export default function CollectionAddressesManager({ activeWorkspaceName = "" }: Props) {
-  const [companyName, setCompanyName] = useState("");
   const [profiles, setProfiles] = useState<DefaultCollectionProfile[]>([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<DefaultCollectionProfile>(toEmptyDefaultCollectionProfile(""));
@@ -62,7 +64,21 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  async function load() {
+  const workspaceScopedProfiles = useMemo(() => {
+    const activeWorkspace = activeWorkspaceName.trim().toLowerCase();
+    if (!activeWorkspace) return [] as DefaultCollectionProfile[];
+
+    return profiles.filter((profile) => {
+      const parsed = parseCollectionProfileName(profile.profileName);
+      const scopedWorkspace = parsed.workspaceName.trim().toLowerCase();
+      if (scopedWorkspace) {
+        return scopedWorkspace === activeWorkspace;
+      }
+      return profile.companyName.trim().toLowerCase() === activeWorkspace;
+    });
+  }, [activeWorkspaceName, profiles]);
+
+  async function load(shouldResetSelection = false) {
     setLoading(true);
     setError(null);
     try {
@@ -76,14 +92,31 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
 
       const nextProfiles = payload.profiles ?? (payload.profile ? [payload.profile] : []);
       setProfiles(nextProfiles);
-      setCompanyName(payload.companyName ?? "");
 
-      if (!editingId && nextProfiles.length > 0) {
-        const preferred = nextProfiles.find((profile) => profile.isDefault) ?? nextProfiles[0];
+      const activeWorkspace = activeWorkspaceName.trim().toLowerCase();
+      const scopedProfiles = nextProfiles.filter((profile) => {
+        const parsed = parseCollectionProfileName(profile.profileName);
+        const scopedWorkspace = parsed.workspaceName.trim().toLowerCase();
+        if (scopedWorkspace) {
+          return scopedWorkspace === activeWorkspace;
+        }
+        return profile.companyName.trim().toLowerCase() === activeWorkspace;
+      });
+      const preferredCurrent = scopedProfiles.find((profile) => profile.id === editingId);
+      const preferred =
+        !shouldResetSelection && preferredCurrent
+          ? preferredCurrent
+          : scopedProfiles.find((profile) => profile.isDefault) ?? scopedProfiles[0];
+
+      if (preferred) {
         const parsed = splitRoleAndName(preferred.profileName);
         setEditingId(preferred.id);
         setAddressRole(parsed.role);
         setForm({ ...preferred, profileName: parsed.name });
+      } else {
+        setEditingId("");
+        setAddressRole("Depot");
+        setForm(toEmptyDefaultCollectionProfile(""));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load collection profiles");
@@ -99,11 +132,10 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
   }, []);
 
   function selectProfile(profile: DefaultCollectionProfile) {
-    setEditingId(profile.id);
-    setForm(profile);
     const parsed = splitRoleAndName(profile.profileName);
+    setEditingId(profile.id);
     setAddressRole(parsed.role);
-    setForm((prev) => ({ ...prev, profileName: parsed.name }));
+    setForm({ ...profile, profileName: parsed.name });
     setError(null);
     setMessage(null);
   }
@@ -112,7 +144,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
     setEditingId("");
     setForm({
       ...toEmptyDefaultCollectionProfile(""),
-      companyName: activeWorkspaceName || companyName || "",
+      companyName: "",
       isDefault: profiles.length === 0,
     });
     setAddressRole("Depot");
@@ -134,7 +166,10 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
         },
         body: JSON.stringify({
           ...form,
-          profileName: buildProfileName(addressRole, form.profileName),
+          profileName: buildCollectionProfileName(
+            activeWorkspaceName,
+            buildProfileName(addressRole, form.profileName)
+          ),
           id: editingId || undefined,
           isDefault: form.isDefault === true,
         }),
@@ -156,7 +191,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
       const parsed = splitRoleAndName(payload.profile.profileName);
       setAddressRole(parsed.role);
       setForm({ ...payload.profile, profileName: parsed.name });
-      setMessage("Collection profile saved");
+      setMessage("Address saved");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
@@ -179,7 +214,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
           onClick={createNewProfile}
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
         >
-          Add Profile
+          Add Address
         </button>
       </div>
 
@@ -188,13 +223,13 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
 
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Saved Profiles</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Saved Addresses</p>
           {loading ? (
             <p className="text-sm text-slate-500">Loading profiles...</p>
-          ) : profiles.length === 0 ? (
-            <p className="text-sm text-slate-500">No collection profiles yet.</p>
+          ) : workspaceScopedProfiles.length === 0 ? (
+            <p className="text-sm text-slate-500">No addresses for this merchant workspace yet.</p>
           ) : (
-            profiles.map((profile) => (
+            workspaceScopedProfiles.map((profile) => (
               <button
                 key={profile.id}
                 type="button"
@@ -205,7 +240,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
                     : "border-slate-200 bg-white text-slate-700"
                 }`}
               >
-                <p className="font-semibold">{profile.profileName || "Collection profile"}</p>
+                <p className="font-semibold">{splitRoleAndName(profile.profileName).name || "Address"}</p>
                 <p className="mt-1 text-xs opacity-80">{profile.addressLine1 || "Address pending"}</p>
                 {profile.isDefault ? <p className="mt-1 text-xs font-semibold">Default</p> : null}
               </button>
@@ -228,19 +263,19 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
               </select>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Profile Name</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Address Label</label>
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.profileName} onChange={(event) => setForm((prev) => ({ ...prev, profileName: event.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Company Name</label>
-              <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.companyName || companyName} onChange={(event) => setForm((prev) => ({ ...prev, companyName: event.target.value }))} />
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Site / Company Name</label>
+              <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.companyName} onChange={(event) => setForm((prev) => ({ ...prev, companyName: event.target.value }))} />
             </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Contact Name</label>
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.contactName} onChange={(event) => setForm((prev) => ({ ...prev, contactName: event.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Phone</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Contact Phone</label>
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
             </div>
             <div className="sm:col-span-2">
@@ -260,7 +295,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.postcode} onChange={(event) => setForm((prev) => ({ ...prev, postcode: event.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Email</label>
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Contact Email</label>
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
             </div>
             <div className="sm:col-span-2">
@@ -282,7 +317,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
             onClick={() => void saveProfile()}
             className="mt-4 rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save Profile"}
+            {saving ? "Saving..." : "Save Address"}
           </button>
         </div>
       </div>

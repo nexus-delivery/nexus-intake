@@ -12,6 +12,7 @@ import { resolveSalesChannel } from "@/lib/salesChannels";
 import SalesChannelField from "@/components/SalesChannelField";
 import type { CatalogueItem } from "@/lib/catalogue";
 import {
+  parseCollectionProfileName,
   profileToStop,
   type CollectionMode,
   type DefaultCollectionProfile,
@@ -441,7 +442,18 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   }, [customers, selectedWorkspaceName]);
 
   const merchantCollectionAddresses = useMemo(
-    () => collectionProfiles.filter((profile) => !profile.companyName || profile.companyName === selectedWorkspaceName || !selectedWorkspaceName),
+    () => {
+      if (!selectedWorkspaceName.trim()) return [];
+      const workspaceNeedle = selectedWorkspaceName.trim().toLowerCase();
+      return collectionProfiles.filter((profile) => {
+        const parsed = parseCollectionProfileName(profile.profileName);
+        const scopedWorkspace = parsed.workspaceName.trim().toLowerCase();
+        if (scopedWorkspace) {
+          return scopedWorkspace === workspaceNeedle;
+        }
+        return profile.companyName.trim().toLowerCase() === workspaceNeedle;
+      });
+    },
     [collectionProfiles, selectedWorkspaceName]
   );
 

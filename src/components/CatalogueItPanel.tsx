@@ -4,10 +4,51 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchCurrentProfile } from "@/lib/supabaseClient";
 import type { CatalogueItem, CatalogueItemType } from "@/lib/catalogue";
 
+type MerchantWorkspace = {
+  id: string;
+  merchantName: string;
+};
+
+const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "nexus.manageit.activeWorkspaceId.v1";
+
+function parseWorkspaceTaggedName(name: string): { workspaceName: string; displayName: string } {
+  const match = name.trim().match(/^\[\[(.+?)\]\]\s*(.+)$/);
+  if (!match) {
+    return { workspaceName: "", displayName: name.trim() };
+  }
+  return {
+    workspaceName: match[1]?.trim() ?? "",
+    displayName: match[2]?.trim() ?? "",
+  };
+}
+
+function buildWorkspaceTaggedName(workspaceName: string, name: string): string {
+  const cleanedName = name.trim();
+  const cleanedWorkspace = workspaceName.trim();
+  if (!cleanedWorkspace) return cleanedName;
+  return `[[${cleanedWorkspace}]] ${cleanedName}`;
+}
+
 const itemTypes: CatalogueItemType[] = ["product", "service", "surcharge", "labour", "storage"];
 
 export default function CatalogueItPanel() {
   const [merchantId, setMerchantId] = useState("");
+  const [activeWorkspaceName] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const activeId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
+      const workspaces = JSON.parse(
+        window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY) ?? "[]"
+      ) as MerchantWorkspace[];
+      const active = Array.isArray(workspaces)
+        ? workspaces.find((workspace) => workspace.id === activeId)
+        : undefined;
+      return active?.merchantName ?? "";
+    } catch {
+      return "";
+    }
+  });
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<CatalogueItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -50,7 +91,15 @@ export default function CatalogueItPanel() {
     return () => window.clearTimeout(timer);
   }, [merchantId, query]);
 
-  const sortedItems = useMemo(() => items, [items]);
+  const sortedItems = useMemo(() => {
+    const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
+    if (!workspaceNeedle) return items;
+    return items.filter((item) => {
+      const parsed = parseWorkspaceTaggedName(item.name);
+      if (!parsed.workspaceName) return false;
+      return parsed.workspaceName.trim().toLowerCase() === workspaceNeedle;
+    });
+  }, [activeWorkspaceName, items]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,7 +119,7 @@ export default function CatalogueItPanel() {
           merchant_id: merchantId,
           item_type: form.item_type,
           sku: form.sku,
-          name: form.name,
+          name: buildWorkspaceTaggedName(activeWorkspaceName, form.name),
           description: form.description,
           default_price: Number.parseFloat(form.default_price) || 0,
           vat_rate: Number.parseFloat(form.vat_rate) || 0,
@@ -112,6 +161,9 @@ export default function CatalogueItPanel() {
       <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
         <h2 className="text-lg font-semibold text-slate-950">Create Catalogue Item</h2>
         <p className="mt-2 text-sm text-slate-600">Catalogue It is the commercial source of truth for goods, delivery services, labour, storage, and surcharges.</p>
+            {activeWorkspaceName ? (
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace: {activeWorkspaceName}</p>
+            ) : null}
 
         <form onSubmit={submit} className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm text-slate-700">
@@ -163,7 +215,7 @@ export default function CatalogueItPanel() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-950">Merchant Catalogue</h2>
-            <p className="mt-1 text-sm text-slate-600">Search the merchant's active commercial items.</p>
+            <p className="mt-1 text-sm text-slate-600">Search the merchant&apos;s active commercial items.</p>
           </div>
           <input
             className="rounded-2xl border border-slate-200 px-4 py-3 text-sm"
@@ -178,7 +230,7 @@ export default function CatalogueItPanel() {
             <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold text-slate-950">{item.name}</p>
+                  <p className="font-semibold text-slate-950">{parseWorkspaceTaggedName(item.name).displayName}</p>
                   <p className="text-sm text-slate-600">{item.description}</p>
                 </div>
                 <div className="text-right text-sm text-slate-600">

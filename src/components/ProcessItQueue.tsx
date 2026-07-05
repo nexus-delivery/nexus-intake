@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -55,6 +55,14 @@ export type ProcessItJob = {
   createdAt: string;
   updatedAt: string;
 };
+
+type MerchantWorkspace = {
+  id: string;
+  merchantName: string;
+};
+
+const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "nexus.manageit.activeWorkspaceId.v1";
 
 type ViewFilter = "all" | "pending" | "sent" | "error";
 
@@ -630,6 +638,23 @@ export default function ProcessItQueue() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const activeId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
+      const workspaces = JSON.parse(
+        window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY) ?? "[]"
+      ) as MerchantWorkspace[];
+      const activeWorkspace = Array.isArray(workspaces)
+        ? workspaces.find((workspace) => workspace.id === activeId)
+        : undefined;
+      setActiveWorkspaceName(activeWorkspace?.merchantName ?? "");
+    } catch {
+      setActiveWorkspaceName("");
+    }
+  }, []);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -815,13 +840,19 @@ export default function ProcessItQueue() {
     [loadJobs]
   );
 
-  const filteredJobs = jobs.filter((j) => jobMatchesFilter(j, filter));
+  const workspaceScopedJobs = useMemo(() => {
+    const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
+    if (!workspaceNeedle) return jobs;
+    return jobs.filter((job) => job.merchantName.trim().toLowerCase() === workspaceNeedle);
+  }, [activeWorkspaceName, jobs]);
+
+  const filteredJobs = workspaceScopedJobs.filter((j) => jobMatchesFilter(j, filter));
 
   const counts = {
-    all: jobs.length,
-    pending: jobs.filter((j) => jobMatchesFilter(j, "pending")).length,
-    sent: jobs.filter((j) => jobMatchesFilter(j, "sent")).length,
-    error: jobs.filter((j) => jobMatchesFilter(j, "error")).length,
+    all: workspaceScopedJobs.length,
+    pending: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "pending")).length,
+    sent: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "sent")).length,
+    error: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "error")).length,
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────

@@ -83,6 +83,16 @@ export default function ManageItCRMWorkspace() {
     [activeWorkspaceId, merchants]
   );
 
+  const activeMerchants = useMemo(
+    () => merchants.filter((merchant) => merchant.status !== "Archived"),
+    [merchants]
+  );
+
+  const archivedMerchants = useMemo(
+    () => merchants.filter((merchant) => merchant.status === "Archived"),
+    [merchants]
+  );
+
   function createMerchantWorkspace(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!formName.trim() || !formEmail.trim()) {
@@ -106,6 +116,9 @@ export default function ManageItCRMWorkspace() {
   }
 
   function toggleArchive(id: string) {
+    const target = merchants.find((merchant) => merchant.id === id);
+    const willArchive = target?.status !== "Archived";
+
     setMerchants((current) =>
       current.map((merchant) =>
         merchant.id === id
@@ -116,6 +129,11 @@ export default function ManageItCRMWorkspace() {
           : merchant
       )
     );
+
+    if (willArchive && id === activeWorkspaceId) {
+      const nextWorkspace = activeMerchants.find((merchant) => merchant.id !== id);
+      setActiveWorkspaceId(nextWorkspace?.id ?? "");
+    }
   }
 
   function markInvited(id: string) {
@@ -202,10 +220,10 @@ export default function ManageItCRMWorkspace() {
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-semibold text-slate-900">Merchant Workspaces</p>
-          <p className="text-xs text-slate-500">{merchants.length} workspaces</p>
+          <p className="text-xs text-slate-500">{activeMerchants.length} active workspaces</p>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {merchants.map((merchant) => {
+          {activeMerchants.map((merchant) => {
             const active = merchant.id === activeWorkspaceId;
             return (
               <div
@@ -241,7 +259,7 @@ export default function ManageItCRMWorkspace() {
                     onClick={() => toggleArchive(merchant.id)}
                     className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700"
                   >
-                    {merchant.status === "Archived" ? "Unarchive" : "Archive"}
+                    Archive
                   </button>
                 </div>
               </div>
@@ -249,6 +267,33 @@ export default function ManageItCRMWorkspace() {
           })}
         </div>
       </section>
+
+      {archivedMerchants.length > 0 ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900">Archive It: Archived Merchants</p>
+            <p className="text-xs text-slate-500">{archivedMerchants.length} archived</p>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {archivedMerchants.map((merchant) => (
+              <div key={merchant.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-base font-semibold text-slate-900">{merchant.merchantName}</p>
+                <p className="mt-1 text-xs text-slate-500">{merchant.contactEmail}</p>
+                <p className="mt-1 text-xs text-slate-500">Created {merchant.createdAt}</p>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleArchive(merchant.id)}
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                  >
+                    Unarchive
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {activeWorkspace ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -261,9 +306,18 @@ export default function ManageItCRMWorkspace() {
         </section>
       ) : null}
 
-      <MerchantCustomersManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
-      <CustomerAddressesManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
-      <CollectionAddressesManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
+      <MerchantCustomersManager
+        key={`customers-${activeWorkspace?.id ?? "none"}`}
+        activeWorkspaceName={activeWorkspace?.merchantName ?? ""}
+      />
+      <CustomerAddressesManager
+        key={`customer-addresses-${activeWorkspace?.id ?? "none"}`}
+        activeWorkspaceName={activeWorkspace?.merchantName ?? ""}
+      />
+      <CollectionAddressesManager
+        key={`merchant-addresses-${activeWorkspace?.id ?? "none"}`}
+        activeWorkspaceName={activeWorkspace?.merchantName ?? ""}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 export type CollectionMode = "depot" | "new_address";
 
+const WORKSPACE_PREFIX = /^\[\[(.+?)\]\]\s*/;
+
 export type DefaultCollectionProfile = {
   id: string;
   companyId: string;
@@ -17,6 +19,31 @@ export type DefaultCollectionProfile = {
   instructions: string;
   updatedAt: string;
 };
+
+export type ParsedCollectionProfileName = {
+  workspaceName: string;
+  name: string;
+};
+
+export function parseCollectionProfileName(raw: string): ParsedCollectionProfileName {
+  const trimmed = raw.trim();
+  const match = trimmed.match(WORKSPACE_PREFIX);
+  if (!match) {
+    return { workspaceName: "", name: trimmed };
+  }
+
+  return {
+    workspaceName: match[1]?.trim() ?? "",
+    name: trimmed.replace(WORKSPACE_PREFIX, "").trim(),
+  };
+}
+
+export function buildCollectionProfileName(workspaceName: string, name: string): string {
+  const cleanName = name.trim();
+  const cleanWorkspace = workspaceName.trim();
+  if (!cleanWorkspace) return cleanName;
+  return `[[${cleanWorkspace}]] ${cleanName}`;
+}
 
 export function supportsDepotFirstByCompanyName(companyName: string): boolean {
   return companyName.trim().length > 0;

@@ -39,6 +39,13 @@ type AddressForm = {
   isDefault: boolean;
 };
 
+type NewCustomerForm = {
+  customerName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+};
+
 const emptyForm: AddressForm = {
   addressType: "delivery",
   label: "",
@@ -80,6 +87,14 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState<NewCustomerForm>({
+    customerName: "",
+    contactName: "",
+    email: "",
+    phone: "",
+  });
 
   const visibleAddresses = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -255,6 +270,54 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
     }
   }
 
+  async function createCustomerInline() {
+    if (!newCustomer.customerName.trim()) {
+      setError("Customer name is required.");
+      return;
+    }
+
+    setCreatingCustomer(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/merchant/customers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({
+          customerName: newCustomer.customerName,
+          company: activeWorkspaceName,
+          contactName: newCustomer.contactName,
+          email: newCustomer.email,
+          phone: newCustomer.phone,
+          mobile: newCustomer.phone,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        customer?: MerchantCustomer;
+      };
+
+      if (!response.ok || !payload.customer) {
+        throw new Error(payload.error ?? "Failed to create customer");
+      }
+
+      setCustomers((current) => [payload.customer!, ...current.filter((entry) => entry.id !== payload.customer!.id)]);
+      setSelectedCustomerId(payload.customer.id);
+      setShowCreateCustomer(false);
+      setNewCustomer({ customerName: "", contactName: "", email: "", phone: "" });
+      setMessage(`Customer created: ${payload.customer.customerName}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create customer");
+    } finally {
+      setCreatingCustomer(false);
+    }
+  }
+
   async function setDefaultAddress(address: CustomerAddress) {
     if (!selectedCustomerId) return;
 
@@ -397,6 +460,68 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Customer</p>
+          <button
+            type="button"
+            onClick={() => setShowCreateCustomer((prev) => !prev)}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+          >
+            + Add Customer
+          </button>
+        </div>
+      </div>
+
+      {showCreateCustomer ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-sm font-semibold text-slate-900">Create Customer</p>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <input
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="Customer name"
+              value={newCustomer.customerName}
+              onChange={(event) => setNewCustomer((prev) => ({ ...prev, customerName: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="Contact name"
+              value={newCustomer.contactName}
+              onChange={(event) => setNewCustomer((prev) => ({ ...prev, contactName: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="Email"
+              value={newCustomer.email}
+              onChange={(event) => setNewCustomer((prev) => ({ ...prev, email: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+              placeholder="Phone"
+              value={newCustomer.phone}
+              onChange={(event) => setNewCustomer((prev) => ({ ...prev, phone: event.target.value }))}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void createCustomerInline()}
+              disabled={creatingCustomer}
+              className="rounded-lg bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {creatingCustomer ? "Creating..." : "Create Customer"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateCustomer(false)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 md:grid-cols-[1fr_auto]">
         <select
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           value={selectedCustomerId}
@@ -423,6 +548,12 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
           ))}
         </select>
       </div>
+
+      {!loading && workspaceCustomers.length === 0 ? (
+        <p className="text-sm text-amber-700">
+          No customers exist for this merchant workspace yet. Create one to continue.
+        </p>
+      ) : null}
 
       <form onSubmit={createAddress} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-900">Add address</p>
