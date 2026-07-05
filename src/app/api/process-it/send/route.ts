@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { buildTrackPodOrderReference } from "@/lib/trackpodReference";
 import { evaluateFutureDeliveryHold } from "@/lib/orderLifecycle";
 
 // Production Track-POD API endpoint and auth — as per reference/trackpod/PROCESS-IT.md
@@ -63,48 +62,29 @@ function formatDate(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+function resolveTrackPodOrderEndpoint(rawUrl: string): string {
+  const trimmed = clean(rawUrl);
+  if (!trimmed) return "https://api.track-pod.com/Order";
+
+  try {
+    const parsed = new URL(trimmed);
+    const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+    if (normalizedPath.toLowerCase() === "/order") {
+      return parsed.toString().replace(/\/+$/, "");
+    }
+    parsed.pathname = `${normalizedPath}/Order`;
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    const normalized = trimmed.replace(/\/+$/, "");
+    if (normalized.toLowerCase().endsWith("/order")) {
+      return normalized;
+    }
+    return `${normalized}/Order`;
+  }
+}
+
 function isTestOrderReference(ref: string): boolean {
   return /^(TEST-|NEX-TEST-)/i.test(ref.trim());
-}
-
-function toBoolString(value: string | null | undefined): boolean {
-  const normalized = clean(value).toLowerCase();
-  return normalized === "true" || normalized === "1" || normalized === "yes";
-}
-
-function buildServiceTags(fields: Record<string, string>): string[] {
-  const tags: string[] = [];
-  if (toBoolString(fields.two_man)) tags.push("2 MAN");
-  if (toBoolString(fields.northern_ireland_delivery)) tags.push("NI");
-  if (toBoolString(fields.tail_lift_required)) tags.push("TAIL LIFT");
-  if (toBoolString(fields.dedicated_vehicle)) tags.push("DEDICATED VEHICLE");
-  return tags;
-}
-
-function composeTrackPodAddress(
-  fields: Record<string, string>,
-  prefix: "collection" | "delivery"
-): string {
-  const inline = firstNonBlank(fields, [
-    `${prefix}_address`,
-    `${prefix}_address_line1`,
-  ]);
-
-  const structured = [
-    firstNonBlank(fields, [`${prefix}_name`]),
-    firstNonBlank(fields, [`${prefix}_address_line1`]),
-    firstNonBlank(fields, [`${prefix}_address_line2`]),
-    firstNonBlank(fields, [`${prefix}_address_line3`]),
-    firstNonBlank(fields, [`${prefix}_city`, `${prefix}_town`]),
-    firstNonBlank(fields, [`${prefix}_county`, `${prefix}_region`]),
-    firstNonBlank(fields, [`${prefix}_postcode`]),
-    firstNonBlank(fields, [`${prefix}_country`]),
-  ]
-    .map((value) => clean(value))
-    .filter(Boolean)
-    .join(", ");
-
-  return structured || inline;
 }
 
 type TrackPodReadinessResult = {
@@ -159,18 +139,11 @@ function buildDeliveryPayload(
   fields: Record<string, string>,
   orderRef: string
 ): Record<string, unknown> {
-  const tags = buildServiceTags(fields);
-  const refWithTags = buildTrackPodOrderReference({
-    orderReference: orderRef,
-    externalOrderId: fields.external_order_id,
-    twoMan: fields.two_man,
-  });
+  const ref = clean(orderRef);
   const deliveryName = firstNonBlank(fields, ["delivery_name", "Delivery Name"]);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
-  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
-  const deliveryAddress =
-    composeTrackPodAddress(fields, "delivery") ||
-    firstNonBlank(fields, ["delivery_address", "Delivery Address"]);
+  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name"]);
+  const deliveryAddress = firstNonBlank(fields, ["delivery_address", "Delivery Address"]);
   const deliveryPhone = firstNonBlank(fields, ["delivery_phone", "Delivery Phone"]);
   const deliveryEmail = firstNonBlank(fields, ["delivery_email", "Delivery Email"]);
 
@@ -192,15 +165,10 @@ function buildDeliveryPayload(
     "Goods Description",
   ]);
 
-  const baseNote = firstNonBlank(fields, ["delivery_notes", "Notes", "notes"]);
-  const taggedNote = [tags.length ? `Service Flags: ${tags.join(" | ")}` : "", baseNote]
-    .filter(Boolean)
-    .join("\n\n");
-
   return {
-    Number: refWithTags,
-    Id: refWithTags,
-    Type: 0, // Delivery
+    Number: ref,
+    Id: ref,
+    Type: 0,
     Date: formatDate(ifempty(requestedDeliveryDate, expectedCollectionDate)),
     Client: ifempty(deliveryName, collectionName),
     ContactName: ifempty(deliveryName, collectionName),
@@ -210,10 +178,10 @@ function buildDeliveryPayload(
     Shipper: shipperName,
     GoodsList: [
       {
-        GoodsName: goodsName || "Delivery",
+        GoodsName: goodsName,
         GoodsUnit: "pcs",
         Quantity: 1,
-        Note: taggedNote,
+        Note: "",
       },
     ],
   };
@@ -223,17 +191,10 @@ function buildCollectionPayload(
   fields: Record<string, string>,
   orderRef: string
 ): Record<string, unknown> {
-  const tags = buildServiceTags(fields);
-  const refWithTags = buildTrackPodOrderReference({
-    orderReference: orderRef,
-    externalOrderId: fields.external_order_id,
-    twoMan: fields.two_man,
-  });
+  const ref = clean(orderRef);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
-  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
-  const collectionAddress =
-    composeTrackPodAddress(fields, "collection") ||
-    firstNonBlank(fields, ["collection_address", "Collection Address"]);
+  const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name"]);
+  const collectionAddress = firstNonBlank(fields, ["collection_address", "Collection Address"]);
   const collectionPhone = firstNonBlank(fields, ["collection_phone", "Collection Phone"]);
   const collectionEmail = firstNonBlank(fields, [
     "colllection_email",
@@ -251,14 +212,10 @@ function buildCollectionPayload(
     "TRACKPOD PHOTO & NOTE",
   ]);
 
-  const taggedNote = [tags.length ? `Service Flags: ${tags.join(" | ")}` : "", goodsNote]
-    .filter(Boolean)
-    .join("\n\n");
-
   return {
-    Number: refWithTags,
-    Id: refWithTags,
-    Type: 1, // Collection / Pickup
+    Number: ref,
+    Id: ref,
+    Type: 1,
     Client: ifempty(collectionName, shipperName),
     ContactName: ifempty(collectionName, shipperName),
     Address: collectionAddress,
@@ -267,10 +224,10 @@ function buildCollectionPayload(
     Shipper: shipperName,
     GoodsList: [
       {
-        GoodsName: goodsName || "Collection",
+        GoodsName: goodsName,
         GoodsUnit: "pcs",
         Quantity: 1,
-        Note: taggedNote,
+        Note: goodsNote,
       },
     ],
   };
@@ -291,10 +248,12 @@ type TrackPodResult = {
 async function callTrackPod(
   payload: Record<string, unknown>
 ): Promise<TrackPodResult> {
+  const orderEndpoint = resolveTrackPodOrderEndpoint(TRACKPOD_API_BASE_URL);
+
   console.info("[process-it/send] Track-POD config", {
     keyExists: Boolean(TRACKPOD_API_KEY),
     keyLength: TRACKPOD_API_KEY.length,
-    baseUrl: TRACKPOD_API_BASE_URL,
+    baseUrl: orderEndpoint,
   });
 
   if (!TRACKPOD_API_KEY) {
@@ -306,7 +265,7 @@ async function callTrackPod(
 
   let response: Response;
   try {
-    response = await fetch(TRACKPOD_API_BASE_URL, {
+    response = await fetch(orderEndpoint, {
       method: "POST",
       headers: {
         "X-API-KEY": TRACKPOD_API_KEY,
