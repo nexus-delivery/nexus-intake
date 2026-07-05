@@ -431,7 +431,7 @@ export async function PATCH(
     const { data: existing, error: existingError } = await privilegedClient
       .from("draft_jobs")
       .select(
-        "id, company_id, integration_metadata, collection_company, collection_address_line1, collection_postcode, collection_phone, collection_email, delivery_company, delivery_address_line1, delivery_postcode, delivery_phone, delivery_email, goods_description, total_quantity, total_packages, total_pallet_count, total_weight_kg"
+        "id, company_id, integration_metadata, external_order_id, collection_company, collection_address_line1, collection_postcode, collection_phone, collection_email, delivery_company, delivery_address_line1, delivery_postcode, delivery_phone, delivery_email, goods_description, total_quantity, total_packages, total_pallet_count, total_weight_kg, requested_collection_date, requested_delivery_date, notes"
       )
       .eq("id", id)
       .eq("company_id", profile.company_id)
@@ -524,54 +524,81 @@ export async function PATCH(
       return NextResponse.json({ success: true });
     }
 
+    const existingRecord = existing as Record<string, unknown>;
+    const hasBodyKey = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
+    const textValue = (bodyKey: string, existingKey: string): string =>
+      hasBodyKey(bodyKey) ? clean(body[bodyKey]) : clean(existingRecord[existingKey]);
+
+    const nullableValue = (bodyKey: string, existingKey: string): string | null => {
+      if (hasBodyKey(bodyKey)) {
+        const value = clean(body[bodyKey]);
+        return value || null;
+      }
+      const existingValue = existingRecord[existingKey];
+      if (existingValue == null) return null;
+      const normalized = clean(existingValue);
+      return normalized || null;
+    };
+
+    const existingMetadata =
+      existing.integration_metadata && typeof existing.integration_metadata === "object"
+        ? (existing.integration_metadata as Record<string, unknown>)
+        : {};
+
+    const nextTrackPodMapping =
+      existingMetadata.trackPodMapping && typeof existingMetadata.trackPodMapping === "object"
+        ? { ...(existingMetadata.trackPodMapping as Record<string, unknown>) }
+        : {};
+
+    const mappingKeys: Array<[string, string]> = [
+      ["collection_name", "collectionName"],
+      ["collection_address", "collectionAddress"],
+      ["collection_postcode", "collectionPostcode"],
+      ["collection_phone", "collectionPhone"],
+      ["collection_email", "collectionEmail"],
+      ["delivery_name", "deliveryName"],
+      ["delivery_address", "deliveryAddress"],
+      ["delivery_postcode", "deliveryPostcode"],
+      ["delivery_phone", "deliveryPhone"],
+      ["delivery_email", "deliveryEmail"],
+      ["goods_description", "goodsDescription"],
+      ["quantity", "quantity"],
+      ["package_type", "packageType"],
+      ["volume", "volume"],
+      ["dimensions", "dimensions"],
+      ["weight_kg", "weightKg"],
+    ];
+
+    for (const [mappingKey, bodyKey] of mappingKeys) {
+      if (hasBodyKey(bodyKey)) {
+        nextTrackPodMapping[mappingKey] = clean(body[bodyKey]);
+      }
+    }
+
     const payload = {
-      external_order_id: clean(body.externalOrderReference),
-      collection_company: clean(body.collectionName),
-      collection_address_line1: clean(body.collectionAddress),
-      collection_postcode: clean(body.collectionPostcode),
-      collection_phone: clean(body.collectionPhone),
-      collection_email: clean(body.collectionEmail),
-      delivery_company: clean(body.deliveryName),
-      delivery_address_line1: clean(body.deliveryAddress),
-      delivery_postcode: clean(body.deliveryPostcode),
-      delivery_phone: clean(body.deliveryPhone),
-      delivery_email: clean(body.deliveryEmail),
-      goods_description: clean(body.goodsDescription),
-      total_quantity: clean(body.quantity) || null,
-      total_packages: clean(body.packageCount) || null,
-      total_pallet_count: clean(body.palletCount) || null,
-      total_weight_kg: clean(body.weightKg) || null,
-      requested_collection_date: clean(body.requestedCollectionDate),
-      requested_delivery_date: clean(body.requestedDeliveryDate),
-      notes: clean(body.notes),
+      external_order_id: textValue("externalOrderReference", "external_order_id"),
+      collection_company: textValue("collectionName", "collection_company"),
+      collection_address_line1: textValue("collectionAddress", "collection_address_line1"),
+      collection_postcode: textValue("collectionPostcode", "collection_postcode"),
+      collection_phone: textValue("collectionPhone", "collection_phone"),
+      collection_email: textValue("collectionEmail", "collection_email"),
+      delivery_company: textValue("deliveryName", "delivery_company"),
+      delivery_address_line1: textValue("deliveryAddress", "delivery_address_line1"),
+      delivery_postcode: textValue("deliveryPostcode", "delivery_postcode"),
+      delivery_phone: textValue("deliveryPhone", "delivery_phone"),
+      delivery_email: textValue("deliveryEmail", "delivery_email"),
+      goods_description: textValue("goodsDescription", "goods_description"),
+      total_quantity: nullableValue("quantity", "total_quantity"),
+      total_packages: nullableValue("packageCount", "total_packages"),
+      total_pallet_count: nullableValue("palletCount", "total_pallet_count"),
+      total_weight_kg: nullableValue("weightKg", "total_weight_kg"),
+      requested_collection_date: textValue("requestedCollectionDate", "requested_collection_date"),
+      requested_delivery_date: textValue("requestedDeliveryDate", "requested_delivery_date"),
+      notes: textValue("notes", "notes"),
       integration_metadata: {
-        ...(existing.integration_metadata && typeof existing.integration_metadata === "object"
-          ? (existing.integration_metadata as Record<string, unknown>)
-          : {}),
-        trackPodMapping: {
-          ...((existing.integration_metadata &&
-          typeof existing.integration_metadata === "object" &&
-          (existing.integration_metadata as Record<string, unknown>).trackPodMapping &&
-          typeof (existing.integration_metadata as Record<string, unknown>).trackPodMapping === "object")
-            ? ((existing.integration_metadata as Record<string, unknown>).trackPodMapping as Record<string, unknown>)
-            : {}),
-          collection_name: clean(body.collectionName),
-          collection_address: clean(body.collectionAddress),
-          collection_postcode: clean(body.collectionPostcode),
-          collection_phone: clean(body.collectionPhone),
-          collection_email: clean(body.collectionEmail),
-          delivery_name: clean(body.deliveryName),
-          delivery_address: clean(body.deliveryAddress),
-          delivery_postcode: clean(body.deliveryPostcode),
-          delivery_phone: clean(body.deliveryPhone),
-          delivery_email: clean(body.deliveryEmail),
-          goods_description: clean(body.goodsDescription),
-          quantity: clean(body.quantity),
-          package_type: clean(body.packageType),
-          volume: clean(body.volume),
-          dimensions: clean(body.dimensions),
-          weight_kg: clean(body.weightKg),
-        },
+        ...existingMetadata,
+        trackPodMapping: nextTrackPodMapping,
       },
       updated_at: new Date().toISOString(),
     };

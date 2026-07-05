@@ -7,7 +7,7 @@ import AccessSetupIssueView from "@/components/AccessSetupIssueView";
 import { syncManageItSession } from "@/lib/manageIt";
 import { getSupabaseProjectRefFromUrl, supabase } from "@/lib/supabaseClient";
 
-const PUBLIC_PATHS = new Set(["/signin", "/signup"]);
+const PUBLIC_PATHS = new Set(["/signin", "/signup", "/forgot-password", "/reset-password"]);
 
 function isPublicRoute(pathname: string): boolean {
   return (

@@ -91,25 +91,22 @@ export async function createOrUpdateCompany(params: {
 }): Promise<string> {
   if (!supabase) throw new Error("Supabase not configured");
 
-  const { data, error } = await supabase
-    .from("companies")
-    .upsert(
-      {
-        id: params.companyId,
-        name: params.name,
-        business_type: params.businessType || null,
-      },
-      { onConflict: "id" }
-    )
-    .select("id")
-    .single();
+  const insertPayload = {
+    id: params.companyId,
+    name: params.name,
+    business_type: params.businessType || null,
+  };
 
-  if (error) {
-    console.error("Failed to create/update company", { error, params });
+  const { error } = await supabase
+    .from("companies")
+    .insert(insertPayload);
+
+  if (error && error.code !== "23505") {
+    console.error("Failed to create company", { error, params });
     throw new Error(`Failed to create company: ${error.message}`);
   }
 
-  return data.id;
+  return params.companyId;
 }
 
 export async function fetchProfileByUserId(authUserId: string): Promise<Profile | null> {
