@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import { toDashboardRow } from "@/lib/orders/dashboard";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   try {
     const token = parseBearerToken(request);
     if (!token) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const authClient = createAuthClient();
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     } = await authClient.auth.getUser(token);
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const { data: profile, error: profileError } = await privilegedClient

@@ -1,7 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SIGN_IN_ERROR = "Please sign in to access merchant documents";
 const NO_COMPANY_ERROR = "No company is linked to this user";
 const ACCESS_DENIED_ERROR = "You do not have access to this document";
@@ -126,25 +128,6 @@ export async function fetchCurrentProfile(
     const message = err instanceof Error ? err.message : "Failed to load your profile";
     return { success: false, error: message };
   }
-}
-
-function normalizeMerchantDocumentStoragePath(filePath: string): string {
-  const trimmedPath = filePath.trim().replace(/^\/+/, "");
-
-  const storageUrlMatch = trimmedPath.match(
-    /^https?:\/\/[^/]+\/storage\/v1\/(?:object\/(?:sign|public|authenticated)\/)?(.+)$/
-  );
-  const pathWithoutStoragePrefix = storageUrlMatch ? storageUrlMatch[1] : trimmedPath;
-
-  const bucketPrefixMatch = pathWithoutStoragePrefix.match(
-    new RegExp(`(?:^|/)${MERCHANT_DOCUMENTS_BUCKET}/(.+)$`)
-  );
-
-  if (bucketPrefixMatch) {
-    return bucketPrefixMatch[1];
-  }
-
-  return pathWithoutStoragePrefix.replace(new RegExp(`^${MERCHANT_DOCUMENTS_BUCKET}/`), "");
 }
 
 /**

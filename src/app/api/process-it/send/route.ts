@@ -81,6 +81,32 @@ function buildServiceTags(fields: Record<string, string>): string[] {
   return tags;
 }
 
+function composeTrackPodAddress(
+  fields: Record<string, string>,
+  prefix: "collection" | "delivery"
+): string {
+  const inline = firstNonBlank(fields, [
+    `${prefix}_address`,
+    `${prefix}_address_line1`,
+  ]);
+
+  const structured = [
+    firstNonBlank(fields, [`${prefix}_name`]),
+    firstNonBlank(fields, [`${prefix}_address_line1`]),
+    firstNonBlank(fields, [`${prefix}_address_line2`]),
+    firstNonBlank(fields, [`${prefix}_address_line3`]),
+    firstNonBlank(fields, [`${prefix}_city`, `${prefix}_town`]),
+    firstNonBlank(fields, [`${prefix}_county`, `${prefix}_region`]),
+    firstNonBlank(fields, [`${prefix}_postcode`]),
+    firstNonBlank(fields, [`${prefix}_country`]),
+  ]
+    .map((value) => clean(value))
+    .filter(Boolean)
+    .join(", ");
+
+  return structured || inline;
+}
+
 // ─── Production payload builders ──────────────────────────────────────────────
 // Field names and fallback chains exactly as documented in
 // reference/trackpod/PROCESS-IT.md and reference/trackpod/TRACKPOD-API-MAPPINGS.md
@@ -98,7 +124,9 @@ function buildDeliveryPayload(
   const deliveryName = firstNonBlank(fields, ["delivery_name", "Delivery Name"]);
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
-  const deliveryAddress = firstNonBlank(fields, ["delivery_address", "Delivery Address"]);
+  const deliveryAddress =
+    composeTrackPodAddress(fields, "delivery") ||
+    firstNonBlank(fields, ["delivery_address", "Delivery Address"]);
   const deliveryPhone = firstNonBlank(fields, ["delivery_phone", "Delivery Phone"]);
   const deliveryEmail = firstNonBlank(fields, ["delivery_email", "Delivery Email"]);
 
@@ -159,7 +187,9 @@ function buildCollectionPayload(
   });
   const collectionName = firstNonBlank(fields, ["collection_name", "Collection Name"]);
   const shipperName = firstNonBlank(fields, ["shipper_name", "Shipper Name", "merchant_shipper"]);
-  const collectionAddress = firstNonBlank(fields, ["collection_address", "Collection Address"]);
+  const collectionAddress =
+    composeTrackPodAddress(fields, "collection") ||
+    firstNonBlank(fields, ["collection_address", "Collection Address"]);
   const collectionPhone = firstNonBlank(fields, ["collection_phone", "Collection Phone"]);
   const collectionEmail = firstNonBlank(fields, [
     "colllection_email",
@@ -325,7 +355,7 @@ export async function POST(request: NextRequest) {
   try {
     const accessToken = parseBearerToken(request);
     if (!accessToken) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const authClient = createAuthClient();
@@ -340,7 +370,7 @@ export async function POST(request: NextRequest) {
     } = await authClient.auth.getUser(accessToken);
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const body = (await request.json()) as SendRequest;

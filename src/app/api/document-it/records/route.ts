@@ -164,7 +164,7 @@ function resolveRequestedView(scope: DocumentItScope, requested: string): Docume
 async function resolveActorContext(request: NextRequest): Promise<{ ok: true; value: ActorContext } | { ok: false; status: number; error: string }> {
   const token = parseBearerToken(request);
   if (!token) {
-    return { ok: false, status: 401, error: "Unauthorised" };
+    return { ok: false, status: 401, error: "Session expired. Please sign in again." };
   }
 
   const authClient = createAuthClient();
@@ -179,7 +179,7 @@ async function resolveActorContext(request: NextRequest): Promise<{ ok: true; va
   } = await authClient.auth.getUser(token);
 
   if (userError || !user) {
-    return { ok: false, status: 401, error: "Unauthorised" };
+    return { ok: false, status: 401, error: "Session expired. Please sign in again." };
   }
 
   const [{ data: profile }, { data: portalUser }] = await Promise.all([

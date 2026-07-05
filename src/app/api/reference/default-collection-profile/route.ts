@@ -62,7 +62,7 @@ function clean(value: unknown): string {
 async function resolveUserContext(request: NextRequest) {
   const token = parseBearerToken(request);
   if (!token) {
-    return { error: "Unauthorised", status: 401 as const };
+    return { error: "Session expired. Please sign in again.", status: 401 as const };
   }
 
   const authClient = createAuthClient();
@@ -77,7 +77,7 @@ async function resolveUserContext(request: NextRequest) {
   } = await authClient.auth.getUser(token);
 
   if (userError || !user) {
-    return { error: "Unauthorised", status: 401 as const };
+    return { error: "Session expired. Please sign in again.", status: 401 as const };
   }
 
   const { data: profile, error: profileError } = await privilegedClient

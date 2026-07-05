@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { MerchantCustomer } from "@/lib/merchantCustomers";
 
-type AddressType = "collection" | "delivery" | "billing" | "warehouse" | "branch" | "depot" | "supplier";
+type AddressType = "delivery";
 
 type CustomerAddress = {
   id: string;
@@ -40,7 +40,7 @@ type AddressForm = {
 };
 
 const emptyForm: AddressForm = {
-  addressType: "collection",
+  addressType: "delivery",
   label: "",
   contactName: "",
   phone: "",
@@ -54,7 +54,11 @@ const emptyForm: AddressForm = {
   isDefault: false,
 };
 
-const ADDRESS_TYPES: AddressType[] = ["collection", "delivery", "billing", "warehouse", "branch", "depot", "supplier"];
+const ADDRESS_TYPES: AddressType[] = ["delivery"];
+
+type Props = {
+  activeWorkspaceName?: string;
+};
 
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supabase) return {};
@@ -64,7 +68,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function CustomerAddressesManager() {
+export default function CustomerAddressesManager({ activeWorkspaceName = "" }: Props) {
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -99,6 +103,12 @@ export default function CustomerAddressesManager() {
         .includes(needle);
     });
   }, [addresses, search, typeFilter]);
+
+  const workspaceCustomers = useMemo(() => {
+    const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
+    if (!workspaceNeedle) return customers;
+    return customers.filter((customer) => customer.company.trim().toLowerCase() === workspaceNeedle);
+  }, [activeWorkspaceName, customers]);
 
   async function loadCustomers() {
     const response = await fetch("/api/merchant/customers", { headers: await authHeaders() });
@@ -188,6 +198,18 @@ export default function CustomerAddressesManager() {
       active = false;
     };
   }, [selectedCustomerId]);
+
+  useEffect(() => {
+    if (!workspaceCustomers.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedCustomerId("");
+      return;
+    }
+
+    if (!workspaceCustomers.some((customer) => customer.id === selectedCustomerId)) {
+      setSelectedCustomerId(workspaceCustomers[0].id);
+    }
+  }, [selectedCustomerId, workspaceCustomers]);
 
   async function createAddress(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -352,8 +374,13 @@ export default function CustomerAddressesManager() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">CRM Addresses</p>
         <h2 className="mt-1 text-2xl font-semibold text-slate-950">Customer Addresses</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Customers can hold unlimited collection and delivery addresses. Save reusable addresses and set defaults per customer and type.
+          Customers can hold unlimited delivery addresses. Save reusable addresses and set defaults per customer and type.
         </p>
+        {activeWorkspaceName ? (
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Workspace: {activeWorkspaceName}
+          </p>
+        ) : null}
       </div>
 
       {loading ? <p className="text-sm text-slate-500">Loading address workspace...</p> : null}
@@ -376,7 +403,7 @@ export default function CustomerAddressesManager() {
           onChange={(event) => setSelectedCustomerId(event.target.value)}
         >
           <option value="">Select customer...</option>
-          {customers.map((customer) => (
+          {workspaceCustomers.map((customer) => (
             <option key={customer.id} value={customer.id}>
               {customer.customerName}
             </option>
@@ -426,7 +453,7 @@ export default function CustomerAddressesManager() {
           <input
             type="checkbox"
             checked={form.isDefault}
-            disabled={!(form.addressType === "collection" || form.addressType === "delivery")}
+            disabled={form.addressType !== "delivery"}
             onChange={(event) => setForm((prev) => ({ ...prev, isDefault: event.target.checked }))}
           />
           Set as default for selected type
@@ -484,7 +511,7 @@ export default function CustomerAddressesManager() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {!address.isDefault && (address.addressType === "collection" || address.addressType === "delivery") ? (
+                      {!address.isDefault && address.addressType === "delivery" ? (
                         <button onClick={() => void setDefaultAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Set default</button>
                       ) : null}
                       <button onClick={() => editAddress(address)} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">Edit</button>

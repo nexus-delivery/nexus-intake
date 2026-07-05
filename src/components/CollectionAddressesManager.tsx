@@ -14,6 +14,35 @@ type ProfilePayload = {
   error?: string;
 };
 
+type MerchantAddressRole = "Warehouse" | "Depot" | "Supplier" | "Collection Location";
+
+type Props = {
+  activeWorkspaceName?: string;
+};
+
+const ROLE_OPTIONS: MerchantAddressRole[] = [
+  "Warehouse",
+  "Depot",
+  "Supplier",
+  "Collection Location",
+];
+
+function splitRoleAndName(profileName: string): { role: MerchantAddressRole; name: string } {
+  const trimmed = profileName.trim();
+  const match = trimmed.match(/^(Warehouse|Depot|Supplier|Collection Location):\s*(.+)$/i);
+  if (!match) {
+    return { role: "Depot", name: trimmed };
+  }
+
+  const role = ROLE_OPTIONS.find((option) => option.toLowerCase() === match[1].toLowerCase()) ?? "Depot";
+  return { role, name: match[2].trim() };
+}
+
+function buildProfileName(role: MerchantAddressRole, name: string): string {
+  const cleanedName = name.trim() || "Address";
+  return `${role}: ${cleanedName}`;
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supabase) return {};
   const {
@@ -22,11 +51,12 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function CollectionAddressesManager() {
+export default function CollectionAddressesManager({ activeWorkspaceName = "" }: Props) {
   const [companyName, setCompanyName] = useState("");
   const [profiles, setProfiles] = useState<DefaultCollectionProfile[]>([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<DefaultCollectionProfile>(toEmptyDefaultCollectionProfile(""));
+  const [addressRole, setAddressRole] = useState<MerchantAddressRole>("Depot");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +80,10 @@ export default function CollectionAddressesManager() {
 
       if (!editingId && nextProfiles.length > 0) {
         const preferred = nextProfiles.find((profile) => profile.isDefault) ?? nextProfiles[0];
+        const parsed = splitRoleAndName(preferred.profileName);
         setEditingId(preferred.id);
-        setForm(preferred);
+        setAddressRole(parsed.role);
+        setForm({ ...preferred, profileName: parsed.name });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load collection profiles");
@@ -61,12 +93,17 @@ export default function CollectionAddressesManager() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function selectProfile(profile: DefaultCollectionProfile) {
     setEditingId(profile.id);
     setForm(profile);
+    const parsed = splitRoleAndName(profile.profileName);
+    setAddressRole(parsed.role);
+    setForm((prev) => ({ ...prev, profileName: parsed.name }));
     setError(null);
     setMessage(null);
   }
@@ -75,9 +112,10 @@ export default function CollectionAddressesManager() {
     setEditingId("");
     setForm({
       ...toEmptyDefaultCollectionProfile(""),
-      companyName: companyName || "",
+      companyName: activeWorkspaceName || companyName || "",
       isDefault: profiles.length === 0,
     });
+    setAddressRole("Depot");
     setError(null);
     setMessage(null);
   }
@@ -96,6 +134,7 @@ export default function CollectionAddressesManager() {
         },
         body: JSON.stringify({
           ...form,
+          profileName: buildProfileName(addressRole, form.profileName),
           id: editingId || undefined,
           isDefault: form.isDefault === true,
         }),
@@ -114,7 +153,9 @@ export default function CollectionAddressesManager() {
       const nextProfiles = payload.profiles ?? [payload.profile];
       setProfiles(nextProfiles);
       setEditingId(payload.profile.id);
-      setForm(payload.profile);
+      const parsed = splitRoleAndName(payload.profile.profileName);
+      setAddressRole(parsed.role);
+      setForm({ ...payload.profile, profileName: parsed.name });
       setMessage("Collection profile saved");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
@@ -129,7 +170,10 @@ export default function CollectionAddressesManager() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Manage-it</p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-950">Collection Addresses</h1>
-          <p className="mt-1 text-sm text-slate-600">Manage multiple saved collection profiles and choose a merchant default depot.</p>
+          <p className="mt-1 text-sm text-slate-600">Merchant Address Book: save warehouses, depots, suppliers, and collection locations for booking reuse.</p>
+          {activeWorkspaceName ? (
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace: {activeWorkspaceName}</p>
+          ) : null}
         </div>
         <button
           onClick={createNewProfile}
@@ -171,6 +215,18 @@ export default function CollectionAddressesManager() {
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
           <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Address Type</label>
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                value={addressRole}
+                onChange={(event) => setAddressRole(event.target.value as MerchantAddressRole)}
+              >
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Profile Name</label>
               <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.profileName} onChange={(event) => setForm((prev) => ({ ...prev, profileName: event.target.value }))} />

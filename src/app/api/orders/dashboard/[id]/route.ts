@@ -51,7 +51,7 @@ export async function GET(
   try {
     const token = parseBearerToken(request);
     if (!token) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const authClient = createAuthClient();
@@ -66,7 +66,7 @@ export async function GET(
     } = await authClient.auth.getUser(token);
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const params = await context.params;

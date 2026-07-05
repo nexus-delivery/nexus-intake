@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     : DEFAULT_AUDIT_LOG_LIMIT;
 
   if (!hasAccess || !accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
   }
 
   const client = createSupabaseTokenClient(accessToken);

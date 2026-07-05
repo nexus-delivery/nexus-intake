@@ -10,6 +10,7 @@ import {
 import { fetchCurrentProfile, supabase } from "@/lib/supabaseClient";
 import { resolveSalesChannel } from "@/lib/salesChannels";
 import SalesChannelField from "@/components/SalesChannelField";
+import type { CatalogueItem } from "@/lib/catalogue";
 import {
   profileToStop,
   type CollectionMode,
@@ -77,6 +78,36 @@ type CustomerAddress = {
   archivedAt: string | null;
 };
 
+type MerchantWorkspace = {
+  id: string;
+  merchantName: string;
+  contactEmail: string;
+  status: string;
+};
+
+const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "nexus.manageit.activeWorkspaceId.v1";
+
+function loadStoredMerchantWorkspaces(): MerchantWorkspace[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY) ?? "[]";
+    const parsed = JSON.parse(raw) as MerchantWorkspace[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadActiveWorkspaceId(workspaces: MerchantWorkspace[]): string {
+  if (typeof window === "undefined") return "";
+  const preferredId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
+  if (preferredId && workspaces.some((workspace) => workspace.id === preferredId)) {
+    return preferredId;
+  }
+  return workspaces[0]?.id ?? "";
+}
+
 const inputClass =
   "mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-[#7C3AED] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20";
 
@@ -121,6 +152,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [salesChannelName, setSalesChannelName] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
+  const [merchantWorkspaces] = useState<MerchantWorkspace[]>(() => loadStoredMerchantWorkspaces());
+  const [selectedMerchantWorkspaceId, setSelectedMerchantWorkspaceId] = useState(() =>
+    loadActiveWorkspaceId(loadStoredMerchantWorkspaces())
+  );
   const [customerAddresses, setCustomerAddresses] = useState<CustomerAddress[]>([]);
   const [selectedCollectionAddressId, setSelectedCollectionAddressId] = useState("");
   const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState("");
@@ -128,6 +163,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [adminOverrideRelease, setAdminOverrideRelease] = useState(false);
   const [bookingProfileName, setBookingProfileName] = useState("");
   const [bookingProfiles, setBookingProfiles] = useState<BookingProfile[]>([]);
+  const [catalogueItems, setCatalogueItems] = useState<CatalogueItem[]>([]);
   const [selectedBookingProfileId, setSelectedBookingProfileId] = useState("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerSaving, setNewCustomerSaving] = useState(false);
@@ -274,6 +310,55 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   useEffect(() => {
     let cancelled = false;
 
+    async function loadCatalogueItems() {
+      if (!isMerchantView || !supabase) {
+        if (!cancelled) {
+          setCatalogueItems([]);
+        }
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        if (!cancelled) {
+          setCatalogueItems([]);
+        }
+        return;
+      }
+
+      const response = await fetch("/api/catalogue/items?item_type=product", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) {
+        if (!cancelled) {
+          setCatalogueItems([]);
+        }
+        return;
+      }
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        items?: CatalogueItem[];
+      };
+
+      if (!cancelled) {
+        setCatalogueItems(payload.items ?? []);
+      }
+    }
+
+    void loadCatalogueItems();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isMerchantView]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadCustomerBookingProfiles() {
       if (!isMerchantView || !customerId || !supabase) {
         if (!cancelled) {
@@ -339,14 +424,25 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     }
   }, [autoSelectionApplied, customers, deepLinkCustomerId, deepLinkProfileId, bookingProfiles]);
 
-  const customerCollectionAddresses = useMemo(
-    () => customerAddresses.filter((address) => address.addressType === "collection" && !address.archivedAt),
-    [customerAddresses]
-  );
-
   const customerDeliveryAddresses = useMemo(
     () => customerAddresses.filter((address) => address.addressType === "delivery" && !address.archivedAt),
     [customerAddresses]
+  );
+
+  const selectedWorkspaceName = useMemo(() => {
+    const selected = merchantWorkspaces.find((workspace) => workspace.id === selectedMerchantWorkspaceId);
+    return selected?.merchantName ?? "";
+  }, [merchantWorkspaces, selectedMerchantWorkspaceId]);
+
+  const workspaceScopedCustomers = useMemo(() => {
+    const needle = selectedWorkspaceName.trim().toLowerCase();
+    if (!needle) return customers;
+    return customers.filter((customer) => customer.company.trim().toLowerCase() === needle);
+  }, [customers, selectedWorkspaceName]);
+
+  const merchantCollectionAddresses = useMemo(
+    () => collectionProfiles.filter((profile) => !profile.companyName || profile.companyName === selectedWorkspaceName || !selectedWorkspaceName),
+    [collectionProfiles, selectedWorkspaceName]
   );
 
   useEffect(() => {
@@ -701,7 +797,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           customerName: newCustomerForm.customerName,
-          company: newCustomerForm.company,
+          company: selectedWorkspaceName || newCustomerForm.company,
           contactName: newCustomerForm.contactName,
           email: newCustomerForm.email,
           phone: newCustomerForm.phone,
@@ -1065,6 +1161,44 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {isMerchantView ? (
               <div className="sm:col-span-2 lg:col-span-3">
+                {merchantWorkspaces.length > 0 ? (
+                  <div className="mb-3">
+                    <label className="text-sm font-medium text-slate-700" htmlFor="merchantWorkspaceSelect">
+                      Select Merchant
+                    </label>
+                    <select
+                      id="merchantWorkspaceSelect"
+                      className={inputClass}
+                      value={selectedMerchantWorkspaceId}
+                      onChange={(event) => {
+                        const nextWorkspaceId = event.target.value;
+                        setSelectedMerchantWorkspaceId(nextWorkspaceId);
+                        if (typeof window !== "undefined") {
+                          if (nextWorkspaceId) {
+                            window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, nextWorkspaceId);
+                          } else {
+                            window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+                          }
+                        }
+                        const selectedWorkspace = merchantWorkspaces.find((workspace) => workspace.id === nextWorkspaceId);
+                        const merchantName = selectedWorkspace?.merchantName ?? "";
+                        setOrder((prev) => ({ ...prev, merchant: merchantName }));
+                        setCustomerId("");
+                        setSelectedCollectionAddressId("");
+                        setSelectedDeliveryAddressId("");
+                        setSelectedBookingProfileId("");
+                      }}
+                    >
+                      <option value="">Select merchant...</option>
+                      {merchantWorkspaces.map((workspace) => (
+                        <option key={workspace.id} value={workspace.id}>
+                          {workspace.merchantName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="text-sm font-medium text-slate-700" htmlFor="customerSelect">Select Existing Customer</label>
                   <button
@@ -1089,7 +1223,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   }}
                 >
                   <option value="">Select customer...</option>
-                  {customers.map((customer) => (
+                  {workspaceScopedCustomers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
                       {customer.customerName} {customer.company ? `(${customer.company})` : ""}
                     </option>
@@ -1158,29 +1292,32 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-slate-700" htmlFor="savedCollectionAddressSelect">
-                        Saved Collection Address
+                      <label className="text-sm font-medium text-slate-700" htmlFor="merchantCollectionAddressSelect">
+                        Merchant Collection Address
                       </label>
                       <select
-                        id="savedCollectionAddressSelect"
+                        id="merchantCollectionAddressSelect"
                         className={inputClass}
-                        value={selectedCollectionAddressId}
+                        value={selectedCollectionProfileId}
                         onChange={(event) => {
                           const nextId = event.target.value;
-                          setSelectedCollectionAddressId(nextId);
-                          const selected = customerCollectionAddresses.find((address) => address.id === nextId);
+                          setSelectedCollectionProfileId(nextId);
+                          const selected = merchantCollectionAddresses.find((profile) => profile.id === nextId);
                           if (!selected) return;
                           setOrder((prev) => ({
                             ...prev,
-                            collection: applyAddressToStop(prev.collection, selected) as StandardOrder["collection"],
+                            collection: {
+                              ...prev.collection,
+                              ...profileToStop(selected),
+                            },
                           }));
                         }}
                       >
-                        <option value="">Select saved collection address...</option>
-                        {customerCollectionAddresses.map((address) => (
-                          <option key={address.id} value={address.id}>
-                            {address.label || address.addressLine1}
-                            {address.isDefault ? " (Default)" : ""}
+                        <option value="">Select merchant collection address...</option>
+                        {merchantCollectionAddresses.map((profile) => (
+                          <option key={profile.id} value={profile.id}>
+                            {profile.profileName}
+                            {profile.isDefault ? " (Default)" : ""}
                           </option>
                         ))}
                       </select>
@@ -1353,6 +1490,35 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             {order.goods.map((item, index) => (
               <div key={`goods-${index}`} className="rounded-xl border border-slate-200 p-4">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <label className="text-sm font-medium text-slate-700">Product</label>
+                    <select
+                      className={inputClass}
+                      value={item.catalogueItemId ?? ""}
+                      onChange={(e) => {
+                        const nextId = e.target.value;
+                        const selectedItem = catalogueItems.find((entry) => entry.id === nextId);
+                        setOrder((prev) => ({
+                          ...prev,
+                          goods: updateGoodsItem(prev.goods, index, {
+                            catalogueItemId: nextId,
+                            description: selectedItem?.description || selectedItem?.name || prev.goods[index]?.description || "",
+                            productCode: selectedItem?.sku ?? prev.goods[index]?.productCode ?? "",
+                            unitPrice: selectedItem?.default_price ?? prev.goods[index]?.unitPrice ?? 0,
+                            vatRate: selectedItem?.vat_rate ?? prev.goods[index]?.vatRate ?? 0,
+                          }),
+                        }));
+                      }}
+                    >
+                      <option value="">Select product...</option>
+                      {catalogueItems.map((catalogueItem) => (
+                        <option key={catalogueItem.id} value={catalogueItem.id}>
+                          {catalogueItem.name}
+                          {catalogueItem.sku ? ` (${catalogueItem.sku})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="sm:col-span-2 lg:col-span-4"><label className="text-sm font-medium text-slate-700">Description</label><input className={inputClass} value={item.description} onChange={(e) => setOrder((prev) => ({ ...prev, goods: updateGoodsItem(prev.goods, index, { description: e.target.value }) }))} /></div>
                   <div><label className="text-sm font-medium text-slate-700">Quantity</label><input type="number" className={inputClass} value={item.quantity} onChange={(e) => setOrder((prev) => ({ ...prev, goods: updateGoodsItem(prev.goods, index, { quantity: Number.parseFloat(e.target.value) || 0 }) }))} /></div>
                   <div><label className="text-sm font-medium text-slate-700">Packages</label><input type="number" className={inputClass} value={item.packages} onChange={(e) => setOrder((prev) => ({ ...prev, goods: updateGoodsItem(prev.goods, index, { packages: Number.parseFloat(e.target.value) || 0 }) }))} /></div>

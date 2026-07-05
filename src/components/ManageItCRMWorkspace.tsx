@@ -17,11 +17,12 @@ type MerchantWorkspace = {
 const initialMerchants: MerchantWorkspace[] = [];
 
 const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
+const ACTIVE_WORKSPACE_STORAGE_KEY = "nexus.manageit.activeWorkspaceId.v1";
 
 const workspaceSections = [
   "Customers",
-  "Collection Address Book",
-  "Delivery Address Book",
+  "Merchant Address Book",
+  "Customer Address Book",
   "Orders",
   "Documents",
   "Inventory",
@@ -53,7 +54,12 @@ function loadStoredMerchantWorkspaces(): MerchantWorkspace[] {
 
 export default function ManageItCRMWorkspace() {
   const [merchants, setMerchants] = useState<MerchantWorkspace[]>(() => loadStoredMerchantWorkspaces());
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => loadStoredMerchantWorkspaces()[0]?.id ?? "");
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => {
+    if (typeof window === "undefined") return loadStoredMerchantWorkspaces()[0]?.id ?? "";
+    const stored = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
+    if (stored) return stored;
+    return loadStoredMerchantWorkspaces()[0]?.id ?? "";
+  });
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -62,6 +68,15 @@ export default function ManageItCRMWorkspace() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(MERCHANT_WORKSPACES_STORAGE_KEY, JSON.stringify(merchants));
   }, [merchants]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!activeWorkspaceId) {
+      window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, activeWorkspaceId);
+  }, [activeWorkspaceId]);
 
   const activeWorkspace = useMemo(
     () => merchants.find((merchant) => merchant.id === activeWorkspaceId) ?? null,
@@ -240,15 +255,15 @@ export default function ManageItCRMWorkspace() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Active Workspace</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">{activeWorkspace.merchantName}</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Admin and merchant administrators can add and edit customers, maintain reusable collection and delivery address books,
+            Admin and merchant administrators can add and edit customers, maintain reusable merchant and customer address books,
             add contacts, and create operational orders from this workspace.
           </p>
         </section>
       ) : null}
 
-      <MerchantCustomersManager />
-      <CustomerAddressesManager />
-      <CollectionAddressesManager />
+      <MerchantCustomersManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
+      <CustomerAddressesManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
+      <CollectionAddressesManager activeWorkspaceName={activeWorkspace?.merchantName ?? ""} />
     </div>
   );
 }

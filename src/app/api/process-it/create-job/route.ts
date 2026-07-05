@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
   try {
     const token = parseBearerToken(request);
     if (!token) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const authClient = createAuthClient();
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       error: userError,
     } = await authClient.auth.getUser(token);
     if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
     }
 
     const body = (await request.json()) as CreateJobBody & { company_id?: string };

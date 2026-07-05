@@ -49,9 +49,16 @@ type BookingProfile = {
   customerId: string;
 };
 
+type ProductRow = {
+  id: string;
+  name: string;
+  description: string;
+  sku: string | null;
+};
+
 type SearchResult = {
   id: string;
-  type: "merchant" | "customer" | "address" | "order" | "booking_form";
+  type: "merchant" | "customer" | "address" | "order" | "booking_form" | "product";
   title: string;
   context: string;
   actions: Array<{ label: string; href: string }>;
@@ -97,6 +104,7 @@ function SearchItPageContent() {
       addresses: results.filter((row) => row.type === "address"),
       orders: results.filter((row) => row.type === "order"),
       forms: results.filter((row) => row.type === "booking_form"),
+      products: results.filter((row) => row.type === "product"),
     };
   }, [results]);
 
@@ -113,7 +121,9 @@ function SearchItPageContent() {
 
     try {
       if (!supabase) {
-        throw new Error("Supabase client is not configured.");
+        setError("Session services are not ready. Refresh the page and sign in again.");
+        setResults([]);
+        return;
       }
 
       const {
@@ -141,7 +151,7 @@ function SearchItPageContent() {
       }
       const customers = customersPayload.customers ?? [];
 
-      const [addressLists, profileLists] = await Promise.all([
+      const [addressLists, profileLists, productsResponse] = await Promise.all([
         Promise.all(
         customers.slice(0, 40).map(async (customer) => {
           const response = await fetch(
@@ -168,7 +178,13 @@ function SearchItPageContent() {
             return payload.profiles ?? [];
           })
         ),
+        fetch(`/api/catalogue/items?query=${encodeURIComponent(needle)}&item_type=product`, { headers }),
       ]);
+
+      const productsPayload = (await productsResponse.json().catch(() => ({}))) as {
+        items?: ProductRow[];
+      };
+      const products = productsResponse.ok ? (productsPayload.items ?? []) : [];
 
       const addresses = addressLists
         .flat()
@@ -278,6 +294,16 @@ function SearchItPageContent() {
             { label: "Create Order from Profile", href: `/create-it?customerId=${encodeURIComponent(form.customerId)}&profileId=${encodeURIComponent(form.id)}` },
           ],
         })),
+        ...products.map((product) => ({
+          id: `product-${product.id}`,
+          type: "product" as const,
+          title: product.name,
+          context: [product.sku, product.description].filter(Boolean).join(" · "),
+          actions: [
+            { label: "Open Products", href: "/portal/catalogue-it" },
+            { label: "Create Order", href: "/create-it" },
+          ],
+        })),
       ];
 
       setResults(sortResults(merged, sortKey, sortDirection));
@@ -335,12 +361,13 @@ function SearchItPageContent() {
         </header>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
             <SummaryTile label="Merchants" value={grouped.merchants.length} />
             <SummaryTile label="Customers" value={grouped.customers.length} />
             <SummaryTile label="Addresses" value={grouped.addresses.length} />
             <SummaryTile label="Orders" value={grouped.orders.length} />
             <SummaryTile label="Address Books" value={grouped.forms.length} />
+            <SummaryTile label="Products" value={grouped.products.length} />
           </div>
         </section>
 

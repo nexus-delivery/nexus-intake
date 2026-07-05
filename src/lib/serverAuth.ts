@@ -41,7 +41,7 @@ export async function getMerchantContext(
 ): Promise<{ ok: true; value: MerchantContext } | { ok: false; error: string; status: number }> {
   const token = parseBearerToken(request);
   if (!token) {
-    return { ok: false, error: "Unauthorised", status: 401 };
+    return { ok: false, error: "Session expired. Please sign in again.", status: 401 };
   }
 
   const authClient = createAuthClient();
@@ -56,7 +56,7 @@ export async function getMerchantContext(
   } = await authClient.auth.getUser(token);
 
   if (userError || !user) {
-    return { ok: false, error: "Unauthorised", status: 401 };
+    return { ok: false, error: "Session expired. Please sign in again.", status: 401 };
   }
 
   const { data: profile, error: profileError } = await privilegedClient

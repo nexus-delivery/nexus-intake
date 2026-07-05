@@ -24,6 +24,10 @@ const emptyForm: MerchantCustomerUpsert = {
 
 type Mode = "create" | "edit";
 
+type Props = {
+  activeWorkspaceName?: string;
+};
+
 async function authHeaders(): Promise<Record<string, string>> {
   if (!supabase) return {};
   const {
@@ -32,7 +36,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function MerchantCustomersManager() {
+export default function MerchantCustomersManager({ activeWorkspaceName = "" }: Props) {
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,15 +51,20 @@ export default function MerchantCustomersManager() {
   const [inviteSending, setInviteSending] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
+    const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
+    const workspaceScoped = workspaceNeedle
+      ? customers.filter((customer) => customer.company.trim().toLowerCase() === workspaceNeedle)
+      : customers;
+
     const needle = search.trim().toLowerCase();
-    if (!needle) return customers;
-    return customers.filter((customer) =>
+    if (!needle) return workspaceScoped;
+    return workspaceScoped.filter((customer) =>
       [customer.customerName, customer.company, customer.contactName, customer.email, customer.phone, customer.mobile]
         .join(" ")
         .toLowerCase()
         .includes(needle)
     );
-  }, [customers, search]);
+  }, [activeWorkspaceName, customers, search]);
 
   const loadCustomers = useCallback(async () => {
     setLoading(true);
@@ -78,13 +87,17 @@ export default function MerchantCustomersManager() {
   }, [search, showArchived]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCustomers();
   }, [loadCustomers]);
 
   function openCreate() {
     setMode("create");
     setEditingId(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      company: activeWorkspaceName || "",
+    });
     setModalOpen(true);
   }
 
@@ -257,6 +270,11 @@ export default function MerchantCustomersManager() {
           <p className="mt-1 text-sm text-slate-600">
             Manage customer accounts, defaults, pricing profile, and invites per merchant company.
           </p>
+          {activeWorkspaceName ? (
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              Workspace: {activeWorkspaceName}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={openCreate} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
