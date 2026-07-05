@@ -26,7 +26,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     // keep browser title in sync with page title mapping
     if (typeof document !== "undefined") {
-      document.title = `${pageTitle} - Nexus it Today`;
+      document.title = `${pageTitle} - NEXUS It Today`;
     }
   }, [pageTitle]);
 

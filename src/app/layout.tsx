@@ -16,8 +16,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Nexus it Today",
-  description: "Nexus it is the intelligent transport workspace by Nexus it Today.",
+  title: "NEXUS It Today",
+  description: "NEXUS It Today is the intelligent transport workspace.",
 };
 
 export default function RootLayout({

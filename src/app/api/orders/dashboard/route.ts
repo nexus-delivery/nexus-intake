@@ -197,6 +197,10 @@ export async function GET(request: NextRequest) {
     const searchTerms = splitSearchTerms(search);
 
     const filtered = rows.filter((row) => {
+      if (row.rawLifecycleStatus.toLowerCase() === "archived") {
+        return false;
+      }
+
       if (searchTerms.length > 0) {
         const haystack = [
           row.internalOrderNumber,

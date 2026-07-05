@@ -25,6 +25,9 @@ function badgeClass(status: string): string {
   if (val.includes("failed") || val.includes("issue") || val.includes("error")) {
     return "bg-red-50 text-red-700 border border-red-200";
   }
+  if (val.includes("review")) {
+    return "bg-amber-50 text-amber-700 border border-amber-200";
+  }
   if (val.includes("collect") || val.includes("route")) {
     return "bg-blue-50 text-blue-700 border border-blue-200";
   }
@@ -57,9 +60,21 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     collectionName: "",
     collectionAddress: "",
     collectionPostcode: "",
+    collectionPhone: "",
+    collectionEmail: "",
     deliveryName: "",
     deliveryAddress: "",
     deliveryPostcode: "",
+    deliveryPhone: "",
+    deliveryEmail: "",
+    goodsDescription: "",
+    quantity: "",
+    packageType: "",
+    packageCount: "",
+    palletCount: "",
+    volume: "",
+    dimensions: "",
+    weightKg: "",
     requestedCollectionDate: "",
     requestedDeliveryDate: "",
     notes: "",
@@ -197,9 +212,15 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
         body: JSON.stringify({ action: "send_to_process" }),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        missingFields?: string[];
+      };
       if (!response.ok) {
-        throw new Error(payload.error ?? `Failed to send to Process It (${response.status})`);
+        const missing = Array.isArray(payload.missingFields) && payload.missingFields.length > 0
+          ? ` Missing: ${payload.missingFields.join(", ")}`
+          : "";
+        throw new Error((payload.error ?? `Failed to send to Process It (${response.status})`) + missing);
       }
 
       await loadJobs();
@@ -285,6 +306,7 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
           <option value="">All statuses</option>
           <option value="Created">Created</option>
           <option value="Ready for Operations">Ready for Operations</option>
+          <option value="Needs Review">Needs Review</option>
           <option value="Ready for Route">Ready for Route</option>
           <option value="Sent to Track-POD">Sent to Track-POD</option>
           <option value="Failed to send to Track-POD">Failed to send to Track-POD</option>
@@ -393,9 +415,21 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
                             collectionName: job.collectionName || "",
                             collectionAddress: job.collectionAddress || "",
                             collectionPostcode: job.collectionPostcode || "",
+                            collectionPhone: selectedDetail?.collection.phone || "",
+                            collectionEmail: selectedDetail?.collection.email || "",
                             deliveryName: job.deliveryName || "",
                             deliveryAddress: job.deliveryAddress || "",
                             deliveryPostcode: job.deliveryPostcode || "",
+                            deliveryPhone: selectedDetail?.delivery.phone || "",
+                            deliveryEmail: selectedDetail?.delivery.email || "",
+                            goodsDescription: selectedDetail?.goods.description || "",
+                            quantity: selectedDetail?.goods.quantity || "",
+                            packageType: "",
+                            packageCount: selectedDetail?.goods.packages || "",
+                            palletCount: selectedDetail?.goods.palletCount || "",
+                            volume: "",
+                            dimensions: "",
+                            weightKg: selectedDetail?.goods.weightKg || "",
                             requestedCollectionDate: job.requestedCollectionDate || "",
                             requestedDeliveryDate: job.requestedDeliveryDate || "",
                             notes: selectedDetail?.operations.notes || "",
@@ -506,9 +540,21 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection name" value={editForm.collectionName} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionName: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" placeholder="Collection address" value={editForm.collectionAddress} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionAddress: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection postcode" value={editForm.collectionPostcode} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionPostcode: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection phone" value={editForm.collectionPhone} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionPhone: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection email" value={editForm.collectionEmail} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionEmail: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery name" value={editForm.deliveryName} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryName: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" placeholder="Delivery address" value={editForm.deliveryAddress} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryAddress: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery postcode" value={editForm.deliveryPostcode} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryPostcode: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery phone" value={editForm.deliveryPhone} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryPhone: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery email" value={editForm.deliveryEmail} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryEmail: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" placeholder="Goods description" value={editForm.goodsDescription} onChange={(event) => setEditForm((prev) => ({ ...prev, goodsDescription: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Quantity" value={editForm.quantity} onChange={(event) => setEditForm((prev) => ({ ...prev, quantity: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Package type (e.g. Pallet)" value={editForm.packageType} onChange={(event) => setEditForm((prev) => ({ ...prev, packageType: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Package count" value={editForm.packageCount} onChange={(event) => setEditForm((prev) => ({ ...prev, packageCount: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Pallet count" value={editForm.palletCount} onChange={(event) => setEditForm((prev) => ({ ...prev, palletCount: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Volume" value={editForm.volume} onChange={(event) => setEditForm((prev) => ({ ...prev, volume: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Dimensions" value={editForm.dimensions} onChange={(event) => setEditForm((prev) => ({ ...prev, dimensions: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Weight (kg)" value={editForm.weightKg} onChange={(event) => setEditForm((prev) => ({ ...prev, weightKg: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="date" value={editForm.requestedCollectionDate} onChange={(event) => setEditForm((prev) => ({ ...prev, requestedCollectionDate: event.target.value }))} />
             <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="date" value={editForm.requestedDeliveryDate} onChange={(event) => setEditForm((prev) => ({ ...prev, requestedDeliveryDate: event.target.value }))} />
             <textarea className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" rows={3} placeholder="Notes" value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />

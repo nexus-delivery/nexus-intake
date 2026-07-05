@@ -1,6 +1,7 @@
 export type DashboardLifecycleStatus =
   | "Created"
   | "Ready for Operations"
+  | "Needs Review"
   | "Ready for Route"
   | "Sent to Track-POD"
   | "Failed to send to Track-POD"
@@ -226,6 +227,10 @@ function deriveLifecycleStatus(params: {
     return "Failed to send to Track-POD";
   }
 
+  if (rawLifecycle === "review_required") {
+    return "Needs Review";
+  }
+
   if (params.hasTrackPodDelivery && params.hasTrackPodCollection) {
     return "Sent to Track-POD";
   }
@@ -236,7 +241,6 @@ function deriveLifecycleStatus(params: {
 
   if (
     rawLifecycle === "ready_for_trackpod" ||
-    rawLifecycle === "review_required" ||
     rawStatus === "job_created"
   ) {
     return "Ready for Operations";

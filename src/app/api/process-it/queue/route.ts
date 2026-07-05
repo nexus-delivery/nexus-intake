@@ -36,6 +36,50 @@ function pick(map: Record<string, string>, ...keys: string[]): string {
   return "";
 }
 
+type ReadinessResult = {
+  ready: boolean;
+  missingFields: string[];
+};
+
+function evaluateTrackPodReadiness(
+  fields: Record<string, string>,
+  draftJob: Record<string, unknown>
+): ReadinessResult {
+  const packageType = pick(fields, "package_type", "packageType", "pkg_type");
+  const dimensions = pick(fields, "dimensions");
+  const volume = pick(fields, "volume", "cbm");
+  const weight = pick(fields, "weight_kg", "weight", "total_weight_kg");
+
+  const required: Array<{ label: string; value: string }> = [
+    { label: "Delivery name", value: pick(fields, "delivery_name", "client", "customer") || String(draftJob.delivery_company ?? "").trim() },
+    { label: "Delivery address", value: pick(fields, "delivery_address") || String(draftJob.delivery_address_line1 ?? "").trim() },
+    { label: "Delivery postcode", value: pick(fields, "delivery_postcode") || String(draftJob.delivery_postcode ?? "").trim() },
+    { label: "Delivery phone", value: pick(fields, "delivery_phone", "telephone", "phone") || String(draftJob.delivery_phone ?? "").trim() },
+    { label: "Delivery email", value: pick(fields, "delivery_email", "email") || String(draftJob.delivery_email ?? "").trim() },
+    { label: "Collection name", value: pick(fields, "collection_name", "shipper", "shipper_name") || String(draftJob.collection_company ?? "").trim() },
+    { label: "Collection address", value: pick(fields, "collection_address") || String(draftJob.collection_address_line1 ?? "").trim() },
+    { label: "Collection postcode", value: pick(fields, "collection_postcode") || String(draftJob.collection_postcode ?? "").trim() },
+    { label: "Collection phone", value: pick(fields, "collection_phone", "telephone", "phone") || String(draftJob.collection_phone ?? "").trim() },
+    { label: "Collection email", value: pick(fields, "collection_email", "email") || String(draftJob.collection_email ?? "").trim() },
+    { label: "Goods description", value: pick(fields, "goods_description", "goods") || String(draftJob.goods_description ?? "").trim() },
+    { label: "Goods quantity", value: pick(fields, "quantity", "total_quantity", "qty") || String(draftJob.total_quantity ?? "").trim() },
+    { label: "Package type", value: packageType },
+  ];
+
+  const missing = required.filter((item) => !item.value).map((item) => item.label);
+  if (!volume && !dimensions) {
+    missing.push("Goods volume or dimensions");
+  }
+  if (/(pallet|plt)/i.test(packageType) && !weight) {
+    missing.push("Goods weight");
+  }
+
+  return {
+    ready: missing.length === 0,
+    missingFields: missing,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const accessToken = parseBearerToken(request);
@@ -102,6 +146,21 @@ export async function GET(request: NextRequest) {
           "pod_available",
           "xero_draft_invoice_id",
           "booking_profile_id",
+          "collection_company",
+          "collection_address_line1",
+          "collection_postcode",
+          "collection_phone",
+          "collection_email",
+          "delivery_company",
+          "delivery_address_line1",
+          "delivery_postcode",
+          "delivery_phone",
+          "delivery_email",
+          "goods_description",
+          "total_quantity",
+          "total_packages",
+          "total_pallet_count",
+          "total_weight_kg",
           "integration_metadata",
           "created_at",
           "updated_at",
@@ -188,6 +247,13 @@ export async function GET(request: NextRequest) {
           ? ((meta as Record<string, unknown>).releasePolicy as Record<string, unknown>)
           : {};
 
+      const readinessMeta =
+        meta && typeof meta === "object" &&
+        (meta as Record<string, unknown>).readiness &&
+        typeof (meta as Record<string, unknown>).readiness === "object"
+          ? ((meta as Record<string, unknown>).readiness as Record<string, unknown>)
+          : {};
+
       const collectionConfirmedAt =
         typeof lifecycleMeta.collectionConfirmedAt === "string"
           ? lifecycleMeta.collectionConfirmedAt
@@ -200,7 +266,16 @@ export async function GET(request: NextRequest) {
 
       const hasCollectionOrder = Boolean(job.trackpod_collection_order_id);
       const hasDeliveryOrder = Boolean(job.trackpod_delivery_order_id);
-      const nextRequiredAction = !hasCollectionOrder
+      const evaluatedReadiness = evaluateTrackPodReadiness(fields, job);
+      const persistedMissing = Array.isArray(readinessMeta.missingFields)
+        ? readinessMeta.missingFields.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : [];
+      const readinessMissingFields = persistedMissing.length > 0 ? persistedMissing : evaluatedReadiness.missingFields;
+      const readinessStatus = readinessMissingFields.length > 0 ? "NEEDS_REVIEW" : "READY_FOR_TRACKPOD";
+
+      const nextRequiredAction = readinessStatus === "NEEDS_REVIEW"
+        ? `Needs review: ${readinessMissingFields.join(", ")}`
+        : !hasCollectionOrder
         ? "Release collection"
         : !collectionConfirmedAt
           ? "Confirm collection"
@@ -265,6 +340,8 @@ export async function GET(request: NextRequest) {
         podAvailable: job.pod_available === true,
         collectionConfirmedAt,
         deliveryHoldReason: holdReason,
+        readinessStatus,
+        readinessMissingFields,
         nextRequiredAction,
         createdAt: job.created_at,
         updatedAt: job.updated_at,

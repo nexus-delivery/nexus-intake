@@ -107,6 +107,50 @@ function composeTrackPodAddress(
   return structured || inline;
 }
 
+type TrackPodReadinessResult = {
+  ready: boolean;
+  missingFields: string[];
+};
+
+function evaluateTrackPodReadiness(
+  fields: Record<string, string>,
+  job: Record<string, unknown>
+): TrackPodReadinessResult {
+  const packageType = firstNonBlank(fields, ["package_type", "packageType", "pkg_type"]);
+  const dimensions = firstNonBlank(fields, ["dimensions"]);
+  const volume = firstNonBlank(fields, ["volume", "cbm"]);
+  const weight = firstNonBlank(fields, ["weight_kg", "weight", "total_weight_kg"]);
+
+  const required: Array<{ label: string; value: string }> = [
+    { label: "Delivery name", value: firstNonBlank(fields, ["delivery_name", "client", "customer"]) || clean(job.delivery_company as string | null) },
+    { label: "Delivery address", value: firstNonBlank(fields, ["delivery_address"]) || clean(job.delivery_address_line1 as string | null) },
+    { label: "Delivery postcode", value: firstNonBlank(fields, ["delivery_postcode"]) || clean(job.delivery_postcode as string | null) },
+    { label: "Delivery phone", value: firstNonBlank(fields, ["delivery_phone", "telephone", "phone"]) || clean(job.delivery_phone as string | null) },
+    { label: "Delivery email", value: firstNonBlank(fields, ["delivery_email", "email"]) || clean(job.delivery_email as string | null) },
+    { label: "Collection name", value: firstNonBlank(fields, ["collection_name", "shipper", "shipper_name"]) || clean(job.collection_company as string | null) },
+    { label: "Collection address", value: firstNonBlank(fields, ["collection_address"]) || clean(job.collection_address_line1 as string | null) },
+    { label: "Collection postcode", value: firstNonBlank(fields, ["collection_postcode"]) || clean(job.collection_postcode as string | null) },
+    { label: "Collection phone", value: firstNonBlank(fields, ["collection_phone", "telephone", "phone"]) || clean(job.collection_phone as string | null) },
+    { label: "Collection email", value: firstNonBlank(fields, ["collection_email", "email"]) || clean(job.collection_email as string | null) },
+    { label: "Goods description", value: firstNonBlank(fields, ["goods_description", "goods"]) || clean(job.goods_description as string | null) },
+    { label: "Goods quantity", value: firstNonBlank(fields, ["quantity", "total_quantity", "qty"]) || clean(job.total_quantity as string | null) },
+    { label: "Package type", value: packageType },
+  ];
+
+  const missing = required.filter((item) => !item.value).map((item) => item.label);
+  if (!volume && !dimensions) {
+    missing.push("Goods volume or dimensions");
+  }
+  if (/(pallet|plt)/i.test(packageType) && !weight) {
+    missing.push("Goods weight");
+  }
+
+  return {
+    ready: missing.length === 0,
+    missingFields: missing,
+  };
+}
+
 // ─── Production payload builders ──────────────────────────────────────────────
 // Field names and fallback chains exactly as documented in
 // reference/trackpod/PROCESS-IT.md and reference/trackpod/TRACKPOD-API-MAPPINGS.md
@@ -394,6 +438,9 @@ export async function POST(request: NextRequest) {
       .select(
         "id, company_id, status, lifecycle_status, job_reference, primary_document_id, " +
           "trackpod_delivery_order_id, trackpod_collection_order_id, requested_delivery_date, " +
+          "collection_company, collection_address_line1, collection_postcode, collection_phone, collection_email, " +
+          "delivery_company, delivery_address_line1, delivery_postcode, delivery_phone, delivery_email, " +
+          "goods_description, total_quantity, total_weight_kg, " +
           "integration_metadata"
       )
       .eq("id", body.draftJobId)
@@ -466,6 +513,40 @@ export async function POST(request: NextRequest) {
       )) {
         if (v != null && !clean(fields[k])) fields[k] = v;
       }
+    }
+
+    const readiness = evaluateTrackPodReadiness(fields, jobRecord);
+    if (!readiness.ready) {
+      const nowIso = new Date().toISOString();
+      await privilegedClient
+        .from("draft_jobs")
+        .update({
+          lifecycle_status: "REVIEW_REQUIRED",
+          current_status: "REVIEW_REQUIRED",
+          integration_metadata: {
+            ...integrationMetadata,
+            readiness: {
+              readyForTrackPod: false,
+              status: "NEEDS_REVIEW",
+              missingFields: readiness.missingFields,
+              checkedAt: nowIso,
+            },
+            readyForTrackPod: false,
+            updatedAt: nowIso,
+          },
+          updated_at: nowIso,
+        })
+        .eq("id", jobRecord.id)
+        .eq("company_id", profile.company_id);
+
+      return NextResponse.json(
+        {
+          error: "Order requires review before Track-POD submission",
+          lifecycleStatus: "REVIEW_REQUIRED",
+          missingFields: readiness.missingFields,
+        },
+        { status: 409 }
+      );
     }
 
     const collectionConfirmedAt =

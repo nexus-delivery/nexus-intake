@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Workspace access - Nexus it Today",
+  title: "Workspace access - NEXUS It Today",
   description: "Customer workspace for creating, tracking and reviewing transport work.",
 };
 

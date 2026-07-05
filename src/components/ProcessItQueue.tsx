@@ -51,6 +51,8 @@ export type ProcessItJob = {
   podAvailable: boolean;
   collectionConfirmedAt: string | null;
   deliveryHoldReason: string | null;
+  readinessStatus: "READY_FOR_TRACKPOD" | "NEEDS_REVIEW";
+  readinessMissingFields: string[];
   nextRequiredAction: string;
   createdAt: string;
   updatedAt: string;
@@ -70,6 +72,9 @@ type ViewFilter = "all" | "pending" | "sent" | "error";
 
 function getLifecycleBadge(job: ProcessItJob) {
   const ls = job.lifecycleStatus;
+    if (ls === "REVIEW_REQUIRED" || job.readinessStatus === "NEEDS_REVIEW") {
+      return { label: "Needs Review", className: "bg-amber-100 text-amber-800 border border-amber-200" };
+    }
     if (ls === "HELD_FUTURE_DATE") {
       return { label: "HELD - FUTURE DATE", className: "bg-amber-100 text-amber-800 border border-amber-200" };
     }
@@ -1020,6 +1025,7 @@ export default function ProcessItQueue() {
                 const canReleaseDelivery = hasCollection && !hasDelivery;
                 const blockedByFutureDate = job.deliveryHoldReason === "HELD - FUTURE DATE";
                 const isArchived = job.lifecycleStatus === "ARCHIVED";
+                const blockedByReadiness = job.readinessStatus === "NEEDS_REVIEW";
 
                 return (
                   <tr key={job.id} className="hover:bg-slate-50/60">
@@ -1093,6 +1099,11 @@ export default function ProcessItQueue() {
                         {tpStatus.label}
                       </span>
                       <div className="mt-1 text-[11px] text-slate-500">{job.nextRequiredAction}</div>
+                      {job.readinessMissingFields.length > 0 ? (
+                        <div className="mt-1 text-[11px] text-amber-700">
+                          Missing: {job.readinessMissingFields.join(", ")}
+                        </div>
+                      ) : null}
                       {job.pushCompletedAt && (
                         <div className="mt-1 text-xs text-slate-400">
                           {new Date(job.pushCompletedAt).toLocaleDateString()}
@@ -1230,7 +1241,7 @@ export default function ProcessItQueue() {
                               <ActionButton
                                 label={isSending ? "Releasing…" : "Release Collection"}
                                 onClick={() => void releaseToTrackPod(job, "collection")}
-                                disabled={isSending || isArchived}
+                                disabled={isSending || isArchived || blockedByReadiness}
                                 variant={hasError ? "warning" : "primary"}
                               />
                             ) : null}
@@ -1248,12 +1259,20 @@ export default function ProcessItQueue() {
                               <ActionButton
                                 label={isSending ? "Releasing…" : blockedByFutureDate ? "Admin Override Release" : "Release Delivery"}
                                 onClick={() => void releaseToTrackPod(job, "delivery", blockedByFutureDate)}
-                                disabled={isSending || (!job.collectionConfirmedAt && !blockedByFutureDate) || isArchived}
+                                disabled={isSending || (!job.collectionConfirmedAt && !blockedByFutureDate) || isArchived || blockedByReadiness}
                                 variant={blockedByFutureDate ? "warning" : "primary"}
                               />
                             ) : null}
                           </>
                         )}
+
+                        {blockedByReadiness ? (
+                          <ActionButton
+                            label="Needs review"
+                            onClick={() => setSelectedJob(job)}
+                            variant="warning"
+                          />
+                        ) : null}
 
                         {!isArchived ? (
                           <ActionButton

@@ -125,7 +125,7 @@ export default function SignInPage() {
 
       <div className="relative z-10 grid w-full max-w-6xl overflow-hidden rounded-[30px] border border-white/20 bg-[rgba(13,17,32,0.64)] shadow-[0_28px_95px_-30px_rgba(0,0,0,0.95)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr]">
         <div className="hidden border-r border-white/10 p-8 lg:block">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">NEXUS It Today</p>
           <h2 className="mt-2 text-4xl font-semibold text-white">Nexus Intelligent Transport system</h2>
           <p className="mt-3 max-w-lg text-sm text-slate-300">Operations-ready workflows for freight, warehouse and delivery teams.</p>
           <div className="mt-8 grid grid-cols-2 gap-3">
@@ -149,9 +149,9 @@ export default function SignInPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7C3AED] text-lg font-bold text-white shadow-lg shadow-[#7C3AED]/40">
             N
           </div>
-          <p className="nexus-kicker">Nexus it Today</p>
+          <p className="nexus-kicker">NEXUS It Today</p>
           <div>
-            <h1 className="text-3xl font-semibold text-white">Sign in to Nexus it today.</h1>
+            <h1 className="text-3xl font-semibold text-white">Sign in to NEXUS It Today.</h1>
             <p className="mt-2 text-sm text-slate-300">Nexus Intelligent Transport system</p>
           </div>
         </div>

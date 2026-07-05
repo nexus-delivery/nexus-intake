@@ -315,7 +315,7 @@ export default function HubPage() {
           <div className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] [background-size:42px_42px]" />
           <div className="relative flex items-start justify-between gap-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">Nexus it Today</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-300">NEXUS It Today</p>
               <h1 className="mt-1 text-4xl font-semibold tracking-tight text-white lg:text-5xl">
                 Manage it
               </h1>

@@ -46,6 +46,103 @@ function clean(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function pickFirstNonBlank(map: Record<string, string>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = clean(map[key]);
+    if (value) return value;
+  }
+  return "";
+}
+
+type TrackPodReadinessResult = {
+  ready: boolean;
+  missingFields: string[];
+};
+
+function evaluateTrackPodReadiness(
+  draftJob: Record<string, unknown>,
+  mapping: Record<string, string>
+): TrackPodReadinessResult {
+  const packageType = pickFirstNonBlank(mapping, "package_type", "packageType", "pkg_type");
+  const dimensions = pickFirstNonBlank(mapping, "dimensions");
+  const volume = pickFirstNonBlank(mapping, "volume", "cbm");
+  const weight = pickFirstNonBlank(mapping, "weight_kg", "weight", "total_weight_kg");
+
+  const requiredChecks: Array<{ label: string; value: string }> = [
+    {
+      label: "Delivery name",
+      value: clean(draftJob.delivery_company) || pickFirstNonBlank(mapping, "delivery_name", "client", "customer"),
+    },
+    {
+      label: "Delivery address",
+      value: clean(draftJob.delivery_address_line1) || pickFirstNonBlank(mapping, "delivery_address"),
+    },
+    {
+      label: "Delivery postcode",
+      value: clean(draftJob.delivery_postcode) || pickFirstNonBlank(mapping, "delivery_postcode"),
+    },
+    {
+      label: "Delivery phone",
+      value: clean(draftJob.delivery_phone) || pickFirstNonBlank(mapping, "delivery_phone", "telephone", "phone"),
+    },
+    {
+      label: "Delivery email",
+      value: clean(draftJob.delivery_email) || pickFirstNonBlank(mapping, "delivery_email", "email"),
+    },
+    {
+      label: "Collection name",
+      value: clean(draftJob.collection_company) || pickFirstNonBlank(mapping, "collection_name", "shipper", "shipper_name"),
+    },
+    {
+      label: "Collection address",
+      value: clean(draftJob.collection_address_line1) || pickFirstNonBlank(mapping, "collection_address"),
+    },
+    {
+      label: "Collection postcode",
+      value: clean(draftJob.collection_postcode) || pickFirstNonBlank(mapping, "collection_postcode"),
+    },
+    {
+      label: "Collection phone",
+      value: clean(draftJob.collection_phone) || pickFirstNonBlank(mapping, "collection_phone", "telephone", "phone"),
+    },
+    {
+      label: "Collection email",
+      value: clean(draftJob.collection_email) || pickFirstNonBlank(mapping, "collection_email", "email"),
+    },
+    {
+      label: "Goods description",
+      value: clean(draftJob.goods_description) || pickFirstNonBlank(mapping, "goods_description", "goods"),
+    },
+    {
+      label: "Goods quantity",
+      value:
+        clean(draftJob.total_quantity) ||
+        pickFirstNonBlank(mapping, "quantity", "total_quantity", "qty"),
+    },
+    {
+      label: "Package type",
+      value: packageType,
+    },
+  ];
+
+  const missing = requiredChecks
+    .filter((item) => !item.value)
+    .map((item) => item.label);
+
+  if (!volume && !dimensions) {
+    missing.push("Goods volume or dimensions");
+  }
+
+  if (/(pallet|plt)/i.test(packageType) && !weight) {
+    missing.push("Goods weight");
+  }
+
+  return {
+    ready: missing.length === 0,
+    missingFields: missing,
+  };
+}
+
 type DraftJobDetailRow = Record<string, unknown>;
 
 export async function GET(
@@ -333,7 +430,9 @@ export async function PATCH(
 
     const { data: existing, error: existingError } = await privilegedClient
       .from("draft_jobs")
-      .select("id, company_id, integration_metadata, collection_address_line1, delivery_address_line1, goods_description")
+      .select(
+        "id, company_id, integration_metadata, collection_company, collection_address_line1, collection_postcode, collection_phone, collection_email, delivery_company, delivery_address_line1, delivery_postcode, delivery_phone, delivery_email, goods_description, total_quantity, total_packages, total_pallet_count, total_weight_kg"
+      )
       .eq("id", id)
       .eq("company_id", profile.company_id)
       .maybeSingle();
@@ -346,20 +445,55 @@ export async function PATCH(
     }
 
     if (action === "send_to_process") {
-      const hasCollection = clean(existing.collection_address_line1).length > 0;
-      const hasDelivery = clean(existing.delivery_address_line1).length > 0;
-      const hasGoods = clean(existing.goods_description).length > 0;
-      if (!hasCollection || !hasDelivery || !hasGoods) {
-        return NextResponse.json(
-          { error: "Order must have collection, delivery, and goods description before sending to Process It" },
-          { status: 400 }
-        );
-      }
-
       const existingMeta =
         existing.integration_metadata && typeof existing.integration_metadata === "object"
           ? (existing.integration_metadata as Record<string, unknown>)
           : {};
+
+      const existingMapping =
+        existingMeta.trackPodMapping && typeof existingMeta.trackPodMapping === "object"
+          ? (existingMeta.trackPodMapping as Record<string, string>)
+          : {};
+
+      const readiness = evaluateTrackPodReadiness(existing as Record<string, unknown>, existingMapping);
+
+      if (!readiness.ready) {
+        const nowIso = new Date().toISOString();
+        const { error: reviewUpdateError } = await privilegedClient
+          .from("draft_jobs")
+          .update({
+            status: "job_created",
+            lifecycle_status: "REVIEW_REQUIRED",
+            current_status: "REVIEW_REQUIRED",
+            integration_metadata: {
+              ...existingMeta,
+              readiness: {
+                readyForTrackPod: false,
+                status: "NEEDS_REVIEW",
+                missingFields: readiness.missingFields,
+                checkedAt: nowIso,
+              },
+              readyForTrackPod: false,
+              updatedAt: nowIso,
+            },
+            updated_at: nowIso,
+          })
+          .eq("id", id)
+          .eq("company_id", profile.company_id);
+
+        if (reviewUpdateError) {
+          return NextResponse.json({ error: reviewUpdateError.message }, { status: 500 });
+        }
+
+        return NextResponse.json(
+          {
+            error: "Order requires review before Track-POD submission",
+            missingFields: readiness.missingFields,
+            lifecycleStatus: "REVIEW_REQUIRED",
+          },
+          { status: 409 }
+        );
+      }
 
       const { error: updateError } = await privilegedClient
         .from("draft_jobs")
@@ -369,6 +503,12 @@ export async function PATCH(
           current_status: "READY_FOR_TRACKPOD",
           integration_metadata: {
             ...existingMeta,
+            readiness: {
+              readyForTrackPod: true,
+              status: "READY_FOR_TRACKPOD",
+              missingFields: [],
+              checkedAt: new Date().toISOString(),
+            },
             readyForTrackPod: true,
             updatedAt: new Date().toISOString(),
           },
@@ -389,12 +529,50 @@ export async function PATCH(
       collection_company: clean(body.collectionName),
       collection_address_line1: clean(body.collectionAddress),
       collection_postcode: clean(body.collectionPostcode),
+      collection_phone: clean(body.collectionPhone),
+      collection_email: clean(body.collectionEmail),
       delivery_company: clean(body.deliveryName),
       delivery_address_line1: clean(body.deliveryAddress),
       delivery_postcode: clean(body.deliveryPostcode),
+      delivery_phone: clean(body.deliveryPhone),
+      delivery_email: clean(body.deliveryEmail),
+      goods_description: clean(body.goodsDescription),
+      total_quantity: clean(body.quantity) || null,
+      total_packages: clean(body.packageCount) || null,
+      total_pallet_count: clean(body.palletCount) || null,
+      total_weight_kg: clean(body.weightKg) || null,
       requested_collection_date: clean(body.requestedCollectionDate),
       requested_delivery_date: clean(body.requestedDeliveryDate),
       notes: clean(body.notes),
+      integration_metadata: {
+        ...(existing.integration_metadata && typeof existing.integration_metadata === "object"
+          ? (existing.integration_metadata as Record<string, unknown>)
+          : {}),
+        trackPodMapping: {
+          ...((existing.integration_metadata &&
+          typeof existing.integration_metadata === "object" &&
+          (existing.integration_metadata as Record<string, unknown>).trackPodMapping &&
+          typeof (existing.integration_metadata as Record<string, unknown>).trackPodMapping === "object")
+            ? ((existing.integration_metadata as Record<string, unknown>).trackPodMapping as Record<string, unknown>)
+            : {}),
+          collection_name: clean(body.collectionName),
+          collection_address: clean(body.collectionAddress),
+          collection_postcode: clean(body.collectionPostcode),
+          collection_phone: clean(body.collectionPhone),
+          collection_email: clean(body.collectionEmail),
+          delivery_name: clean(body.deliveryName),
+          delivery_address: clean(body.deliveryAddress),
+          delivery_postcode: clean(body.deliveryPostcode),
+          delivery_phone: clean(body.deliveryPhone),
+          delivery_email: clean(body.deliveryEmail),
+          goods_description: clean(body.goodsDescription),
+          quantity: clean(body.quantity),
+          package_type: clean(body.packageType),
+          volume: clean(body.volume),
+          dimensions: clean(body.dimensions),
+          weight_kg: clean(body.weightKg),
+        },
+      },
       updated_at: new Date().toISOString(),
     };
 

@@ -109,7 +109,7 @@ export default function Sidebar({ items, activePath, userType = "admin", onUserT
               N
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">Nexus it</p>
+              <p className="text-sm font-semibold text-white">NEXUS It Today</p>
               <p className="text-xs text-slate-400">Intelligent Transport</p>
             </div>
           </div>

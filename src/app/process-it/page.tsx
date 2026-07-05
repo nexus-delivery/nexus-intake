@@ -4,7 +4,7 @@ import Link from "next/link";
 import WorkflowStageBanner from "@/components/WorkflowStageBanner";
 
 export const metadata = {
-  title: "Process it — Nexus it Today",
+  title: "Process it — NEXUS It Today",
 };
 
 export default function ProcessItPage() {
