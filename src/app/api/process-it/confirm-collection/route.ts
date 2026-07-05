@@ -29,6 +29,18 @@ function parseBearerToken(request: NextRequest): string {
     : "";
 }
 
+function isAdminRole(role: string | null): boolean {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return [
+    "admin",
+    "owner",
+    "operations_admin",
+    "ops_admin",
+    "platform_admin",
+    "super_admin",
+  ].includes(normalized);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const accessToken = parseBearerToken(request);
@@ -58,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error: profileError } = await privilegedClient
       .from("profiles")
-      .select("company_id")
+      .select("company_id, role")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
@@ -66,12 +78,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No company linked to user" }, { status: 403 });
     }
 
-    const { data: job, error: jobError } = await privilegedClient
+    const adminScope = isAdminRole((profile as { role?: string | null }).role ?? null);
+
+    let jobQuery = privilegedClient
       .from("draft_jobs")
-      .select("id, integration_metadata, trackpod_collection_order_id")
-      .eq("id", draftJobId)
-      .eq("company_id", profile.company_id)
-      .maybeSingle();
+      .select("id, company_id, integration_metadata, trackpod_collection_order_id")
+      .eq("id", draftJobId);
+
+    if (!adminScope) {
+      jobQuery = jobQuery.eq("company_id", profile.company_id);
+    }
+
+    const { data: job, error: jobError } = await jobQuery.maybeSingle();
 
     if (jobError) {
       return NextResponse.json({ error: jobError.message }, { status: 500 });
@@ -80,6 +98,8 @@ export async function POST(request: NextRequest) {
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+
+    const jobCompanyId = typeof job.company_id === "string" ? job.company_id : profile.company_id;
 
     if (!job.trackpod_collection_order_id) {
       return NextResponse.json({ error: "Collection order has not been released yet" }, { status: 409 });
@@ -112,7 +132,7 @@ export async function POST(request: NextRequest) {
         current_status: "COLLECTION_CONFIRMED_AWAITING_DELIVERY_RELEASE",
       })
       .eq("id", draftJobId)
-      .eq("company_id", profile.company_id);
+      .eq("company_id", jobCompanyId);
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });

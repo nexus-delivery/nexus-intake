@@ -38,6 +38,18 @@ function parseBearerToken(request: NextRequest): string {
     : "";
 }
 
+function isAdminRole(role: string | null): boolean {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return [
+    "admin",
+    "owner",
+    "operations_admin",
+    "ops_admin",
+    "platform_admin",
+    "super_admin",
+  ].includes(normalized);
+}
+
 function clean(v: string | null | undefined): string {
   return (v ?? "").trim();
 }
@@ -383,7 +395,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error: profileError } = await privilegedClient
       .from("profiles")
-      .select("id, company_id")
+      .select("id, company_id, role")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
@@ -391,8 +403,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No company linked to user" }, { status: 403 });
     }
 
+    const adminScope = isAdminRole((profile as { role?: string | null }).role ?? null);
+
     // ── Fetch the draft job ─────────────────────────────────────────────────
-    const { data: job, error: jobError } = await privilegedClient
+    let jobQuery = privilegedClient
       .from("draft_jobs")
       .select(
         "id, company_id, status, lifecycle_status, job_reference, primary_document_id, " +
@@ -402,9 +416,13 @@ export async function POST(request: NextRequest) {
           "goods_description, total_quantity, total_weight_kg, " +
           "integration_metadata"
       )
-      .eq("id", body.draftJobId)
-      .eq("company_id", profile.company_id)
-      .maybeSingle();
+      .eq("id", body.draftJobId);
+
+    if (!adminScope) {
+      jobQuery = jobQuery.eq("company_id", profile.company_id);
+    }
+
+    const { data: job, error: jobError } = await jobQuery.maybeSingle();
 
     if (jobError) {
       return NextResponse.json({ error: jobError.message }, { status: 500 });
@@ -414,6 +432,7 @@ export async function POST(request: NextRequest) {
     }
 
     const jobRecord = job as unknown as Record<string, unknown>;
+  const jobCompanyId = clean(jobRecord.company_id as string | null);
 
     // ── Duplicate prevention ────────────────────────────────────────────────
     const checkDuplicate = body.checkDuplicate !== false;
@@ -441,7 +460,7 @@ export async function POST(request: NextRequest) {
         .from("document_extracted_fields")
         .select("field_name, field_value")
         .eq("document_id", docId)
-        .eq("company_id", profile.company_id);
+        .eq("company_id", jobCompanyId);
 
       if (extracted) {
         for (const row of extracted as Array<{
@@ -496,7 +515,7 @@ export async function POST(request: NextRequest) {
           updated_at: nowIso,
         })
         .eq("id", jobRecord.id)
-        .eq("company_id", profile.company_id);
+        .eq("company_id", jobCompanyId);
 
       return NextResponse.json(
         {
@@ -554,7 +573,7 @@ export async function POST(request: NextRequest) {
         trackpod_error_at: null,
       })
       .eq("id", jobRecord.id)
-      .eq("company_id", profile.company_id);
+      .eq("company_id", jobCompanyId);
 
     const metadataNext: Record<string, unknown> = {
       ...integrationMetadata,
@@ -592,7 +611,7 @@ export async function POST(request: NextRequest) {
             trackpod_error_at: new Date().toISOString(),
           })
           .eq("id", jobRecord.id)
-          .eq("company_id", profile.company_id);
+          .eq("company_id", jobCompanyId);
 
         return NextResponse.json(
           { error: `Collection order failed: ${errMsg}`, httpStatus },
@@ -613,7 +632,7 @@ export async function POST(request: NextRequest) {
           integration_metadata: metadataNext,
         })
         .eq("id", jobRecord.id)
-        .eq("company_id", profile.company_id);
+        .eq("company_id", jobCompanyId);
 
       return NextResponse.json({
         success: true,
@@ -696,7 +715,7 @@ export async function POST(request: NextRequest) {
           trackpod_error_at: new Date().toISOString(),
         })
         .eq("id", jobRecord.id)
-        .eq("company_id", profile.company_id);
+        .eq("company_id", jobCompanyId);
 
       return NextResponse.json(
         {
@@ -746,7 +765,7 @@ export async function POST(request: NextRequest) {
         },
       })
       .eq("id", jobRecord.id)
-      .eq("company_id", profile.company_id);
+      .eq("company_id", jobCompanyId);
 
     if (finalUpdateError) {
       return NextResponse.json({ error: finalUpdateError.message }, { status: 500 });
@@ -756,7 +775,7 @@ export async function POST(request: NextRequest) {
     if (docId) {
       await privilegedClient.from("document_timeline").insert({
         document_id: docId,
-        company_id: profile.company_id,
+        company_id: jobCompanyId,
         event: "trackpod_orders_created",
         actor: user.email ?? user.id,
         actor_profile_id: profile.id,
