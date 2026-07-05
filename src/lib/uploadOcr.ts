@@ -76,14 +76,8 @@ function detectSupportedDocumentType(
   text: string
 ): SupportedDocumentType | null {
   const source = `${fileName} ${text}`.toLowerCase();
-  if (source.includes("purchase order") || source.includes("po ") || source.includes("po#")) {
-    return "purchase_order";
-  }
-  if (source.includes("delivery note") || source.includes("deliverynote")) {
+  if (source.includes("doorway")) {
     return "delivery_note";
-  }
-  if (source.includes("order form") || source.includes("orderform")) {
-    return "order_form";
   }
   return null;
 }
@@ -393,8 +387,7 @@ export async function extractUploadToOcrReviewData(
       publishOcrDebugPayload(debugPayload);
       return {
         success: false,
-        error:
-          "Unsupported document type. Upload it supports only Purchase Order, Delivery Note, or Order Form.",
+        error: "Unsupported document type. Upload it supports only Doorway delivery notes.",
       };
     }
 

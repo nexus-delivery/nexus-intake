@@ -6,12 +6,12 @@ const moduleCards = [
   { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it on one intake service." },
   { title: "Draft Orders", href: "/portal/draft-orders", detail: "Review staged bookings before operations handoff." },
   { title: "Orders", href: "/portal/orders", detail: "Live order lifecycle with Track-POD synchronized timeline visibility." },
-  { title: "Manage-it", href: "/portal/manage-it", detail: "Company, users, customers, addresses, settings and controls." },
+  { title: "Manage-it", href: "/portal/manage-it", detail: "Company, users, customers, address books, settings and controls." },
   { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "External forms routing into Create-it standard intake." },
-  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable booking structures and defaults." },
+  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable address books and operational defaults." },
   { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Deferred until Wodely replacement is fully live and stable." },
-  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Coming soon." },
-  { title: "Document Upload", href: "/portal/document-upload", detail: "Coming soon." },
+  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Upload Doorway documents, run OCR extraction, and review draft jobs." },
+  { title: "Document Upload", href: "/portal/document-upload", detail: "Upload operational documents and continue directly to review." },
   { title: "Integrate-it", href: "/portal/integrate-it", detail: "Manage provider connections and tenant-scoped integration configuration." },
   { title: "Documents", href: "/portal/documents", detail: "Upload and manage operational/customer documents." },
   { title: "Reports", href: "/portal/reports", detail: "Company-scoped reporting and exports." },
@@ -39,7 +39,7 @@ export default function MerchantPortalPage() {
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-        NEXUS is the system of record for intake, customer management, and order visibility across all source channels.
+        NEXUS is the system of record for intake, customer management, address books, and order visibility across all source channels.
       </div>
     </section>
   );

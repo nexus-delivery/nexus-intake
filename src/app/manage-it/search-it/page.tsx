@@ -272,7 +272,7 @@ function SearchItPageContent() {
           id: `profile-${form.id}`,
           type: "booking_form" as const,
           title: form.profileName,
-          context: form.instructions || "Booking profile",
+          context: form.instructions || "Address book",
           actions: [
             { label: "Open Customer", href: "/manage-it" },
             { label: "Create Order from Profile", href: `/create-it?customerId=${encodeURIComponent(form.customerId)}&profileId=${encodeURIComponent(form.id)}` },
@@ -307,7 +307,7 @@ function SearchItPageContent() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Oversee it</p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-950">Search it</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Search operational data in-app across merchants, customers, addresses, orders, and booking profiles.
+            Search operational data in-app across merchants, customers, addresses, orders, and address books.
           </p>
 
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -340,7 +340,7 @@ function SearchItPageContent() {
             <SummaryTile label="Customers" value={grouped.customers.length} />
             <SummaryTile label="Addresses" value={grouped.addresses.length} />
             <SummaryTile label="Orders" value={grouped.orders.length} />
-            <SummaryTile label="Booking Profiles" value={grouped.forms.length} />
+            <SummaryTile label="Address Books" value={grouped.forms.length} />
           </div>
         </section>
 
@@ -364,7 +364,7 @@ function SearchItPageContent() {
               {results.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-3 py-8 text-center text-sm text-slate-500">
-                    {loading ? "Searching..." : "No results yet. Run a search to view merchants, customers, addresses, orders, and booking profiles."}
+                    {loading ? "Searching..." : "No results yet. Run a search to view merchants, customers, addresses, orders, and address books."}
                   </td>
                 </tr>
               ) : (

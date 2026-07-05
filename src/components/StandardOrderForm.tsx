@@ -495,13 +495,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     const normalizedName = bookingProfileName.trim();
     if (!normalizedName) {
       setSubmitState("error");
-      setSubmitMessage("Enter a booking profile name before saving.");
+      setSubmitMessage("Enter an address book name before saving.");
       return;
     }
 
     if (!customerId) {
       setSubmitState("error");
-      setSubmitMessage("Select a customer before saving a booking profile.");
+      setSubmitMessage("Select a customer before saving an address book.");
       return;
     }
 
@@ -557,7 +557,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
     if (!response.ok) {
       setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not save booking profile.");
+      setSubmitMessage(responseBody.error ?? "Could not save address book.");
       return;
     }
 
@@ -569,8 +569,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     setSubmitState("success");
     setSubmitMessage(
       selectedBookingProfileId
-        ? `Booking profile updated: ${normalizedName}.`
-        : `Booking profile created: ${normalizedName}.`
+        ? `Address book updated: ${normalizedName}.`
+        : `Address book created: ${normalizedName}.`
     );
   };
 
@@ -623,7 +623,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     }
 
     setSubmitState("success");
-    setSubmitMessage(`Loaded booking profile: ${template.profileName}. Enter Order Number, Job Reference, External ID, and today\'s goods for this order.`);
+    setSubmitMessage(`Loaded address book: ${template.profileName}. Enter Order Number, Job Reference, External ID, and today\'s goods for this order.`);
   }
 
   const deleteTemplate = async (templateId: string) => {
@@ -641,7 +641,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
     if (!response.ok) {
       setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not archive booking profile.");
+      setSubmitMessage(responseBody.error ?? "Could not archive address book.");
       return;
     }
 
@@ -650,7 +650,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setSelectedBookingProfileId("");
     }
     setSubmitState("success");
-    setSubmitMessage("Booking profile archived.");
+    setSubmitMessage("Address book archived.");
   };
 
   const duplicateTemplate = async (template: BookingProfile) => {
@@ -671,13 +671,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
     if (!response.ok) {
       setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not duplicate booking profile.");
+      setSubmitMessage(responseBody.error ?? "Could not duplicate address book.");
       return;
     }
 
     await loadBookingProfiles(customerId);
     setSubmitState("success");
-    setSubmitMessage("Booking profile duplicated.");
+    setSubmitMessage("Address book duplicated.");
   };
 
   const createCustomerInline = async () => {
@@ -725,7 +725,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setShowNewCustomerForm(false);
       setNewCustomerForm({ customerName: "", company: "", contactName: "", email: "", phone: "" });
       setSubmitState("success");
-      setSubmitMessage(`Customer created: ${payload.customer.customerName}. You can now add addresses and save booking profiles.`);
+      setSubmitMessage(`Customer created: ${payload.customer.customerName}. You can now add addresses and save address books.`);
     } catch (error) {
       setSubmitState("error");
       setSubmitMessage(error instanceof Error ? error.message : "Could not create customer");
@@ -873,9 +873,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <section className={sectionClass}>
-          <h2 className="text-base font-semibold text-slate-900">Manage Booking Profiles</h2>
+          <h2 className="text-base font-semibold text-slate-900">Manage Address Books</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Booking profiles are reusable CRM defaults per customer. Create it loads these defaults so operators only enter
+            Address books are reusable CRM defaults per customer. Create it loads these defaults so operators only enter
             order-specific values: order number, job reference, external ID, dates, and today&apos;s goods.
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -883,14 +883,14 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               className={inputClass}
               value={bookingProfileName}
               onChange={(event) => setBookingProfileName(event.target.value)}
-              placeholder="Booking profile name e.g. Daily Deliveries"
+              placeholder="Address book name e.g. Daily Deliveries"
             />
             <button
               type="button"
               onClick={() => void saveCurrentAsTemplate()}
               className="self-end rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
             >
-              {selectedBookingProfileId ? "Edit Profile" : "New Profile"}
+              {selectedBookingProfileId ? "Edit Address Book" : "New Address Book"}
             </button>
           </div>
 
@@ -906,7 +906,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                       onClick={() => applyTemplate(template)}
                       className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
                     >
-                      Load Profile
+                      Load Address Book
                     </button>
                     <button
                       type="button"
@@ -1124,7 +1124,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-slate-700" htmlFor="bookingProfileSelect">
-                        Booking Profile
+                        Address Book
                       </label>
                       <div className="mt-1 flex flex-wrap gap-2">
                         <select
@@ -1139,7 +1139,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                             applyTemplate(selected);
                           }}
                         >
-                          <option value="">Load profile...</option>
+                          <option value="">Load address book...</option>
                           {bookingProfiles.map((profile) => (
                             <option key={profile.id} value={profile.id}>{profile.profileName}</option>
                           ))}

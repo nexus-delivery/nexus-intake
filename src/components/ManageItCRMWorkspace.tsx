@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import BookingProfilesManager from "@/components/BookingProfilesManager";
 import CollectionAddressesManager from "@/components/CollectionAddressesManager";
 import CustomerAddressesManager from "@/components/CustomerAddressesManager";
 import MerchantCustomersManager from "@/components/MerchantCustomersManager";
 import WorkflowStageBanner from "@/components/WorkflowStageBanner";
-import { supabase } from "@/lib/supabaseClient";
 
 type MerchantWorkspace = {
   id: string;
@@ -16,30 +14,14 @@ type MerchantWorkspace = {
   createdAt: string;
 };
 
-const initialMerchants: MerchantWorkspace[] = [
-  {
-    id: "merch-doorway",
-    merchantName: "Doorway Group LTD",
-    contactEmail: "ops@doorway-group.example",
-    status: "Active",
-    createdAt: "2026-07-01",
-  },
-  {
-    id: "merch-nook",
-    merchantName: "Nook Home",
-    contactEmail: "hello@nook-home.example",
-    status: "Invited",
-    createdAt: "2026-07-02",
-  },
-];
+const initialMerchants: MerchantWorkspace[] = [];
 
 const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
 
 const workspaceSections = [
   "Customers",
-  "Collection Addresses",
-  "Delivery Addresses",
-  "Booking Profiles",
+  "Collection Address Book",
+  "Delivery Address Book",
   "Orders",
   "Documents",
   "Inventory",
@@ -63,7 +45,7 @@ function loadStoredMerchantWorkspaces(): MerchantWorkspace[] {
     const raw = window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY);
     if (!raw) return initialMerchants;
     const parsed = JSON.parse(raw) as MerchantWorkspace[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : initialMerchants;
+    return Array.isArray(parsed) ? parsed : initialMerchants;
   } catch {
     return initialMerchants;
   }
@@ -75,7 +57,6 @@ export default function ManageItCRMWorkspace() {
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [seedingDoorway, setSeedingDoorway] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -120,98 +101,6 @@ export default function ManageItCRMWorkspace() {
           : merchant
       )
     );
-  }
-
-  async function authHeaders(): Promise<Record<string, string>> {
-    if (!supabase) return {};
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-  }
-
-  async function seedDoorwayWorkspace() {
-    setSeedingDoorway(true);
-    try {
-      const response = await fetch("/api/manage-it/doorway/seed", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(await authHeaders()),
-        },
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? "Failed to seed Doorway data");
-      }
-
-      if (typeof window !== "undefined") {
-        const storageKey = "nexus.saved.booking.forms.v1";
-        const existing = window.localStorage.getItem(storageKey);
-        const parsed = existing ? (JSON.parse(existing) as Array<Record<string, unknown>>) : [];
-
-        const doorwayTemplate = {
-          id: "doorway-template-standard",
-          name: "Doorway Standard Delivery",
-          savedAt: new Date().toISOString(),
-          customerId: "",
-          salesChannelId: "",
-          salesChannelName: "Doorway Standard",
-          collectionMode: "depot",
-          merchant: "Doorway Group LTD",
-          customer: "",
-          collection: {
-            company: "Doorway Group LTD",
-            contact: "Doorway Operations",
-            addressLine1: "Doorway North Hub",
-            addressLine2: "12 Distribution Way",
-            addressLine3: "Tamworth",
-            postcode: "B77 5AA",
-            country: "UK",
-            phone: "+44 1827 100100",
-            email: "ops@doorwaygroup.co.uk",
-            date: "",
-            time: "",
-            instructions: "Primary Doorway collection hub",
-            latitude: "",
-            longitude: "",
-          },
-          delivery: {
-            company: "",
-            contact: "",
-            addressLine1: "",
-            addressLine2: "",
-            addressLine3: "",
-            postcode: "",
-            country: "UK",
-            phone: "",
-            email: "",
-            date: "",
-            time: "",
-            instructions: "",
-            latitude: "",
-            longitude: "",
-          },
-          notes: "",
-          defaultService: "Doorway Booking Form",
-        };
-
-        const filtered = parsed.filter((entry) => entry.id !== doorwayTemplate.id);
-        window.localStorage.setItem(storageKey, JSON.stringify([doorwayTemplate, ...filtered]));
-      }
-
-      setMessage("Doorway workspace seeded with customers, reusable addresses, booking profile defaults, and operational orders.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Doorway seed failed.");
-    } finally {
-      setSeedingDoorway(false);
-    }
   }
 
   function markInvited(id: string) {
@@ -287,15 +176,6 @@ export default function ManageItCRMWorkspace() {
                 </div>
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={() => void seedDoorwayWorkspace()}
-              disabled={seedingDoorway}
-              className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-            >
-              {seedingDoorway ? "Seeding Doorway..." : "Seed Doorway Operational Workspace"}
-            </button>
           </div>
         </div>
 
@@ -360,7 +240,7 @@ export default function ManageItCRMWorkspace() {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Active Workspace</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">{activeWorkspace.merchantName}</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Admin and merchant administrators can add and edit customers, maintain reusable collection and delivery addresses,
+            Admin and merchant administrators can add and edit customers, maintain reusable collection and delivery address books,
             add contacts, and create operational orders from this workspace.
           </p>
         </section>
@@ -368,7 +248,6 @@ export default function ManageItCRMWorkspace() {
 
       <MerchantCustomersManager />
       <CustomerAddressesManager />
-      <BookingProfilesManager />
       <CollectionAddressesManager />
     </div>
   );

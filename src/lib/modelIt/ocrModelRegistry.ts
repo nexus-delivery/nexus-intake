@@ -906,49 +906,46 @@ function buildBlbPurchaseOrderData(context: OcrModelContext): OcrReviewData {
 function buildDoorwayDeliveryNoteData(context: OcrModelContext): OcrReviewData {
   const text = context.rawText;
 
-  const deliveryNoteReference =
-    findLabelValue(text, [
-      "Delivery\\s*Note\\s*(?:No\\.?|Number)",
-      "DN\\s*No\\.?",
-      "Order\\s*Reference",
-      "Order\\s*No\\.?",
-    ]) ||
-    pickFirst(text, [
-      /(?:delivery\s*note\s*(?:no\.?|number)|dn\s*no\.?|order\s*reference|order\s*no\.?)\s*[:\-]?\s*([^\n]+)/i,
-    ]);
+  const jobNumber =
+    findLabelValue(text, ["Job\s*Number", "Job\s*No\.?"]) ||
+    pickFirst(text, [/(?:job\s*number|job\s*no\.?)\s*[:\-]?\s*([^\n]+)/i]);
+
+  const jobReference =
+    findLabelValue(text, ["Job\s*Reference", "Job\s*Ref\.?"]) ||
+    pickFirst(text, [/(?:job\s*reference|job\s*ref\.?)\s*[:\-]?\s*([^\n]+)/i]);
 
   const collectionDate = normalizeDate(
-    findLabelValue(text, ["Collection\\s*Date", "Collected\\s*On", "Pickup\\s*Date"]) ||
+    findLabelValue(text, ["Collection\s*Date", "Collected\s*On", "Pickup\s*Date"]) ||
       pickFirst(text, [
         /(?:collection\s*date|collected\s*on|pickup\s*date)\s*[:\-]?\s*([^\n]+)/i,
       ])
   );
 
   const deliveryDate = normalizeDate(
-    findLabelValue(text, ["Delivery\\s*Date", "Delivered\\s*On", "Delivery\\s*By"]) ||
+    findLabelValue(text, ["Delivery\s*Date", "Delivered\s*On", "Delivery\s*By"]) ||
       pickFirst(text, [
         /(?:delivery\s*date|delivered\s*on|delivery\s*by)\s*[:\-]?\s*([^\n]+)/i,
       ])
   );
 
   const customer =
-    findLabelValue(text, ["Consignee", "Customer", "Deliver\\s*To", "Delivery\\s*Name"]) ||
+    findLabelValue(text, ["Consignee", "Customer", "Deliver\s*To", "Delivery\s*Name"]) ||
     pickFirst(text, [
       /(?:consignee|customer|deliver\s*to|delivery\s*name)\s*[:\-]?\s*([^\n]+)/i,
     ]);
 
   const collectionName =
-    findLabelValue(text, ["Collection\\s*Name", "Collect\\s*From", "Shipper"]) || "";
+    findLabelValue(text, ["Collection\s*Name", "Collect\s*From", "Shipper"]) || "";
 
   const collectionAddress =
-    findMultilineValue(text, ["Collection\\s*Address", "Collect\\s*From\\s*Address"]) ||
-    pickFirst(text, [/(?:collection\s*address|collect\s*from\s*address)\s*[:\-]?\s*([^\n]+)/i]);
+    findMultilineValue(text, ["Invoice\s*Address", "Billing\s*Address", "Collection\s*Address", "Collect\s*From\s*Address"]) ||
+    pickFirst(text, [/(?:invoice\s*address|billing\s*address|collection\s*address|collect\s*from\s*address)\s*[:\-]?\s*([^\n]+)/i]);
 
   const deliveryName =
-    findLabelValue(text, ["Delivery\\s*Name", "Deliver\\s*To", "Consignee"]) || customer;
+    findLabelValue(text, ["Delivery\s*Name", "Deliver\s*To", "Consignee"]) || customer;
 
   const deliveryAddress =
-    findMultilineValue(text, ["Delivery\\s*Address", "Deliver\\s*To\\s*Address", "Ship\\s*To\\s*Address"]) ||
+    findMultilineValue(text, ["Delivery\s*Address", "Deliver\s*To\s*Address", "Ship\s*To\s*Address"]) ||
     pickFirst(text, [
       /(?:delivery\s*address|deliver\s*to\s*address|ship\s*to\s*address)\s*[:\-]?\s*([^\n]+)/i,
     ]);
@@ -958,9 +955,9 @@ function buildDoorwayDeliveryNoteData(context: OcrModelContext): OcrReviewData {
   );
   const email = pickFirst(text, [/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,})/i]);
 
-  const goodsDescription =
-    findMultilineValue(text, ["Goods\\s*Description", "Description", "Items"]) ||
-    pickFirst(text, [/(?:goods\s*description|description|items?)\s*[:\-]?\s*([^\n]+)/i]);
+  const productDescription =
+    findMultilineValue(text, ["Product\s*Description", "Goods\s*Description", "Description", "Items"]) ||
+    pickFirst(text, [/(?:product\s*description|goods\s*description|description|items?)\s*[:\-]?\s*([^\n]+)/i]);
 
   const netAmount = normalizeCurrency(
     pickFirst(text, [/(?:net\s*amount|subtotal|net)\s*[:\-]?\s*£?\s*([0-9]+(?:[.,][0-9]{1,2})?)/i])
@@ -973,12 +970,16 @@ function buildDoorwayDeliveryNoteData(context: OcrModelContext): OcrReviewData {
   );
 
   const notes =
-    findLabelValue(text, ["Delivery\\s*Notes", "Special\\s*Instructions", "Notes"]) ||
+    findLabelValue(text, ["Delivery\s*Notes", "Special\s*Instructions", "Notes"]) ||
     pickFirst(text, [/(?:delivery\s*notes?|special\s*instructions?|notes?)\s*[:\-]?\s*([^\n]+)/i]);
+
+  const combinedReference = [normalizeOrderReference(jobNumber), jobReference.trim().replace(/\s+/g, " ")]
+    .filter((value) => value.length > 0)
+    .join(" - ");
 
   return {
     documentType: "delivery_note",
-    orderReference: normalizeOrderReference(deliveryNoteReference),
+    orderReference: combinedReference,
     tradingName: "",
     orderType: "Delivery",
     collectionDate,
@@ -986,18 +987,18 @@ function buildDoorwayDeliveryNoteData(context: OcrModelContext): OcrReviewData {
     deliveryDate,
     deliveryDateConfidence: deliveryDate ? "high" : "low",
     merchantShipper:
-      findLabelValue(text, ["Merchant\\s*\/\\s*Shipper", "Merchant", "Shipper"]) || "",
+      findLabelValue(text, ["Merchant\s*\/\s*Shipper", "Merchant", "Shipper"]) || "",
     customer,
     collectionName,
     collectionAddress: stripLeadingLabelArtifacts(collectionAddress),
     deliveryName: stripLeadingLabelArtifacts(deliveryName),
     deliveryAddress: stripLeadingLabelArtifacts(deliveryAddress),
-    contactName: findLabelValue(text, ["Contact\\s*Name", "Contact", "Attn"]) || "",
+    contactName: findLabelValue(text, ["Contact\s*Name", "Contact", "Attn"]) || "",
     deliveryPhone: phone,
     telephone: phone,
     deliveryEmail: email,
     email,
-    goodsDescription: stripLeadingLabelArtifacts(goodsDescription),
+    goodsDescription: stripLeadingLabelArtifacts(productDescription),
     packages: pickFirst(text, [/(?:packages?|pallets?|pkgs?)\s*[:\-]?\s*(\d+)/i]),
     quantity: pickFirst(text, [/(?:qty|quantity)\s*[:\-]?\s*(\d+)/i]),
     weight: pickFirst(text, [

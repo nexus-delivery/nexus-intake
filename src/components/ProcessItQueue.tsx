@@ -628,6 +628,7 @@ export default function ProcessItQueue() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
 
   const loadJobs = useCallback(async () => {
@@ -764,6 +765,51 @@ export default function ProcessItQueue() {
         }));
       } finally {
         setConfirmingId(null);
+      }
+    },
+    [loadJobs]
+  );
+
+  const archiveBooking = useCallback(
+    async (job: ProcessItJob) => {
+      if (!supabase) return;
+      setArchivingId(job.id);
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const token = session?.access_token;
+        const res = await fetch("/api/process-it/archive", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ draftJobId: job.id }),
+        });
+
+        const json = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: { ok: false, msg: json.error ?? `Error ${res.status}` },
+          }));
+        } else {
+          setSendResult((prev) => ({
+            ...prev,
+            [job.id]: { ok: true, msg: "Booking archived" },
+          }));
+          setTimeout(() => void loadJobs(), 800);
+        }
+      } catch (error) {
+        setSendResult((prev) => ({
+          ...prev,
+          [job.id]: { ok: false, msg: error instanceof Error ? error.message : "Unknown error" },
+        }));
+      } finally {
+        setArchivingId(null);
       }
     },
     [loadJobs]
@@ -931,6 +977,7 @@ export default function ProcessItQueue() {
                 const canConfirmCollection = hasCollection && !job.collectionConfirmedAt;
                 const canReleaseDelivery = hasCollection && !hasDelivery;
                 const blockedByFutureDate = job.deliveryHoldReason === "HELD - FUTURE DATE";
+                const isArchived = job.lifecycleStatus === "ARCHIVED";
 
                 return (
                   <tr key={job.id} className="hover:bg-slate-50/60">
@@ -1141,7 +1188,7 @@ export default function ProcessItQueue() {
                               <ActionButton
                                 label={isSending ? "Releasing…" : "Release Collection"}
                                 onClick={() => void releaseToTrackPod(job, "collection")}
-                                disabled={isSending}
+                                disabled={isSending || isArchived}
                                 variant={hasError ? "warning" : "primary"}
                               />
                             ) : null}
@@ -1150,7 +1197,7 @@ export default function ProcessItQueue() {
                               <ActionButton
                                 label={confirmingId === job.id ? "Confirming…" : "Confirm Collection"}
                                 onClick={() => void confirmCollection(job)}
-                                disabled={confirmingId === job.id}
+                                disabled={confirmingId === job.id || isArchived}
                                 variant="ghost"
                               />
                             ) : null}
@@ -1159,12 +1206,21 @@ export default function ProcessItQueue() {
                               <ActionButton
                                 label={isSending ? "Releasing…" : blockedByFutureDate ? "Admin Override Release" : "Release Delivery"}
                                 onClick={() => void releaseToTrackPod(job, "delivery", blockedByFutureDate)}
-                                disabled={isSending || (!job.collectionConfirmedAt && !blockedByFutureDate)}
+                                disabled={isSending || (!job.collectionConfirmedAt && !blockedByFutureDate) || isArchived}
                                 variant={blockedByFutureDate ? "warning" : "primary"}
                               />
                             ) : null}
                           </>
                         )}
+
+                        {!isArchived ? (
+                          <ActionButton
+                            label={archivingId === job.id ? "Archiving…" : "Archive"}
+                            onClick={() => void archiveBooking(job)}
+                            disabled={archivingId === job.id}
+                            variant="warning"
+                          />
+                        ) : null}
 
                         {/* Open collection tracking */}
                         {job.trackpodCollectionTrackingUrl && (
