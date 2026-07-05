@@ -24,6 +24,7 @@ export type DashboardRouteStatus =
 export type DashboardRow = {
   id: string;
   companyId: string;
+  merchantName: string;
   createdByUserId: string | null;
   internalOrderNumber: string;
   externalOrderReference: string;
@@ -352,6 +353,7 @@ export function toDashboardRow(job: DraftJobRow): DashboardRow {
   return {
     id,
     companyId: asString(job.company_id),
+    merchantName: "",
     createdByUserId: asNullableString(job.created_by_user_id),
     internalOrderNumber,
     externalOrderReference,

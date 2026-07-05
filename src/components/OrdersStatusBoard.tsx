@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import type { DashboardDetail, DashboardRow } from "@/lib/orders/dashboard";
 
@@ -40,11 +41,15 @@ function toLocale(value: string): string {
 }
 
 export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
+  const searchParams = useSearchParams();
+  const querySelectedId = searchParams.get("orderId")?.trim() ?? "";
+  const queryEdit = searchParams.get("edit") === "1";
+  const queryStatus = searchParams.get("status")?.trim() ?? "";
   const [jobs, setJobs] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => queryStatus);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [salesChannel, setSalesChannel] = useState("");
@@ -79,6 +84,33 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     requestedDeliveryDate: "",
     notes: "",
   });
+
+  function primeEditForm(job: DashboardRow, detail: DashboardDetail | null) {
+    setEditForm({
+      externalOrderReference: job.externalOrderReference || "",
+      collectionName: job.collectionName || "",
+      collectionAddress: job.collectionAddress || "",
+      collectionPostcode: job.collectionPostcode || "",
+      collectionPhone: detail?.collection.phone || "",
+      collectionEmail: detail?.collection.email || "",
+      deliveryName: job.deliveryName || "",
+      deliveryAddress: job.deliveryAddress || "",
+      deliveryPostcode: job.deliveryPostcode || "",
+      deliveryPhone: detail?.delivery.phone || "",
+      deliveryEmail: detail?.delivery.email || "",
+      goodsDescription: detail?.goods.description || "",
+      quantity: detail?.goods.quantity || "",
+      packageType: "",
+      packageCount: detail?.goods.packages || "",
+      palletCount: detail?.goods.palletCount || "",
+      volume: "",
+      dimensions: "",
+      weightKg: detail?.goods.weightKg || "",
+      requestedCollectionDate: job.requestedCollectionDate || "",
+      requestedDeliveryDate: job.requestedDeliveryDate || "",
+      notes: detail?.operations.notes || "",
+    });
+  }
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -270,9 +302,31 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
   }, [editForm, editingId, loadDetail, loadJobs]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadJobs();
+    const timer = window.setTimeout(() => {
+      void loadJobs();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadJobs]);
+
+  useEffect(() => {
+    if (!querySelectedId || jobs.length === 0) return;
+    if (selectedId === querySelectedId) return;
+    const timer = window.setTimeout(() => {
+      void loadDetail(querySelectedId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [jobs, loadDetail, querySelectedId, selectedId]);
+
+  useEffect(() => {
+    if (!queryEdit || !querySelectedId || !selectedDetail || selectedId !== querySelectedId) return;
+    const job = jobs.find((entry) => entry.id === querySelectedId);
+    if (!job) return;
+    const timer = window.setTimeout(() => {
+      primeEditForm(job, selectedDetail);
+      setEditingId(querySelectedId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [jobs, queryEdit, querySelectedId, selectedDetail, selectedId]);
 
   return (
     <section className="space-y-5 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
@@ -352,6 +406,9 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Order #</th>
+                {props.scope === "admin" ? (
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Merchant</th>
+                ) : null}
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">External Ref</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Customer</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase text-slate-500">Collection</th>
@@ -367,6 +424,9 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
               {jobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-3 py-2 font-semibold text-slate-900">{job.internalOrderNumber || "-"}</td>
+                  {props.scope === "admin" ? (
+                    <td className="px-3 py-2 text-slate-700">{job.merchantName || "-"}</td>
+                  ) : null}
                   <td className="px-3 py-2 text-slate-600">{job.externalOrderReference || "-"}</td>
                   <td className="px-3 py-2 text-slate-700">{job.customerMerchant || "-"}</td>
                   <td className="px-3 py-2 text-slate-700">
@@ -410,30 +470,7 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
                         type="button"
                         onClick={() => {
                           setEditingId(job.id);
-                          setEditForm({
-                            externalOrderReference: job.externalOrderReference || "",
-                            collectionName: job.collectionName || "",
-                            collectionAddress: job.collectionAddress || "",
-                            collectionPostcode: job.collectionPostcode || "",
-                            collectionPhone: selectedDetail?.collection.phone || "",
-                            collectionEmail: selectedDetail?.collection.email || "",
-                            deliveryName: job.deliveryName || "",
-                            deliveryAddress: job.deliveryAddress || "",
-                            deliveryPostcode: job.deliveryPostcode || "",
-                            deliveryPhone: selectedDetail?.delivery.phone || "",
-                            deliveryEmail: selectedDetail?.delivery.email || "",
-                            goodsDescription: selectedDetail?.goods.description || "",
-                            quantity: selectedDetail?.goods.quantity || "",
-                            packageType: "",
-                            packageCount: selectedDetail?.goods.packages || "",
-                            palletCount: selectedDetail?.goods.palletCount || "",
-                            volume: "",
-                            dimensions: "",
-                            weightKg: selectedDetail?.goods.weightKg || "",
-                            requestedCollectionDate: job.requestedCollectionDate || "",
-                            requestedDeliveryDate: job.requestedDeliveryDate || "",
-                            notes: selectedDetail?.operations.notes || "",
-                          });
+                          primeEditForm(job, selectedId === job.id ? selectedDetail : null);
                         }}
                         className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                       >

@@ -85,6 +85,18 @@ function buildStatusSet(filter: string): Set<string> {
   );
 }
 
+function buildCompanyNameMap(rows: DashboardListRow[]): Map<string, string> {
+  const companyNames = new Map<string, string>();
+  for (const row of rows) {
+    const companyId = typeof row.company_id === "string" ? row.company_id : "";
+    const companyName = typeof row.company_name === "string" ? row.company_name.trim() : "";
+    if (companyId && companyName) {
+      companyNames.set(companyId, companyName);
+    }
+  }
+  return companyNames;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const token = parseBearerToken(request);
@@ -186,7 +198,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const rows = (data ?? []).map((item) => toDashboardRow(item));
+    const companyNameMap = buildCompanyNameMap(data ?? []);
+
+    const rows = (data ?? []).map((item) => {
+      const row = toDashboardRow(item);
+      return {
+        ...row,
+        merchantName:
+          companyNameMap.get(row.companyId) ||
+          row.customerMerchant ||
+          "—",
+      };
+    });
 
     const search = (params.get("search") ?? "").trim().toLowerCase();
     const statusFilter = buildStatusSet(params.get("status") ?? "");
@@ -205,7 +228,10 @@ export async function GET(request: NextRequest) {
         const haystack = [
           row.internalOrderNumber,
           row.externalOrderReference,
+          row.merchantName,
           row.customerMerchant,
+          row.collectionAddress,
+          row.deliveryAddress,
           row.collectionPostcode,
           row.deliveryPostcode,
           row.collectionName,

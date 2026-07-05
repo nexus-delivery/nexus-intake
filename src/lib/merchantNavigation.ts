@@ -26,6 +26,11 @@ export const merchantNavItems: NavItem[] = [
     icon: "FileText",
   },
   {
+    label: "Track it",
+    href: "/portal/track-it",
+    icon: "Truck",
+  },
+  {
     label: "Draft Orders",
     href: "/portal/draft-orders",
     icon: "FileText",

@@ -29,6 +29,18 @@ function parseBearerToken(request: NextRequest): string {
     : "";
 }
 
+function isAdminRole(role: string | null): boolean {
+  const normalized = (role ?? "").trim().toLowerCase();
+  return [
+    "admin",
+    "owner",
+    "operations_admin",
+    "ops_admin",
+    "platform_admin",
+    "super_admin",
+  ].includes(normalized);
+}
+
 function pick(map: Record<string, string>, ...keys: string[]): string {
   for (const k of keys) {
     if (map[k]?.trim()) return map[k].trim();
@@ -104,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     const { data: profile, error: profileError } = await privilegedClient
       .from("profiles")
-      .select("id, company_id")
+      .select("id, company_id, role")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
@@ -112,9 +124,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "No company linked to user" }, { status: 403 });
     }
 
+    const requestedScope = request.nextUrl.searchParams.get("scope") === "admin" ? "admin" : "merchant";
+    const adminScope = requestedScope === "admin" && isAdminRole((profile as { role?: string | null }).role ?? null);
+
     // Fetch all jobs for this company regardless of lifecycle status
     // Process-it shows the full picture: pending, sent, and errors
-    const { data: jobs, error: jobsError } = await privilegedClient
+    let jobsQuery = privilegedClient
       .from("draft_jobs")
       .select(
         [
@@ -123,6 +138,8 @@ export async function GET(request: NextRequest) {
           "status",
           "lifecycle_status",
           "company_id",
+          "customer",
+          "external_order_id",
           "primary_document_id",
           "trackpod_delivery_order_id",
           "trackpod_collection_order_id",
@@ -166,9 +183,14 @@ export async function GET(request: NextRequest) {
           "updated_at",
         ].join(", ")
       )
-      .eq("company_id", profile.company_id)
       .order("created_at", { ascending: false })
       .limit(200);
+
+    if (!adminScope) {
+      jobsQuery = jobsQuery.eq("company_id", profile.company_id);
+    }
+
+    const { data: jobs, error: jobsError } = await jobsQuery;
 
     if (jobsError) {
       return NextResponse.json({ error: jobsError.message }, { status: 500 });
@@ -207,15 +229,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get company names
-    const { data: customerRows } = await privilegedClient
-      .from("customers")
-      .select("company_id, company_name")
-      .eq("company_id", profile.company_id)
-      .limit(1);
+    const companyIds = Array.from(
+      new Set(
+        (jobs as Array<{ company_id?: string | null }> | null | undefined ?? [])
+          .map((job) => job.company_id?.trim() ?? "")
+          .filter(Boolean)
+      )
+    );
 
-    const companyName =
-      (customerRows as Array<{ company_name: string }> | null)?.[0]?.company_name ?? "";
+    const companyNames = new Map<string, string>();
+    if (companyIds.length > 0) {
+      const { data: companyRows } = await privilegedClient
+        .from("companies")
+        .select("id, name")
+        .in("id", companyIds)
+        .returns<Array<{ id: string; name: string | null }>>();
+
+      for (const company of companyRows ?? []) {
+        if (company.id && company.name) {
+          companyNames.set(company.id, company.name);
+        }
+      }
+    }
 
     // Merge everything into the response shape
     const result = (jobs as unknown as Array<Record<string, unknown>>).map((job) => {
@@ -289,10 +324,8 @@ export async function GET(request: NextRequest) {
         status: job.status,
         lifecycleStatus: job.lifecycle_status ?? null,
         companyId: job.company_id,
-        merchantName:
-          pick(fields, "merchant_shipper", "merchant_name") ||
-          companyName ||
-          "—",
+        merchantName: companyNames.get(String(job.company_id ?? "")) || "—",
+        customerName: typeof job.customer === "string" ? job.customer : "",
         collectionName: pick(fields, "collection_name", "shipper"),
         collectionAddress: pick(fields, "collection_address"),
         collectionPhone: pick(fields, "collection_phone", "telephone", "phone"),
@@ -303,6 +336,7 @@ export async function GET(request: NextRequest) {
         deliveryEmail: pick(fields, "delivery_email", "email"),
         goodsDescription: pick(fields, "goods_description", "goods"),
         orderReference: pick(fields, "order_reference"),
+        externalOrderReference: typeof job.external_order_id === "string" ? job.external_order_id : "",
         orderNumber: pick(fields, "order_number"),
         bookingProfileId:
           (typeof job.booking_profile_id === "string" && job.booking_profile_id) ||

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabaseClient";
 export type ProcessItJob = {
   id: string;
   jobReference: string | null;
+  customerName?: string;
+  externalOrderReference?: string;
   orderNumber?: string;
   bookingProfileId?: string | null;
   bookingProfileName?: string | null;
@@ -58,15 +60,7 @@ export type ProcessItJob = {
   updatedAt: string;
 };
 
-type MerchantWorkspace = {
-  id: string;
-  merchantName: string;
-};
-
-const MERCHANT_WORKSPACES_STORAGE_KEY = "nexus.manageit.merchantWorkspaces.v1";
-const ACTIVE_WORKSPACE_STORAGE_KEY = "nexus.manageit.activeWorkspaceId.v1";
-
-type ViewFilter = "all" | "pending" | "sent" | "error";
+type ViewFilter = "all" | "review" | "pending" | "sent" | "error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +121,9 @@ function jobMatchesFilter(job: ProcessItJob, filter: ViewFilter): boolean {
   const ls = job.lifecycleStatus;
   const hasDelivery = Boolean(job.trackpodDeliveryOrderId);
   const hasCollection = Boolean(job.trackpodCollectionOrderId);
+  if (filter === "review") {
+    return ls === "REVIEW_REQUIRED" || job.readinessStatus === "NEEDS_REVIEW";
+  }
   if (filter === "sent") return Boolean(hasDelivery && hasCollection);
   if (filter === "error") return ls === "TRACKPOD_ERROR";
   if (filter === "pending") return !hasDelivery && !hasCollection && ls !== "TRACKPOD_ERROR";
@@ -632,7 +629,13 @@ function DetailRow({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ProcessItQueue() {
+export default function ProcessItQueue({
+  scope = "admin",
+  sourceOrdersPath = "/orders",
+}: {
+  scope?: "admin" | "merchant";
+  sourceOrdersPath?: string;
+}) {
   const [jobs, setJobs] = useState<ProcessItJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -643,23 +646,6 @@ export default function ProcessItQueue() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [sendResult, setSendResult] = useState<Record<string, { ok: boolean; msg: string }>>({});
-  const [activeWorkspaceName, setActiveWorkspaceName] = useState("");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const activeId = window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() ?? "";
-      const workspaces = JSON.parse(
-        window.localStorage.getItem(MERCHANT_WORKSPACES_STORAGE_KEY) ?? "[]"
-      ) as MerchantWorkspace[];
-      const activeWorkspace = Array.isArray(workspaces)
-        ? workspaces.find((workspace) => workspace.id === activeId)
-        : undefined;
-      setActiveWorkspaceName(activeWorkspace?.merchantName ?? "");
-    } catch {
-      setActiveWorkspaceName("");
-    }
-  }, []);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -671,7 +657,7 @@ export default function ProcessItQueue() {
       } = await supabase.auth.getSession();
 
       const token = session?.access_token;
-      const res = await fetch("/api/process-it/queue", {
+      const res = await fetch(`/api/process-it/queue?scope=${scope}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
@@ -687,10 +673,13 @@ export default function ProcessItQueue() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
-    void loadJobs();
+    const timer = window.setTimeout(() => {
+      void loadJobs();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadJobs]);
 
   const releaseToTrackPod = useCallback(
@@ -845,31 +834,23 @@ export default function ProcessItQueue() {
     [loadJobs]
   );
 
-  const workspaceScopedJobs = useMemo(() => {
-    const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
-    if (!workspaceNeedle) return jobs;
-
-    return jobs.filter((job) => {
-      const merchantName = job.merchantName.trim().toLowerCase();
-      if (!merchantName || merchantName === "—") {
-        return true;
-      }
-      if (merchantName === workspaceNeedle) {
-        return true;
-      }
-      // Keep legacy untagged records visible until all orders carry explicit merchant workspace metadata.
-      return !merchantName.startsWith("[[");
-    });
-  }, [activeWorkspaceName, jobs]);
-
-  const filteredJobs = workspaceScopedJobs.filter((j) => jobMatchesFilter(j, filter));
+  const filteredJobs = jobs.filter((j) => jobMatchesFilter(j, filter));
 
   const counts = {
-    all: workspaceScopedJobs.length,
-    pending: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "pending")).length,
-    sent: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "sent")).length,
-    error: workspaceScopedJobs.filter((j) => jobMatchesFilter(j, "error")).length,
+    all: jobs.length,
+    review: jobs.filter((j) => jobMatchesFilter(j, "review")).length,
+    pending: jobs.filter((j) => jobMatchesFilter(j, "pending")).length,
+    sent: jobs.filter((j) => jobMatchesFilter(j, "sent")).length,
+    error: jobs.filter((j) => jobMatchesFilter(j, "error")).length,
   };
+
+  const openSourceOrder = useCallback((jobId: string, edit = false) => {
+    const params = new URLSearchParams({ orderId: jobId });
+    if (edit) {
+      params.set("edit", "1");
+    }
+    window.location.href = `${sourceOrdersPath}?${params.toString()}`;
+  }, [sourceOrdersPath]);
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -918,7 +899,7 @@ export default function ProcessItQueue() {
 
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
-        {(["all", "pending", "sent", "error"] as ViewFilter[]).map((f) => (
+        {(["all", "review", "pending", "sent", "error"] as ViewFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -930,7 +911,7 @@ export default function ProcessItQueue() {
                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
+            {f === "review" ? "Review" : f.charAt(0).toUpperCase() + f.slice(1)}
             <span
               className={`ml-2 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
                 filter === f ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
@@ -1034,12 +1015,18 @@ export default function ProcessItQueue() {
                       <div className="font-semibold text-slate-800">
                         {job.jobReference ?? job.id.slice(0, 8).toUpperCase()}
                       </div>
+                      {job.externalOrderReference ? (
+                        <div className="mt-0.5 text-xs text-slate-500">Merchant ref: {job.externalOrderReference}</div>
+                      ) : null}
                       {job.orderNumber ? (
                         <div className="mt-0.5 text-xs text-slate-500">Order Number: {job.orderNumber}</div>
                       ) : null}
                       {job.orderReference && job.orderReference !== job.jobReference && (
                         <div className="mt-0.5 text-xs text-slate-400">{job.orderReference}</div>
                       )}
+                      {job.customerName ? (
+                        <div className="mt-0.5 text-xs text-slate-500">Customer: {job.customerName}</div>
+                      ) : null}
                       {job.bookingProfileName ? (
                         <div className="mt-0.5 text-xs text-violet-700">Profile: {job.bookingProfileName}</div>
                       ) : null}
@@ -1234,6 +1221,18 @@ export default function ProcessItQueue() {
                           variant="ghost"
                         />
 
+                        <ActionButton
+                          label="Source Order"
+                          onClick={() => openSourceOrder(job.id, false)}
+                          variant="ghost"
+                        />
+
+                        <ActionButton
+                          label="Edit Source"
+                          onClick={() => openSourceOrder(job.id, true)}
+                          variant="ghost"
+                        />
+
                         {/* Send / Retry */}
                         {!bothSent && (
                           <>
@@ -1269,7 +1268,7 @@ export default function ProcessItQueue() {
                         {blockedByReadiness ? (
                           <ActionButton
                             label="Needs review"
-                            onClick={() => setSelectedJob(job)}
+                            onClick={() => openSourceOrder(job.id, true)}
                             variant="warning"
                           />
                         ) : null}

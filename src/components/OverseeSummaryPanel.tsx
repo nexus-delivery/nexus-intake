@@ -1,0 +1,161 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import type { DashboardRow } from "@/lib/orders/dashboard";
+
+type OverseeSummaryPanelProps = {
+  scope: "admin" | "merchant";
+};
+
+type DashboardResponse = {
+  jobs: DashboardRow[];
+  error?: string;
+};
+
+type SummaryCard = {
+  label: string;
+  value: number;
+  href: string;
+};
+
+export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps) {
+  const [jobs, setJobs] = useState<DashboardRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      if (!supabase) throw new Error("Supabase client is unavailable");
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Please sign in to view operational summary");
+
+      const response = await fetch(`/api/orders/dashboard?scope=${scope}&limit=300`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = (await response.json()) as DashboardResponse;
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to load overview (${response.status})`);
+      }
+
+      setJobs(payload.jobs ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load overview");
+    } finally {
+      setLoading(false);
+    }
+  }, [scope]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadJobs();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadJobs]);
+
+  const baseOrdersPath = scope === "admin" ? "/orders" : "/portal/orders";
+  const baseTrackPath = scope === "admin" ? "/track-it" : "/portal/track-it";
+
+  const summary = useMemo(() => {
+    const review = jobs.filter((job) => job.lifecycleStatus === "Needs Review").length;
+    const accepted = jobs.filter((job) => Boolean(job.trackPodCollectionOrderId || job.trackPodDeliveryOrderId)).length;
+    const planning = jobs.filter((job) => {
+      const current = (job.currentStatus || "").toLowerCase();
+      return current.includes("planning") || current.includes("route") || job.rawLifecycleStatus.toLowerCase().includes("ready_for_route");
+    }).length;
+    const inTransit = jobs.filter((job) => {
+      const current = (job.currentStatus || "").toLowerCase();
+      return current.includes("transit") || current.includes("out for delivery") || current.includes("collected");
+    }).length;
+    const delivered = jobs.filter((job) => (job.currentStatus || "").toLowerCase().includes("delivered")).length;
+    const issues = jobs.filter((job) => job.trackPodPushStatus === "Failed" || job.lifecycleStatus === "Failed / issue").length;
+    const merchants = new Set(jobs.map((job) => job.merchantName).filter(Boolean)).size;
+
+    const cards: SummaryCard[] = scope === "admin"
+      ? [
+          { label: "All orders", value: jobs.length, href: baseOrdersPath },
+          { label: "Merchants", value: merchants, href: "/manage-it" },
+          { label: "Needs review", value: review, href: `${baseOrdersPath}?status=Needs Review` },
+          { label: "Accepted / Track it", value: accepted, href: baseTrackPath },
+          { label: "Planning", value: planning, href: baseTrackPath },
+          { label: "In transit", value: inTransit, href: baseTrackPath },
+          { label: "Delivered", value: delivered, href: baseTrackPath },
+          { label: "Track-POD issues", value: issues, href: "/process-it" },
+        ]
+      : [
+          { label: "Created orders", value: jobs.length, href: baseOrdersPath },
+          { label: "Needs review", value: review, href: `${baseOrdersPath}?status=Needs Review` },
+          { label: "Accepted / Track it", value: accepted, href: baseTrackPath },
+          { label: "Planning", value: planning, href: baseTrackPath },
+          { label: "In transit", value: inTransit, href: baseTrackPath },
+          { label: "Delivered", value: delivered, href: baseTrackPath },
+        ];
+
+    const notifications = [
+      review > 0 ? `${review} order${review === 1 ? "" : "s"} need review before Track-POD release.` : null,
+      accepted > 0 ? `${accepted} accepted order${accepted === 1 ? " is" : "s are"} visible in Track it.` : null,
+      delivered > 0 ? `${delivered} delivered order${delivered === 1 ? "" : "s"} ready for follow-up and invoicing.` : null,
+      issues > 0 ? `${issues} order${issues === 1 ? " has" : "s have"} Track-POD or workflow issues needing attention.` : null,
+    ].filter((item): item is string => Boolean(item));
+
+    return { cards, notifications };
+  }, [baseOrdersPath, baseTrackPath, jobs, scope]);
+
+  return (
+    <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Oversee it</p>
+        <h2 className="text-2xl font-semibold text-slate-950">
+          {scope === "admin" ? "Operational oversight" : "Merchant oversight"}
+        </h2>
+        <p className="text-sm text-slate-600">
+          {scope === "admin"
+            ? "All merchants, all orders, review pressure, accepted work, and Track-POD progress."
+            : "Only your own orders, review items, accepted work, tracking visibility, and operational attention points."}
+        </p>
+      </div>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : loading ? (
+        <p className="text-sm text-slate-500">Loading oversight summary...</p>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {summary.cards.map((card) => (
+              <Link key={card.label} href={card.href} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 transition hover:border-[#7C3AED]/30 hover:bg-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">{card.value}</p>
+              </Link>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">Notifications</p>
+              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">{summary.notifications.length}</span>
+            </div>
+            {summary.notifications.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">No operational alerts right now.</p>
+            ) : (
+              <ul className="mt-3 space-y-2 text-sm text-slate-700">
+                {summary.notifications.map((item) => (
+                  <li key={item} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
