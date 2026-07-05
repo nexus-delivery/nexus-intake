@@ -42,6 +42,10 @@ function isAdminRole(role: string | null): boolean {
   ].includes(normalized);
 }
 
+function clean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 type DraftJobDetailRow = Record<string, unknown>;
 
 export async function GET(
@@ -275,6 +279,136 @@ export async function GET(
     });
 
     return NextResponse.json({ detail });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const token = parseBearerToken(request);
+    if (!token) {
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
+    }
+
+    const authClient = createAuthClient();
+    const privilegedClient = createPrivilegedClient();
+    if (!authClient || !privilegedClient) {
+      return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+    }
+
+    const {
+      data: { user },
+      error: userError,
+    } = await authClient.auth.getUser(token);
+
+    if (userError || !user) {
+      return NextResponse.json({ error: "Session expired. Please sign in again." }, { status: 401 });
+    }
+
+    const params = await context.params;
+    const id = params.id?.trim();
+    if (!id) {
+      return NextResponse.json({ error: "Missing order ID" }, { status: 400 });
+    }
+
+    const { data: profile, error: profileError } = await privilegedClient
+      .from("profiles")
+      .select("company_id, role")
+      .eq("auth_user_id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile?.company_id) {
+      return NextResponse.json({ error: "No company linked to user" }, { status: 403 });
+    }
+
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const action = clean(body.action);
+
+    const { data: existing, error: existingError } = await privilegedClient
+      .from("draft_jobs")
+      .select("id, company_id, integration_metadata, collection_address_line1, delivery_address_line1, goods_description")
+      .eq("id", id)
+      .eq("company_id", profile.company_id)
+      .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    if (action === "send_to_process") {
+      const hasCollection = clean(existing.collection_address_line1).length > 0;
+      const hasDelivery = clean(existing.delivery_address_line1).length > 0;
+      const hasGoods = clean(existing.goods_description).length > 0;
+      if (!hasCollection || !hasDelivery || !hasGoods) {
+        return NextResponse.json(
+          { error: "Order must have collection, delivery, and goods description before sending to Process It" },
+          { status: 400 }
+        );
+      }
+
+      const existingMeta =
+        existing.integration_metadata && typeof existing.integration_metadata === "object"
+          ? (existing.integration_metadata as Record<string, unknown>)
+          : {};
+
+      const { error: updateError } = await privilegedClient
+        .from("draft_jobs")
+        .update({
+          status: "job_created",
+          lifecycle_status: "READY_FOR_TRACKPOD",
+          current_status: "READY_FOR_TRACKPOD",
+          integration_metadata: {
+            ...existingMeta,
+            readyForTrackPod: true,
+            updatedAt: new Date().toISOString(),
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("company_id", profile.company_id);
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    const payload = {
+      external_order_id: clean(body.externalOrderReference),
+      collection_company: clean(body.collectionName),
+      collection_address_line1: clean(body.collectionAddress),
+      collection_postcode: clean(body.collectionPostcode),
+      delivery_company: clean(body.deliveryName),
+      delivery_address_line1: clean(body.deliveryAddress),
+      delivery_postcode: clean(body.deliveryPostcode),
+      requested_collection_date: clean(body.requestedCollectionDate),
+      requested_delivery_date: clean(body.requestedDeliveryDate),
+      notes: clean(body.notes),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: updateError } = await privilegedClient
+      .from("draft_jobs")
+      .update(payload)
+      .eq("id", id)
+      .eq("company_id", profile.company_id);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal error" },

@@ -48,6 +48,22 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<DashboardDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [sendingToProcessId, setSendingToProcessId] = useState<string | null>(null);
+  const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    externalOrderReference: "",
+    collectionName: "",
+    collectionAddress: "",
+    collectionPostcode: "",
+    deliveryName: "",
+    deliveryAddress: "",
+    deliveryPostcode: "",
+    requestedCollectionDate: "",
+    requestedDeliveryDate: "",
+    notes: "",
+  });
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -128,7 +144,112 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     }
   }, []);
 
+  const archiveOrder = useCallback(async (id: string) => {
+    try {
+      if (!supabase) throw new Error("Supabase client is unavailable");
+      setArchivingId(id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Please sign in to archive orders");
+
+      const response = await fetch("/api/process-it/archive", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ draftJobId: id }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to archive order (${response.status})`);
+      }
+
+      setSelectedId(null);
+      setSelectedDetail(null);
+      await loadJobs();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to archive order");
+    } finally {
+      setArchivingId(null);
+    }
+  }, [loadJobs]);
+
+  const sendToProcess = useCallback(async (id: string) => {
+    try {
+      if (!supabase) throw new Error("Supabase client is unavailable");
+      setSendingToProcessId(id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Please sign in to continue");
+
+      const response = await fetch(`/api/orders/dashboard/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "send_to_process" }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to send to Process It (${response.status})`);
+      }
+
+      await loadJobs();
+      if (selectedId === id) {
+        await loadDetail(id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send to Process It");
+    } finally {
+      setSendingToProcessId(null);
+    }
+  }, [loadDetail, loadJobs, selectedId]);
+
+  const saveEdit = useCallback(async () => {
+    if (!editingId) return;
+    try {
+      if (!supabase) throw new Error("Supabase client is unavailable");
+      setSavingEdit(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Please sign in to edit orders");
+
+      const response = await fetch(`/api/orders/dashboard/${editingId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Failed to update order (${response.status})`);
+      }
+
+      setEditingId(null);
+      await loadJobs();
+      await loadDetail(editingId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update order");
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editForm, editingId, loadDetail, loadJobs]);
+
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadJobs();
   }, [loadJobs]);
 
@@ -255,13 +376,52 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
                   <td className="px-3 py-2 text-xs text-slate-600">{toLocale(job.createdAt)}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{toLocale(job.updatedAt)}</td>
                   <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => void loadDetail(job.id)}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                    >
-                      View
-                    </button>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => void loadDetail(job.id)}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(job.id);
+                          setEditForm({
+                            externalOrderReference: job.externalOrderReference || "",
+                            collectionName: job.collectionName || "",
+                            collectionAddress: job.collectionAddress || "",
+                            collectionPostcode: job.collectionPostcode || "",
+                            deliveryName: job.deliveryName || "",
+                            deliveryAddress: job.deliveryAddress || "",
+                            deliveryPostcode: job.deliveryPostcode || "",
+                            requestedCollectionDate: job.requestedCollectionDate || "",
+                            requestedDeliveryDate: job.requestedDeliveryDate || "",
+                            notes: selectedDetail?.operations.notes || "",
+                          });
+                        }}
+                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void archiveOrder(job.id)}
+                        disabled={archivingId === job.id}
+                        className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-60"
+                      >
+                        {archivingId === job.id ? "Archiving..." : "Archive"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void sendToProcess(job.id)}
+                        disabled={sendingToProcessId === job.id}
+                        className="rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700 disabled:opacity-60"
+                      >
+                        {sendingToProcessId === job.id ? "Sending..." : "Send to Process It"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -327,6 +487,45 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
           )}
         </div>
       )}
+
+      {editingId ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900">Edit order</h3>
+            <button
+              type="button"
+              onClick={() => setEditingId(null)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="External ref" value={editForm.externalOrderReference} onChange={(event) => setEditForm((prev) => ({ ...prev, externalOrderReference: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection name" value={editForm.collectionName} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionName: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" placeholder="Collection address" value={editForm.collectionAddress} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionAddress: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Collection postcode" value={editForm.collectionPostcode} onChange={(event) => setEditForm((prev) => ({ ...prev, collectionPostcode: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery name" value={editForm.deliveryName} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryName: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" placeholder="Delivery address" value={editForm.deliveryAddress} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryAddress: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Delivery postcode" value={editForm.deliveryPostcode} onChange={(event) => setEditForm((prev) => ({ ...prev, deliveryPostcode: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="date" value={editForm.requestedCollectionDate} onChange={(event) => setEditForm((prev) => ({ ...prev, requestedCollectionDate: event.target.value }))} />
+            <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="date" value={editForm.requestedDeliveryDate} onChange={(event) => setEditForm((prev) => ({ ...prev, requestedDeliveryDate: event.target.value }))} />
+            <textarea className="rounded-xl border border-slate-200 px-3 py-2 text-sm md:col-span-2" rows={3} placeholder="Notes" value={editForm.notes} onChange={(event) => setEditForm((prev) => ({ ...prev, notes: event.target.value }))} />
+          </div>
+
+          <div className="mt-3">
+            <button
+              type="button"
+              disabled={savingEdit}
+              onClick={() => void saveEdit()}
+              className="rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {savingEdit ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

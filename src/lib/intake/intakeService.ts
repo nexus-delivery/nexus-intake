@@ -272,6 +272,8 @@ function buildTrackPodMapping(input: IntakeOrderInput, ref: string): Record<stri
     collection_mode: input.collectionMode ?? "new_address",
     sales_channel_name: input.salesChannelName ?? "",
     customer: input.customer ?? "",
+    merchant_name: input.merchant ?? "",
+    workspace_name: input.merchant ?? "",
     priority: input.priority ?? "Normal",
     notes: input.notes ?? "",
     collection_name: input.collection.company,

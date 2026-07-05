@@ -843,7 +843,18 @@ export default function ProcessItQueue() {
   const workspaceScopedJobs = useMemo(() => {
     const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
     if (!workspaceNeedle) return jobs;
-    return jobs.filter((job) => job.merchantName.trim().toLowerCase() === workspaceNeedle);
+
+    return jobs.filter((job) => {
+      const merchantName = job.merchantName.trim().toLowerCase();
+      if (!merchantName || merchantName === "—") {
+        return true;
+      }
+      if (merchantName === workspaceNeedle) {
+        return true;
+      }
+      // Keep legacy untagged records visible until all orders carry explicit merchant workspace metadata.
+      return !merchantName.startsWith("[[");
+    });
   }, [activeWorkspaceName, jobs]);
 
   const filteredJobs = workspaceScopedJobs.filter((j) => jobMatchesFilter(j, filter));
