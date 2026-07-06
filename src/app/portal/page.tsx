@@ -1,23 +1,15 @@
 import Link from "next/link";
+import CommunicationsComingSoon from "@/components/CommunicationsComingSoon";
 import OrdersStatusBoard from "@/components/OrdersStatusBoard";
 import OverseeSummaryPanel from "@/components/OverseeSummaryPanel";
 
 const moduleCards = [
-  { title: "Create-it", href: "/portal/create-it", detail: "Merchant order workspace for Deliver it, Return it, and Request it." },
-  { title: "New Order", href: "/portal/book-it", detail: "Create a new order using shared intake services." },
-  { title: "Booking Forms", href: "/portal/booking-forms", detail: "Deliver it, Return it, and Request it on one intake service." },
-  { title: "Draft Orders", href: "/portal/draft-orders", detail: "Review staged bookings before operations handoff." },
-  { title: "Orders", href: "/portal/orders", detail: "Live order lifecycle with Track-POD synchronized timeline visibility." },
-  { title: "Manage-it", href: "/portal/manage-it", detail: "Company, users, customers, address books, settings and controls." },
-  { title: "Public Booking Forms", href: "/portal/public-booking-forms", detail: "External forms routing into Create-it standard intake." },
-  { title: "Booking Templates", href: "/portal/booking-templates", detail: "Reusable address books and operational defaults." },
-  { title: "WooCommerce Imports", href: "/portal/woocommerce-imports", detail: "Deferred until Wodely replacement is fully live and stable." },
-  { title: "OCR Upload", href: "/portal/ocr-upload", detail: "Upload Doorway documents, run OCR extraction, and review draft jobs." },
-  { title: "Document Upload", href: "/portal/document-upload", detail: "Upload operational documents and continue directly to review." },
-  { title: "Integrate-it", href: "/portal/integrate-it", detail: "Manage provider connections and tenant-scoped integration configuration." },
-  { title: "Documents", href: "/portal/documents", detail: "Upload and manage operational/customer documents." },
-  { title: "Reports", href: "/portal/reports", detail: "Company-scoped reporting and exports." },
-  { title: "Settings", href: "/portal/settings", detail: "Portal preferences, access, and defaults." },
+  { title: "Create it", href: "/portal/create-it", detail: "Start a new booking or move straight into merchant intake." },
+  { title: "Oversee it", href: "/portal/orders", detail: "Today's orders, status counts, filters, Track-POD links, and pagination." },
+  { title: "Manage it", href: "/portal/manage-it", detail: "Customers, addresses, workspaces, users, and merchant controls." },
+  { title: "Reports", href: "/portal/reports", detail: "Merchant reporting and exports." },
+  { title: "Settings", href: "/portal/settings", detail: "Portal defaults, access, and configuration." },
+  { title: "Documents", href: "/portal/documents", detail: "Access uploaded paperwork and supporting files." },
 ];
 
 export default function MerchantPortalPage() {
@@ -28,7 +20,7 @@ export default function MerchantPortalPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Workspace access</p>
           <h1 className="text-3xl font-semibold text-slate-950">Merchant Portal Dashboard</h1>
           <p className="max-w-3xl text-sm text-slate-600">
-            Merchant admins can manage customers, create bookings, and monitor orders for their own company only.
+            Merchant admins can create bookings, oversee today's work, and manage their own workspace without scrolling through months of history.
           </p>
         </div>
 
@@ -51,8 +43,10 @@ export default function MerchantPortalPage() {
       <OrdersStatusBoard
         scope="merchant"
         title="Merchant Oversee it"
-        subtitle="Only your own orders, review items, accepted work, planning, transit, delivered state, tracking links, and operational updates."
+        subtitle="Today-first merchant operations with Track-POD links, focused filters, and pagination."
       />
+
+      <CommunicationsComingSoon subtitle="Merchant-facing communication tools are placeholder-only for now." />
     </div>
   );
 }

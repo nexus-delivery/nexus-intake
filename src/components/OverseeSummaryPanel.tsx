@@ -21,6 +21,13 @@ type SummaryCard = {
   href: string;
 };
 
+function isSameDay(value: string, now = new Date()): boolean {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return false;
+  const date = new Date(parsed);
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
 export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps) {
   const searchParams = useSearchParams();
   const companyId = searchParams.get("companyId")?.trim() ?? "";
@@ -76,7 +83,8 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     : `/portal/orders?status=${encodeURIComponent("Needs Review")}`;
 
   const summary = useMemo(() => {
-    const review = jobs.filter((job) => job.lifecycleStatus === "Needs Review").length;
+    const todaysJobs = jobs.filter((job) => isSameDay(job.createdAt));
+    const review = todaysJobs.filter((job) => job.lifecycleStatus === "Needs Review").length;
     const accepted = jobs.filter((job) => Boolean(job.trackPodCollectionOrderId || job.trackPodDeliveryOrderId)).length;
     const planning = jobs.filter((job) => {
       const current = (job.currentStatus || "").toLowerCase();
@@ -88,12 +96,13 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     }).length;
     const delivered = jobs.filter((job) => (job.currentStatus || "").toLowerCase().includes("delivered")).length;
     const issues = jobs.filter((job) => job.trackPodPushStatus === "Failed" || job.lifecycleStatus === "Failed / issue").length;
-    const merchants = new Set(jobs.map((job) => job.merchantName).filter(Boolean)).size;
+    const merchants = new Set(todaysJobs.map((job) => job.merchantName).filter(Boolean)).size;
+    const todaysOrders = todaysJobs.length;
 
     const cards: SummaryCard[] = scope === "admin"
       ? [
-          { label: "All orders", value: jobs.length, href: baseOrdersPath },
-          { label: "Merchants", value: merchants, href: "/merchants" },
+          { label: "Today's orders", value: todaysOrders, href: `${baseOrdersPath}?window=today` },
+          { label: "Organisations / merchants", value: merchants, href: "/merchants" },
           { label: "Needs review", value: review, href: reviewPath },
           { label: "Accepted / Track it", value: accepted, href: baseTrackPath },
           { label: "Planning", value: planning, href: baseTrackPath },
@@ -101,8 +110,8 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
           { label: "Delivered", value: delivered, href: baseTrackPath },
         ]
       : [
-          { label: "Created orders", value: jobs.length, href: baseOrdersPath },
-          { label: "Needs review", value: review, href: `${baseOrdersPath}?status=Needs Review` },
+          { label: "Today's orders", value: todaysOrders, href: `${baseOrdersPath}?window=today` },
+          { label: "Needs review", value: review, href: `${baseOrdersPath}?window=today&status=Needs Review` },
           { label: "Accepted / Track it", value: accepted, href: baseTrackPath },
           { label: "Planning", value: planning, href: baseTrackPath },
           { label: "In transit", value: inTransit, href: baseTrackPath },
@@ -110,6 +119,7 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
         ];
 
     const notifications = [
+      todaysOrders > 0 ? `${todaysOrders} order${todaysOrders === 1 ? "" : "s"} are on today's board.` : null,
       review > 0 ? `${review} order${review === 1 ? "" : "s"} need review before Track-POD release.` : null,
       accepted > 0 ? `${accepted} accepted order${accepted === 1 ? " is" : "s are"} visible in Track it.` : null,
       delivered > 0 ? `${delivered} delivered order${delivered === 1 ? "" : "s"} ready for follow-up and invoicing.` : null,
@@ -128,8 +138,8 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
         </h2>
         <p className="text-sm text-slate-600">
           {scope === "admin"
-            ? "All merchants, all orders, review pressure, accepted work, and Track-POD progress."
-            : "Only your own orders, review items, accepted work, tracking visibility, and operational attention points."}
+            ? "Today-first operational visibility across merchants, review pressure, accepted work, and Track-POD progress."
+            : "Today-first visibility for your own orders, review items, accepted work, tracking links, and operational attention points."}
         </p>
       </div>
 

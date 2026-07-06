@@ -7,19 +7,34 @@ import Sidebar from "@/components/Sidebar";
 import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
-const navItems = [
-  { label: "Oversee it", href: "/manage-it" },
+const adminNavItems = [
+  { label: "Dashboard", href: "/dashboard" },
   { label: "Create it", href: "/create-it" },
+  { label: "Oversee it", href: "/orders" },
   { label: "Process it", href: "/process-it" },
-  { label: "Account it", href: "/account-it" },
-  { label: "Store it", href: "/store-it" },
+  { label: "Manage it", href: "/manage-it" },
   { label: "Report it", href: "/report-it" },
-  { label: "Improve it", href: "/improve-it" },
+  { label: "Store it", href: "/store-it" },
+  { label: "Account it", href: "/account-it" },
+  { label: "Settings", href: "/settings" },
+];
+
+const merchantNavItems = [
+  { label: "Dashboard", href: "/portal" },
+  { label: "Create it", href: "/portal/create-it" },
+  { label: "Oversee it", href: "/portal/orders" },
+  { label: "Process it", href: "/process-it" },
+  { label: "Manage it", href: "/portal/manage-it" },
+  { label: "Report it", href: "/portal/reports" },
+  { label: "Store it", href: "/store-it" },
+  { label: "Account it", href: "/account-it" },
+  { label: "Settings", href: "/portal/settings" },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
   const activePath = pathname;
   const pageTitle = getTitleForPath(activePath);
+  const isPortal = pathname.startsWith("/portal");
   const [showManageIt, setShowManageIt] = useState(pathname.startsWith("/manage-it"));
 
   useEffect(() => {
@@ -52,9 +67,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
     };
   }, [pathname]);
 
-  const filteredNavItems = navItems.filter(
-    (item) => item.label !== "Oversee it" || showManageIt || pathname.startsWith("/manage-it")
-  );
+  const filteredNavItems = isPortal
+    ? merchantNavItems
+    : adminNavItems.filter(
+        (item) => item.label !== "Manage it" || showManageIt || pathname.startsWith("/manage-it")
+      );
 
   return (
     <div className="min-h-screen text-[var(--nexus-graphite)] nexus-page-enter">

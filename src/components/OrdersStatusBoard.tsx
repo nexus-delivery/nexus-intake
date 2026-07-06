@@ -18,6 +18,8 @@ type DashboardResponse = {
   error?: string;
 };
 
+type DatePreset = "today" | "last7" | "last30" | "custom";
+
 function badgeClass(status: string): string {
   const val = status.toLowerCase();
   if (val.includes("delivered") || val.includes("sent")) {
@@ -40,21 +42,44 @@ function toLocale(value: string): string {
   return Number.isFinite(parsed) ? new Date(parsed).toLocaleString() : "-";
 }
 
+function toDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function shiftDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
 export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
   const searchParams = useSearchParams();
   const querySelectedId = searchParams.get("orderId")?.trim() ?? searchParams.get("selected")?.trim() ?? "";
   const queryEdit = searchParams.get("edit") === "1";
   const queryStatus = searchParams.get("status")?.trim() ?? "";
   const queryCompanyId = searchParams.get("companyId")?.trim() ?? "";
+  const queryWindow = searchParams.get("window")?.trim() ?? "today";
   const [jobs, setJobs] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [orderNumber, setOrderNumber] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [address, setAddress] = useState("");
+  const [merchant, setMerchant] = useState("");
   const [status, setStatus] = useState(() => queryStatus);
   const [companyIdFilter, setCompanyIdFilter] = useState(() => queryCompanyId);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [datePreset, setDatePreset] = useState<DatePreset>(() => {
+    if (queryWindow === "last7" || queryWindow === "last30" || queryWindow === "custom") return queryWindow;
+    return "today";
+  });
+  const [fromDate, setFromDate] = useState(() => toDateInputValue(new Date()));
+  const [toDate, setToDate] = useState(() => toDateInputValue(new Date()));
   const [salesChannel, setSalesChannel] = useState("");
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<DashboardDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -114,18 +139,30 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     });
   }
 
+  const dateRange = useMemo(() => {
+    const today = new Date();
+    if (datePreset === "today") {
+      const value = toDateInputValue(today);
+      return { from: value, to: value };
+    }
+    if (datePreset === "last7") {
+      return { from: toDateInputValue(shiftDays(today, -6)), to: toDateInputValue(today) };
+    }
+    if (datePreset === "last30") {
+      return { from: toDateInputValue(shiftDays(today, -29)), to: toDateInputValue(today) };
+    }
+    return { from: fromDate.trim(), to: toDate.trim() };
+  }, [datePreset, fromDate, toDate]);
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     params.set("scope", props.scope);
-    if (search.trim()) params.set("search", search.trim());
-    if (status.trim()) params.set("status", status.trim());
-    if (fromDate.trim()) params.set("from", fromDate.trim());
-    if (toDate.trim()) params.set("to", toDate.trim());
-    if (salesChannel.trim()) params.set("salesChannel", salesChannel.trim());
+    if (dateRange.from) params.set("from", dateRange.from);
+    if (dateRange.to) params.set("to", dateRange.to);
     if (props.scope === "admin" && companyIdFilter.trim()) params.set("companyId", companyIdFilter.trim());
     params.set("limit", "300");
     return params.toString();
-  }, [props.scope, search, status, fromDate, toDate, salesChannel, companyIdFilter]);
+  }, [companyIdFilter, dateRange.from, dateRange.to, props.scope]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -140,6 +177,17 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [queryCompanyId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (queryWindow === "last7" || queryWindow === "last30" || queryWindow === "custom") {
+        setDatePreset(queryWindow);
+      } else {
+        setDatePreset("today");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [queryWindow]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -318,6 +366,44 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     }
   }, [editForm, editingId, loadDetail, loadJobs]);
 
+  const filteredJobs = useMemo(() => {
+    const orderNeedle = orderNumber.trim().toLowerCase();
+    const customerNeedle = customer.trim().toLowerCase();
+    const postcodeNeedle = postcode.trim().toLowerCase();
+    const addressNeedle = address.trim().toLowerCase();
+    const merchantNeedle = merchant.trim().toLowerCase();
+    const statusNeedle = status.trim().toLowerCase();
+    const salesChannelNeedle = salesChannel.trim().toLowerCase();
+
+    return jobs.filter((job) => {
+      if (statusNeedle && job.lifecycleStatus.toLowerCase() !== statusNeedle) return false;
+      if (orderNeedle) {
+        const haystack = [job.internalOrderNumber, job.externalOrderReference].join(" ").toLowerCase();
+        if (!haystack.includes(orderNeedle)) return false;
+      }
+      if (customerNeedle && ![job.customerMerchant, job.collectionName, job.deliveryName].join(" ").toLowerCase().includes(customerNeedle)) {
+        return false;
+      }
+      if (postcodeNeedle && ![job.collectionPostcode, job.deliveryPostcode].join(" ").toLowerCase().includes(postcodeNeedle)) {
+        return false;
+      }
+      if (addressNeedle && ![job.collectionAddress, job.deliveryAddress].join(" ").toLowerCase().includes(addressNeedle)) {
+        return false;
+      }
+      if (merchantNeedle && !job.merchantName.toLowerCase().includes(merchantNeedle)) return false;
+      if (salesChannelNeedle && !job.salesChannelName.toLowerCase().includes(salesChannelNeedle)) return false;
+      return true;
+    });
+  }, [address, customer, jobs, merchant, orderNumber, postcode, salesChannel, status]);
+
+  const pageSize = 25;
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedJobs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredJobs.slice(start, start + pageSize);
+  }, [currentPage, filteredJobs]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void loadJobs();
@@ -362,16 +448,57 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
         </button>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {[
+          { label: "Today", value: "today" },
+          { label: "Last 7 days", value: "last7" },
+          { label: "Last 30 days", value: "last30" },
+          { label: "Custom range", value: "custom" },
+        ].map((preset) => (
+          <button
+            key={preset.value}
+            type="button"
+            onClick={() => {
+              setDatePreset(preset.value as DatePreset);
+              setPage(1);
+            }}
+            className={
+              "rounded-full border px-3 py-1.5 text-xs font-semibold " +
+              (datePreset === preset.value
+                ? "border-[#7C3AED] bg-violet-50 text-[#7C3AED]"
+                : "border-slate-200 bg-white text-slate-700")
+            }
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Order #, ref, customer, postcode"
+          value={orderNumber}
+          onChange={(event) => {
+            setOrderNumber(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Order number or ref"
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+        />
+        <input
+          value={customer}
+          onChange={(event) => {
+            setCustomer(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Customer"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
         <select
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         >
           <option value="">All statuses</option>
@@ -386,30 +513,75 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
           <option value="Failed / issue">Failed / issue</option>
         </select>
         <input
-          value={fromDate}
-          onChange={(event) => setFromDate(event.target.value)}
-          type="date"
+          value={postcode}
+          onChange={(event) => {
+            setPostcode(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Postcode"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
         <input
-          value={toDate}
-          onChange={(event) => setToDate(event.target.value)}
-          type="date"
+          value={address}
+          onChange={(event) => {
+            setAddress(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Address"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
         <input
           value={salesChannel}
-          onChange={(event) => setSalesChannel(event.target.value)}
+          onChange={(event) => {
+            setSalesChannel(event.target.value);
+            setPage(1);
+          }}
           placeholder="Sales channel"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
         {props.scope === "admin" ? (
-          <input
-            value={companyIdFilter}
-            onChange={(event) => setCompanyIdFilter(event.target.value)}
-            placeholder="Merchant company id"
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
-          />
+          <>
+            <input
+              value={merchant}
+              onChange={(event) => {
+                setMerchant(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Merchant"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+            <input
+              value={companyIdFilter}
+              onChange={(event) => {
+                setCompanyIdFilter(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Merchant company id"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+          </>
+        ) : null}
+        {datePreset === "custom" ? (
+          <>
+            <input
+              value={fromDate}
+              onChange={(event) => {
+                setFromDate(event.target.value);
+                setPage(1);
+              }}
+              type="date"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+            <input
+              value={toDate}
+              onChange={(event) => {
+                setToDate(event.target.value);
+                setPage(1);
+              }}
+              type="date"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+            />
+          </>
         ) : null}
       </div>
 
@@ -421,7 +593,7 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading orders...</p>
-      ) : jobs.length === 0 ? (
+      ) : filteredJobs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
           No orders matched your filters.
         </div>
@@ -446,7 +618,7 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {jobs.map((job) => (
+              {pagedJobs.map((job) => (
                 <tr key={job.id}>
                   <td className="px-3 py-2 font-semibold text-slate-900">{job.internalOrderNumber || "-"}</td>
                   {props.scope === "admin" ? (
@@ -472,12 +644,20 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass(job.trackPodPushStatus)}`}>
                         {job.trackPodPushStatus}
                       </span>
-                      <div className="text-xs text-slate-500">
-                        D: {job.trackPodDeliveryOrderId || "-"}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        C: {job.trackPodCollectionOrderId || "-"}
-                      </div>
+                      {job.trackPodDeliveryTrackingUrl ? (
+                        <a href={job.trackPodDeliveryTrackingUrl} target="_blank" rel="noreferrer" className="block text-xs font-semibold text-[#7C3AED] underline-offset-2 hover:underline">
+                          Delivery link
+                        </a>
+                      ) : (
+                        <div className="text-xs text-slate-500">D: {job.trackPodDeliveryOrderId || "-"}</div>
+                      )}
+                      {job.trackPodCollectionTrackingUrl ? (
+                        <a href={job.trackPodCollectionTrackingUrl} target="_blank" rel="noreferrer" className="block text-xs font-semibold text-[#7C3AED] underline-offset-2 hover:underline">
+                          Collection link
+                        </a>
+                      ) : (
+                        <div className="text-xs text-slate-500">C: {job.trackPodCollectionOrderId || "-"}</div>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-slate-600">{toLocale(job.createdAt)}</td>
@@ -525,6 +705,33 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
           </table>
         </div>
       )}
+
+      {!loading && filteredJobs.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+          <span>
+            Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredJobs.length)} of {filteredJobs.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={currentPage <= 1}
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span>Page {currentPage} of {totalPages}</span>
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {selectedId && (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

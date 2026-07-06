@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import PlatformBreadcrumbs from "@/components/PlatformBreadcrumbs";
 import WorkspaceSelector from "@/components/WorkspaceSelector";
 
@@ -8,6 +9,10 @@ type HeaderProps = {
 };
 
 export default function Header({ title, subtitle }: HeaderProps) {
+  const pathname = usePathname() || "/";
+  const overseeHref = pathname.startsWith("/portal") ? "/portal/orders" : "/orders";
+  const dashboardHref = pathname.startsWith("/portal") ? "/portal" : "/dashboard";
+
   return (
     <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
       <div className="space-y-3">
@@ -20,7 +25,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <WorkspaceSelector />
         <Link
-          href="/manage-it"
+          href={overseeHref}
           className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[var(--nexus-graphite)] shadow-sm shadow-slate-300/30 transition hover:bg-slate-50"
         >
           Back to Oversee it
@@ -37,7 +42,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
             !
           </span>
         </Link>
-        <Link href="/dashboard" className="rounded-2xl bg-[var(--nexus-purple)] px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-[rgba(139,92,246,0.35)] hover:bg-violet-700">
+        <Link href={dashboardHref} className="rounded-2xl bg-[var(--nexus-purple)] px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-[rgba(139,92,246,0.35)] hover:bg-violet-700">
           Live view
         </Link>
       </div>
