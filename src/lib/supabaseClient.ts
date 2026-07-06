@@ -5,7 +5,7 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SIGN_IN_ERROR = "Please sign in to access merchant documents";
-const NO_COMPANY_ERROR = "No company is linked to this user";
+const NO_COMPANY_ERROR = "No organisation is linked to this user";
 const ACCESS_DENIED_ERROR = "You do not have access to this document";
 
 export function getSupabaseProjectRefFromUrl(): string | null {
@@ -56,6 +56,7 @@ type AuthenticatedProfileContext = {
   authUserId: string;
   profileId: string;
   companyId: string;
+  organizationId: string;
 };
 
 export type CurrentProfile = AuthenticatedProfileContext;
@@ -91,7 +92,7 @@ async function fetchAuthenticatedProfileContext(
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, company_id")
+    .select("id, company_id, organisation_id")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -104,14 +105,17 @@ async function fetchAuthenticatedProfileContext(
     throw new Error(NO_COMPANY_ERROR);
   }
 
-  if (!profile.company_id) {
+  if (!profile.company_id && !profile.organisation_id) {
     throw new Error(NO_COMPANY_ERROR);
   }
+
+  const organizationId = profile.organisation_id ?? profile.company_id;
 
   return {
     authUserId,
     profileId: profile.id,
-    companyId: profile.company_id,
+    companyId: organizationId,
+    organizationId,
   };
 }
 
@@ -149,7 +153,7 @@ export function generateMockJobId(): string {
  * Upload a multi-format document (PDF, images, Word, Excel) to the
  * merchant-documents Supabase Storage bucket.
  *
- * Path structure: /{company_id}/uploads/{timestamp}-{filename}
+ * Path structure: /{organisation_id}/uploads/{timestamp}-{filename}
  */
 export async function uploadMultiFormatFile(
   file: File,

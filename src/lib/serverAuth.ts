@@ -11,6 +11,7 @@ const supabasePublicKey =
 export type MerchantContext = {
   user: User;
   companyId: string;
+  organizationId: string;
   role: string;
   privilegedClient: SupabaseClient;
 };
@@ -18,13 +19,14 @@ export type MerchantContext = {
 export function normalizeProfileRole(role: unknown): string {
   const normalized = typeof role === "string" ? role.trim().toLowerCase() : "";
   if (!normalized) return "";
-  if (["ops_admin", "operations_admin", "operations"].includes(normalized)) return "operations";
+  if (["ops_admin", "operations_admin", "operations"].includes(normalized)) return "operations_admin";
   if (["platform_admin", "super_admin", "admin", "owner"].includes(normalized)) return "super_admin";
+  if (normalized === "user") return "viewer";
   return normalized;
 }
 
 export function canManageMerchants(role: unknown): boolean {
-  return ["super_admin", "company_admin", "operations"].includes(normalizeProfileRole(role));
+  return ["super_admin", "company_admin", "operations_admin"].includes(normalizeProfileRole(role));
 }
 
 export function parseBearerToken(request: NextRequest): string {
@@ -73,19 +75,22 @@ export async function getMerchantContext(
 
   const { data: profile, error: profileError } = await privilegedClient
     .from("profiles")
-    .select("company_id, role")
+    .select("id, company_id, organisation_id, role")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
-  if (profileError || !profile?.company_id) {
-    return { ok: false, error: "No company linked to user", status: 403 };
+  if (profileError || (!profile?.company_id && !profile?.organisation_id)) {
+    return { ok: false, error: "No organisation linked to user", status: 403 };
   }
+
+  const organizationId = String(profile.organisation_id ?? profile.company_id);
 
   return {
     ok: true,
     value: {
       user,
-      companyId: String(profile.company_id),
+      companyId: organizationId,
+      organizationId,
       role: normalizeProfileRole(profile.role),
       privilegedClient,
     },
