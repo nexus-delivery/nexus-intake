@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMerchantContext } from "@/lib/serverAuth";
+import { canManageMerchants, getMerchantContext } from "@/lib/serverAuth";
 
 type CompanyRow = {
   id: string;
@@ -38,11 +38,6 @@ type DocumentRow = {
   created_at: string;
 };
 
-function isAdminRole(role: string): boolean {
-  const normalized = role.trim().toLowerCase();
-  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -53,7 +48,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const isAdmin = isAdminRole(context.value.role);
+  const isAdmin = canManageMerchants(context.value.role);
 
   if (!isAdmin && id !== context.value.companyId) {
     return NextResponse.json({ error: "You can only access your own merchant workspace." }, { status: 403 });

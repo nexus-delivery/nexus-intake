@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMerchantContext } from "@/lib/serverAuth";
+import { canManageMerchants, getMerchantContext } from "@/lib/serverAuth";
 
 type MerchantStatus = "active" | "disabled" | "archived";
 
@@ -22,11 +22,6 @@ type JobRow = {
   company_id: string;
   lifecycle_status: string | null;
 };
-
-function isAdminRole(role: string): boolean {
-  const normalized = role.trim().toLowerCase();
-  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
-}
 
 function normalizeStatus(company: CompanyRow): MerchantStatus {
   const name = (company.name ?? "").trim().toLowerCase();
@@ -77,7 +72,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
-  const isAdmin = isAdminRole(context.value.role);
+  const isAdmin = canManageMerchants(context.value.role);
   const params = request.nextUrl.searchParams;
   const search = (params.get("search") ?? "").trim().toLowerCase();
   const statusFilter = (params.get("status") ?? "all").trim().toLowerCase();
@@ -216,7 +211,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
-  if (!isAdminRole(context.value.role)) {
+  if (!canManageMerchants(context.value.role)) {
     return NextResponse.json({ error: "Only admin roles can create merchants." }, { status: 403 });
   }
 

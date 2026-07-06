@@ -15,6 +15,18 @@ export type MerchantContext = {
   privilegedClient: SupabaseClient;
 };
 
+export function normalizeProfileRole(role: unknown): string {
+  const normalized = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (!normalized) return "";
+  if (["ops_admin", "operations_admin", "operations"].includes(normalized)) return "operations";
+  if (["platform_admin", "super_admin", "admin", "owner"].includes(normalized)) return "super_admin";
+  return normalized;
+}
+
+export function canManageMerchants(role: unknown): boolean {
+  return ["super_admin", "company_admin", "operations"].includes(normalizeProfileRole(role));
+}
+
 export function parseBearerToken(request: NextRequest): string {
   const authorization = request.headers.get("authorization") ?? "";
   return authorization.startsWith("Bearer ")
@@ -74,7 +86,7 @@ export async function getMerchantContext(
     value: {
       user,
       companyId: String(profile.company_id),
-      role: typeof profile.role === "string" ? profile.role : "",
+      role: normalizeProfileRole(profile.role),
       privilegedClient,
     },
   };

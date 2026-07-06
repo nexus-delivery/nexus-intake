@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMerchantContext } from "@/lib/serverAuth";
+import { canManageMerchants, getMerchantContext } from "@/lib/serverAuth";
 
 type CompanyRow = {
   id: string;
@@ -9,11 +9,6 @@ type CompanyRow = {
   created_at: string;
   updated_at: string;
 };
-
-function isAdminRole(role: string): boolean {
-  const normalized = role.trim().toLowerCase();
-  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
-}
 
 function restoreName(name: string): string {
   return name.replace(/^\[archived\]\s*/i, "").trim();
@@ -65,7 +60,7 @@ export async function PATCH(
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
-  const isAdmin = isAdminRole(context.value.role);
+  const isAdmin = canManageMerchants(context.value.role);
   if (!isAdmin) {
     return NextResponse.json({ error: "Only admin roles can update merchants." }, { status: 403 });
   }
@@ -131,7 +126,7 @@ export async function DELETE(
     return NextResponse.json({ error: context.error }, { status: context.status });
   }
 
-  const isAdmin = isAdminRole(context.value.role);
+  const isAdmin = canManageMerchants(context.value.role);
   if (!isAdmin) {
     return NextResponse.json({ error: "Only admin roles can delete merchants." }, { status: 403 });
   }

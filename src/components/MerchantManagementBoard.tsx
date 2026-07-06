@@ -739,6 +739,7 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
       {createOpen ? (
         <Modal title="Create Merchant" onClose={() => setCreateOpen(false)}>
           <div className="space-y-3">
+            {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
             <input value={formMerchantName} onChange={(event) => setFormMerchantName(event.target.value)} placeholder="Merchant Name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formCompany} onChange={(event) => setFormCompany(event.target.value)} placeholder="Company" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formBusinessType} onChange={(event) => setFormBusinessType(event.target.value)} placeholder="Business Type" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
@@ -750,6 +751,7 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
       {editMerchant ? (
         <Modal title={`Edit ${editMerchant.merchantName}`} onClose={() => setEditMerchant(null)}>
           <div className="space-y-3">
+            {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
             <input value={formMerchantName} onChange={(event) => setFormMerchantName(event.target.value)} placeholder="Merchant Name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formCompany} onChange={(event) => setFormCompany(event.target.value)} placeholder="Company" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formBusinessType} onChange={(event) => setFormBusinessType(event.target.value)} placeholder="Business Type" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
