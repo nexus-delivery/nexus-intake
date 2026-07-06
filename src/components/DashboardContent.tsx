@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import LiveOperationsDashboard from '@/components/LiveOperationsDashboard';
+import OverseeSummaryPanel from '@/components/OverseeSummaryPanel';
+import OrdersStatusBoard from '@/components/OrdersStatusBoard';
 import WorkflowStageBanner from '@/components/WorkflowStageBanner';
 
 const primaryModules = [
@@ -52,7 +53,13 @@ export default function DashboardContent() {
         </form>
       </section>
 
-      <LiveOperationsDashboard />
+      <OverseeSummaryPanel scope="admin" />
+
+      <OrdersStatusBoard
+        scope="admin"
+        title="All Orders"
+        subtitle="Search, filter, open, edit, archive, and progress operational orders across every merchant."
+      />
     </div>
   );
 }

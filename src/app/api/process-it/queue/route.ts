@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
 
     const requestedScope = request.nextUrl.searchParams.get("scope") === "admin" ? "admin" : "merchant";
     const adminScope = requestedScope === "admin" && isAdminRole((profile as { role?: string | null }).role ?? null);
+    const requestedCompanyId = request.nextUrl.searchParams.get("companyId")?.trim() ?? "";
 
     // Fetch all jobs for this company regardless of lifecycle status
     // Process-it shows the full picture: pending, sent, and errors
@@ -188,6 +189,8 @@ export async function GET(request: NextRequest) {
 
     if (!adminScope) {
       jobsQuery = jobsQuery.eq("company_id", profile.company_id);
+    } else if (requestedCompanyId) {
+      jobsQuery = jobsQuery.eq("company_id", requestedCompanyId);
     }
 
     const { data: jobs, error: jobsError } = await jobsQuery;

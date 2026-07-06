@@ -8,6 +8,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/communicate-it": "Communicate it",
   "/route-it": "Route it",
   "/track-it": "Track it",
+  "/review-it": "Review it",
   "/store-it": "Store it",
   "/account-it": "Account it",
   "/account-it/company-profile": "Company Profile",
@@ -43,7 +44,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   // Legacy routes — kept for backward compatibility
   "/orders": "Deliveries",
   "/consignments": "Consignments",
-  "/merchants": "Customers",
+  "/merchants": "Merchants",
   "/customers": "Customers",
   "/document-centre": "Documents",
   "/planning": "Planning",

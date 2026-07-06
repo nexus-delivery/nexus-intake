@@ -52,6 +52,11 @@ function toPayload(body: Record<string, unknown>): MerchantCustomerUpsert {
   };
 }
 
+function isAdminRole(role: string): boolean {
+  const normalized = role.trim().toLowerCase();
+  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
+}
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -68,6 +73,10 @@ export async function PATCH(
   }
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const requestedCompanyId = (typeof body.companyId === "string" ? body.companyId : "").trim();
+  const targetCompanyId = requestedCompanyId && isAdminRole(auth.value.role)
+    ? requestedCompanyId
+    : auth.value.companyId;
   const archive = body.archive === true;
   const restore = body.restore === true;
 
@@ -86,7 +95,7 @@ export async function PATCH(
 
     updatePayload = toMerchantCustomerInsert(
       payload,
-      auth.value.companyId,
+      targetCompanyId,
       auth.value.user.id,
       (body.archivedAt as string | null | undefined) ?? null
     );
@@ -97,7 +106,7 @@ export async function PATCH(
     .from("merchant_customers")
     .update(updatePayload)
     .eq("id", id)
-    .eq("company_id", auth.value.companyId)
+    .eq("company_id", targetCompanyId)
     .select(customerSelect)
     .maybeSingle<MerchantCustomerRow>();
 

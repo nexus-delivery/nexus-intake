@@ -59,6 +59,11 @@ function clean(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isAdminRole(role: string): boolean {
+  const normalized = role.trim().toLowerCase();
+  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
+}
+
 async function resolveUserContext(request: NextRequest) {
   const token = parseBearerToken(request);
   if (!token) {
@@ -107,7 +112,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: context.error }, { status: context.status });
     }
 
-    const companyId = context.profile.companyId;
+    const requestedCompanyId = (request.nextUrl.searchParams.get("companyId") ?? "").trim();
+    const companyId = requestedCompanyId && isAdminRole(context.profile.role)
+      ? requestedCompanyId
+      : context.profile.companyId;
 
     const [{ data: company }, { data: profiles }] = await Promise.all([
       context.privilegedClient
@@ -189,8 +197,13 @@ export async function POST(request: NextRequest) {
     const profileId = clean(body.id);
     const requestDefault = body.isDefault === true;
 
+    const requestedCompanyId = clean(body.companyId);
+    const companyId = requestedCompanyId && isAdminRole(context.profile.role)
+      ? requestedCompanyId
+      : context.profile.companyId;
+
     const payload = {
-      company_id: context.profile.companyId,
+      company_id: companyId,
       profile_name: clean(body.profileName) || "Default depot",
       company_name: clean(body.companyName),
       contact_name: clean(body.contactName),
@@ -215,7 +228,7 @@ export async function POST(request: NextRequest) {
     const existingProfilesResult = await context.privilegedClient
       .from("merchant_collection_profiles")
       .select("id")
-      .eq("company_id", context.profile.companyId)
+      .eq("company_id", companyId)
       .is("archived_at", null)
       .returns<Array<{ id: string }>>();
 
@@ -255,7 +268,7 @@ export async function POST(request: NextRequest) {
           .from("merchant_collection_profiles")
           .update(basePayload)
           .eq("id", profileId)
-          .eq("company_id", context.profile.companyId)
+          .eq("company_id", companyId)
           .select(profileSelect)
       : context.privilegedClient
           .from("merchant_collection_profiles")
@@ -272,7 +285,7 @@ export async function POST(request: NextRequest) {
       await context.privilegedClient
         .from("merchant_collection_profiles")
         .update({ is_default: false, updated_by_user_id: context.user.id })
-        .eq("company_id", context.profile.companyId)
+        .eq("company_id", companyId)
         .neq("id", data.id)
         .is("archived_at", null);
 
@@ -280,13 +293,13 @@ export async function POST(request: NextRequest) {
         .from("merchant_collection_profiles")
         .update({ is_default: true, updated_by_user_id: context.user.id })
         .eq("id", data.id)
-        .eq("company_id", context.profile.companyId);
+        .eq("company_id", companyId);
     }
 
     const { data: profiles } = await context.privilegedClient
       .from("merchant_collection_profiles")
       .select(profileSelect)
-      .eq("company_id", context.profile.companyId)
+      .eq("company_id", companyId)
       .is("archived_at", null)
       .order("is_default", { ascending: false })
       .order("updated_at", { ascending: false })

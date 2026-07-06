@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import type { DashboardRow } from "@/lib/orders/dashboard";
 
@@ -21,6 +22,8 @@ type SummaryCard = {
 };
 
 export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps) {
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get("companyId")?.trim() ?? "";
   const [jobs, setJobs] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,12 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
       const token = session?.access_token;
       if (!token) throw new Error("Please sign in to view operational summary");
 
-      const response = await fetch(`/api/orders/dashboard?scope=${scope}&limit=300`, {
+      const params = new URLSearchParams({ scope, limit: "300" });
+      if (scope === "admin" && companyId) {
+        params.set("companyId", companyId);
+      }
+
+      const response = await fetch(`/api/orders/dashboard?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const payload = (await response.json()) as DashboardResponse;
@@ -51,7 +59,7 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     } finally {
       setLoading(false);
     }
-  }, [scope]);
+  }, [companyId, scope]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -60,8 +68,12 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     return () => window.clearTimeout(timer);
   }, [loadJobs]);
 
-  const baseOrdersPath = scope === "admin" ? "/orders" : "/portal/orders";
-  const baseTrackPath = scope === "admin" ? "/track-it" : "/portal/track-it";
+  const contextQuery = scope === "admin" && companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
+  const baseOrdersPath = scope === "admin" ? `/orders${contextQuery}` : "/portal/orders";
+  const baseTrackPath = scope === "admin" ? `/track-it${contextQuery}` : "/portal/track-it";
+  const reviewPath = scope === "admin"
+    ? `/review-it?status=${encodeURIComponent("Needs Review,Failed / issue,Failed to send to Track-POD")}${companyId ? `&companyId=${encodeURIComponent(companyId)}` : ""}`
+    : `/portal/orders?status=${encodeURIComponent("Needs Review")}`;
 
   const summary = useMemo(() => {
     const review = jobs.filter((job) => job.lifecycleStatus === "Needs Review").length;
@@ -81,13 +93,12 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     const cards: SummaryCard[] = scope === "admin"
       ? [
           { label: "All orders", value: jobs.length, href: baseOrdersPath },
-          { label: "Merchants", value: merchants, href: "/manage-it" },
-          { label: "Needs review", value: review, href: `${baseOrdersPath}?status=Needs Review` },
+          { label: "Merchants", value: merchants, href: "/merchants" },
+          { label: "Needs review", value: review, href: reviewPath },
           { label: "Accepted / Track it", value: accepted, href: baseTrackPath },
           { label: "Planning", value: planning, href: baseTrackPath },
           { label: "In transit", value: inTransit, href: baseTrackPath },
           { label: "Delivered", value: delivered, href: baseTrackPath },
-          { label: "Track-POD issues", value: issues, href: "/process-it" },
         ]
       : [
           { label: "Created orders", value: jobs.length, href: baseOrdersPath },
@@ -106,7 +117,7 @@ export default function OverseeSummaryPanel({ scope }: OverseeSummaryPanelProps)
     ].filter((item): item is string => Boolean(item));
 
     return { cards, notifications };
-  }, [baseOrdersPath, baseTrackPath, jobs, scope]);
+  }, [baseOrdersPath, baseTrackPath, jobs, reviewPath, scope]);
 
   return (
     <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/30">

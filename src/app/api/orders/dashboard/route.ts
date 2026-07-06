@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
     const requestedScope = params.get("scope") === "admin" ? "admin" : "merchant";
     const roleScope = roleToScope(profile.role);
     const scope: Scope = roleScope === "admin" ? requestedScope : "merchant";
+    const requestedCompanyId = (params.get("companyId") ?? "").trim();
 
     const limitParam = Number(params.get("limit") ?? "200");
     const limit = Number.isFinite(limitParam)
@@ -190,6 +191,8 @@ export async function GET(request: NextRequest) {
 
     if (scope === "merchant") {
       query = query.eq("company_id", profile.company_id);
+    } else if (requestedCompanyId) {
+      query = query.eq("company_id", requestedCompanyId);
     }
 
     const { data, error } = await query.returns<DashboardListRow[]>();

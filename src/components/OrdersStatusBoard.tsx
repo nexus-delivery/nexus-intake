@@ -42,14 +42,16 @@ function toLocale(value: string): string {
 
 export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
   const searchParams = useSearchParams();
-  const querySelectedId = searchParams.get("orderId")?.trim() ?? "";
+  const querySelectedId = searchParams.get("orderId")?.trim() ?? searchParams.get("selected")?.trim() ?? "";
   const queryEdit = searchParams.get("edit") === "1";
   const queryStatus = searchParams.get("status")?.trim() ?? "";
+  const queryCompanyId = searchParams.get("companyId")?.trim() ?? "";
   const [jobs, setJobs] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState(() => queryStatus);
+  const [companyIdFilter, setCompanyIdFilter] = useState(() => queryCompanyId);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [salesChannel, setSalesChannel] = useState("");
@@ -120,9 +122,24 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
     if (fromDate.trim()) params.set("from", fromDate.trim());
     if (toDate.trim()) params.set("to", toDate.trim());
     if (salesChannel.trim()) params.set("salesChannel", salesChannel.trim());
+    if (props.scope === "admin" && companyIdFilter.trim()) params.set("companyId", companyIdFilter.trim());
     params.set("limit", "300");
     return params.toString();
-  }, [props.scope, search, status, fromDate, toDate, salesChannel]);
+  }, [props.scope, search, status, fromDate, toDate, salesChannel, companyIdFilter]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setStatus(queryStatus);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [queryStatus]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setCompanyIdFilter(queryCompanyId);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [queryCompanyId]);
 
   const loadJobs = useCallback(async () => {
     try {
@@ -386,6 +403,14 @@ export default function OrdersStatusBoard(props: OrdersStatusBoardProps) {
           placeholder="Sales channel"
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
         />
+        {props.scope === "admin" ? (
+          <input
+            value={companyIdFilter}
+            onChange={(event) => setCompanyIdFilter(event.target.value)}
+            placeholder="Merchant company id"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800"
+          />
+        ) : null}
       </div>
 
       {error && (

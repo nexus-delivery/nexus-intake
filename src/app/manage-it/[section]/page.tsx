@@ -1,6 +1,4 @@
-import { notFound } from "next/navigation";
-import AppShell from "@/components/AppShell";
-import ManageItControlRoom from "@/components/ManageItControlRoom";
+import { notFound, redirect } from "next/navigation";
 import { getManageItSection } from "@/lib/manageIt";
 
 export default async function ManageItSectionPage({
@@ -15,9 +13,5 @@ export default async function ManageItSectionPage({
     notFound();
   }
 
-  return (
-    <AppShell>
-      <ManageItControlRoom sectionSlug={currentSection.slug} />
-    </AppShell>
-  );
+  redirect(`/manage-it?section=${encodeURIComponent(currentSection.slug)}`);
 }

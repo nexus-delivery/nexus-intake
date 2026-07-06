@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { MerchantCustomer } from "@/lib/merchantCustomers";
 
@@ -65,6 +65,7 @@ const ADDRESS_TYPES: AddressType[] = ["delivery"];
 
 type Props = {
   activeWorkspaceName?: string;
+  activeWorkspaceCompanyId?: string;
 };
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -75,7 +76,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function CustomerAddressesManager({ activeWorkspaceName = "" }: Props) {
+export default function CustomerAddressesManager({ activeWorkspaceName = "", activeWorkspaceCompanyId = "" }: Props) {
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -125,8 +126,10 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
     return customers.filter((customer) => customer.company.trim().toLowerCase() === workspaceNeedle);
   }, [activeWorkspaceName, customers]);
 
-  async function loadCustomers() {
-    const response = await fetch("/api/merchant/customers", { headers: await authHeaders() });
+  const loadCustomers = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (activeWorkspaceCompanyId.trim()) params.set("companyId", activeWorkspaceCompanyId.trim());
+    const response = await fetch(`/api/merchant/customers?${params.toString()}`, { headers: await authHeaders() });
     const payload = (await response.json().catch(() => ({}))) as {
       customers?: MerchantCustomer[];
       error?: string;
@@ -140,15 +143,17 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
     if (!selectedCustomerId && nextCustomers.length > 0) {
       setSelectedCustomerId(nextCustomers[0].id);
     }
-  }
+  }, [activeWorkspaceCompanyId, selectedCustomerId]);
 
-  async function loadAddresses(customerId: string) {
+  const loadAddresses = useCallback(async (customerId: string) => {
     if (!customerId) {
       setAddresses([]);
       return;
     }
 
-    const response = await fetch(`/api/merchant/customers/${encodeURIComponent(customerId)}/addresses`, {
+    const params = new URLSearchParams();
+    if (activeWorkspaceCompanyId.trim()) params.set("companyId", activeWorkspaceCompanyId.trim());
+    const response = await fetch(`/api/merchant/customers/${encodeURIComponent(customerId)}/addresses?${params.toString()}`, {
       headers: await authHeaders(),
     });
 
@@ -162,33 +167,36 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
     }
 
     setAddresses(payload.addresses ?? []);
-  }
+  }, [activeWorkspaceCompanyId]);
 
   useEffect(() => {
     let active = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    setError(null);
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setSelectedCustomerId("");
+      setAddresses([]);
+      setError(null);
 
-    void (async () => {
-      try {
-        await loadCustomers();
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to load customers");
+      void (async () => {
+        try {
+          await loadCustomers();
+        } catch (err) {
+          if (active) {
+            setError(err instanceof Error ? err.message : "Failed to load customers");
+          }
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
         }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    })();
+      })();
+    }, 0);
 
     return () => {
+      window.clearTimeout(timer);
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeWorkspaceCompanyId, loadCustomers]);
 
   useEffect(() => {
     let active = true;
@@ -212,7 +220,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
     return () => {
       active = false;
     };
-  }, [selectedCustomerId]);
+  }, [loadAddresses, selectedCustomerId]);
 
   useEffect(() => {
     if (!workspaceCustomers.length) {
@@ -248,7 +256,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
           "Content-Type": "application/json",
           ...(await authHeaders()),
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, companyId: activeWorkspaceCompanyId }),
       });
 
       const payload = (await responseFinal.json().catch(() => ({}))) as {
@@ -294,6 +302,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
           email: newCustomer.email,
           phone: newCustomer.phone,
           mobile: newCustomer.phone,
+          companyId: activeWorkspaceCompanyId,
         }),
       });
 
@@ -330,7 +339,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
             "Content-Type": "application/json",
             ...(await authHeaders()),
           },
-          body: JSON.stringify({ isDefault: true }),
+          body: JSON.stringify({ isDefault: true, companyId: activeWorkspaceCompanyId }),
         }
       );
 
@@ -357,7 +366,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
             "Content-Type": "application/json",
             ...(await authHeaders()),
           },
-          body: JSON.stringify({ archive: true }),
+          body: JSON.stringify({ archive: true, companyId: activeWorkspaceCompanyId }),
         }
       );
 
@@ -397,6 +406,7 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "" }: P
             country: address.country,
             instructions: address.instructions,
             isDefault: false,
+            companyId: activeWorkspaceCompanyId,
           }),
         }
       );

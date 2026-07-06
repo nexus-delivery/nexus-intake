@@ -26,6 +26,7 @@ type Mode = "create" | "edit";
 
 type Props = {
   activeWorkspaceName?: string;
+  activeWorkspaceCompanyId?: string;
 };
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -36,7 +37,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function MerchantCustomersManager({ activeWorkspaceName = "" }: Props) {
+export default function MerchantCustomersManager({ activeWorkspaceName = "", activeWorkspaceCompanyId = "" }: Props) {
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function MerchantCustomersManager({ activeWorkspaceName = "" }: P
       const headers = await authHeaders();
       const params = new URLSearchParams({ archived: showArchived ? "true" : "false" });
       if (search.trim()) params.set("search", search.trim());
+      if (activeWorkspaceCompanyId.trim()) params.set("companyId", activeWorkspaceCompanyId.trim());
       const response = await fetch(`/api/merchant/customers?${params.toString()}`, { headers });
       const payload = (await response.json()) as { customers?: MerchantCustomer[]; error?: string };
       if (!response.ok) {
@@ -84,7 +86,7 @@ export default function MerchantCustomersManager({ activeWorkspaceName = "" }: P
     } finally {
       setLoading(false);
     }
-  }, [search, showArchived]);
+  }, [activeWorkspaceCompanyId, search, showArchived]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -139,7 +141,7 @@ export default function MerchantCustomersManager({ activeWorkspaceName = "" }: P
         const response = await fetch("/api/merchant/customers", {
           method: "POST",
           headers,
-          body: JSON.stringify(form),
+          body: JSON.stringify({ ...form, companyId: activeWorkspaceCompanyId }),
         });
         const payload = (await response.json()) as { error?: string };
         if (!response.ok) {
@@ -149,7 +151,7 @@ export default function MerchantCustomersManager({ activeWorkspaceName = "" }: P
         const response = await fetch(`/api/merchant/customers/${editingId}`, {
           method: "PATCH",
           headers,
-          body: JSON.stringify(form),
+          body: JSON.stringify({ ...form, companyId: activeWorkspaceCompanyId }),
         });
         const payload = (await response.json()) as { error?: string };
         if (!response.ok) {
@@ -175,7 +177,7 @@ export default function MerchantCustomersManager({ activeWorkspaceName = "" }: P
       const response = await fetch(`/api/merchant/customers/${id}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify(restore ? { restore: true } : { archive: true }),
+        body: JSON.stringify({ ...(restore ? { restore: true } : { archive: true }), companyId: activeWorkspaceCompanyId }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {

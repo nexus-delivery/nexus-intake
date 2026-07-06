@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -636,10 +637,13 @@ export default function ProcessItQueue({
   scope?: "admin" | "merchant";
   sourceOrdersPath?: string;
 }) {
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get("companyId")?.trim() ?? "";
+  const queryFilter = (searchParams.get("filter")?.trim().toLowerCase() ?? "") as ViewFilter;
   const [jobs, setJobs] = useState<ProcessItJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<ViewFilter>("all");
+  const [filter, setFilter] = useState<ViewFilter>(["all", "review", "pending", "sent", "error"].includes(queryFilter) ? queryFilter : "all");
   const [selectedJob, setSelectedJob] = useState<ProcessItJob | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -657,7 +661,12 @@ export default function ProcessItQueue({
       } = await supabase.auth.getSession();
 
       const token = session?.access_token;
-      const res = await fetch(`/api/process-it/queue?scope=${scope}`, {
+      const params = new URLSearchParams({ scope });
+      if (companyId && scope === "admin") {
+        params.set("companyId", companyId);
+      }
+
+      const res = await fetch(`/api/process-it/queue?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
@@ -673,7 +682,13 @@ export default function ProcessItQueue({
     } finally {
       setLoading(false);
     }
-  }, [scope]);
+  }, [companyId, scope]);
+
+  useEffect(() => {
+    if (["all", "review", "pending", "sent", "error"].includes(queryFilter)) {
+      setFilter(queryFilter);
+    }
+  }, [queryFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -846,11 +861,14 @@ export default function ProcessItQueue({
 
   const openSourceOrder = useCallback((jobId: string, edit = false) => {
     const params = new URLSearchParams({ orderId: jobId });
+    if (companyId && scope === "admin") {
+      params.set("companyId", companyId);
+    }
     if (edit) {
       params.set("edit", "1");
     }
     window.location.href = `${sourceOrdersPath}?${params.toString()}`;
-  }, [sourceOrdersPath]);
+  }, [companyId, scope, sourceOrdersPath]);
 
   // ─── Render ──────────────────────────────────────────────────────────────
 

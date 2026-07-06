@@ -128,35 +128,7 @@ export const MANAGE_IT_SECTIONS: ManageItSection[] = [
   },
 ];
 
-export const FALLBACK_AUDIT_LOGS: AuditLogEntry[] = [
-  {
-    id: "seed-1",
-    actorEmail: SUPER_ADMIN_EMAIL,
-    action: "manage_it.section.view",
-    resourceType: "dashboard",
-    resourceId: "dashboard",
-    createdAt: "2026-06-27T08:10:00.000Z",
-    details: { source: "seed", note: "Dashboard opened" },
-  },
-  {
-    id: "seed-2",
-    actorEmail: SUPER_ADMIN_EMAIL,
-    action: "manage_it.integration.test",
-    resourceType: "integration",
-    resourceId: "track-pod",
-    createdAt: "2026-06-27T09:25:00.000Z",
-    details: { result: "passed" },
-  },
-  {
-    id: "seed-3",
-    actorEmail: SUPER_ADMIN_EMAIL,
-    action: "manage_it.feature_flag.toggle",
-    resourceType: "feature_flag",
-    resourceId: "dynamic-routing-beta",
-    createdAt: "2026-06-27T10:45:00.000Z",
-    details: { enabled: true },
-  },
-];
+export const FALLBACK_AUDIT_LOGS: AuditLogEntry[] = [];
 
 export function getManageItSection(slug: string): ManageItSection | undefined {
   return MANAGE_IT_SECTIONS.find((section) => section.slug === slug);

@@ -20,14 +20,10 @@ type MerchantAddressRole = "Warehouse" | "Depot" | "Supplier" | "Collection Loca
 
 type Props = {
   activeWorkspaceName?: string;
+  activeWorkspaceCompanyId?: string;
 };
 
-const ROLE_OPTIONS: MerchantAddressRole[] = [
-  "Warehouse",
-  "Depot",
-  "Supplier",
-  "Collection Location",
-];
+const ROLE_OPTIONS: MerchantAddressRole[] = ["Warehouse", "Depot", "Supplier", "Collection Location"];
 
 function splitRoleAndName(profileName: string): { role: MerchantAddressRole; name: string } {
   const parsedName = parseCollectionProfileName(profileName);
@@ -54,7 +50,7 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-export default function CollectionAddressesManager({ activeWorkspaceName = "" }: Props) {
+export default function CollectionAddressesManager({ activeWorkspaceName = "", activeWorkspaceCompanyId = "" }: Props) {
   const [profiles, setProfiles] = useState<DefaultCollectionProfile[]>([]);
   const [editingId, setEditingId] = useState("");
   const [form, setForm] = useState<DefaultCollectionProfile>(toEmptyDefaultCollectionProfile(""));
@@ -82,7 +78,9 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/reference/default-collection-profile", {
+      const params = new URLSearchParams();
+      if (activeWorkspaceCompanyId.trim()) params.set("companyId", activeWorkspaceCompanyId.trim());
+      const response = await fetch(`/api/reference/default-collection-profile?${params.toString()}`, {
         headers: await authHeaders(),
       });
       const payload = (await response.json().catch(() => ({}))) as ProfilePayload;
@@ -102,6 +100,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
         }
         return profile.companyName.trim().toLowerCase() === activeWorkspace;
       });
+
       const preferredCurrent = scopedProfiles.find((profile) => profile.id === editingId);
       const preferred =
         !shouldResetSelection && preferredCurrent
@@ -126,10 +125,12 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeWorkspaceCompanyId]);
 
   function selectProfile(profile: DefaultCollectionProfile) {
     const parsed = splitRoleAndName(profile.profileName);
@@ -144,8 +145,8 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
     setEditingId("");
     setForm({
       ...toEmptyDefaultCollectionProfile(""),
-      companyName: "",
-      isDefault: profiles.length === 0,
+      companyName: activeWorkspaceName,
+      isDefault: workspaceScopedProfiles.length === 0,
     });
     setAddressRole("Depot");
     setError(null);
@@ -170,6 +171,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
             activeWorkspaceName,
             buildProfileName(addressRole, form.profileName)
           ),
+          companyId: activeWorkspaceCompanyId,
           id: editingId || undefined,
           isDefault: form.isDefault === true,
         }),
@@ -185,13 +187,8 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
         throw new Error(payload.error ?? "Failed to save profile");
       }
 
-      const nextProfiles = payload.profiles ?? [payload.profile];
-      setProfiles(nextProfiles);
-      setEditingId(payload.profile.id);
-      const parsed = splitRoleAndName(payload.profile.profileName);
-      setAddressRole(parsed.role);
-      setForm({ ...payload.profile, profileName: parsed.name });
       setMessage("Address saved");
+      await load(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile");
     } finally {
@@ -210,10 +207,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
             <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace: {activeWorkspaceName}</p>
           ) : null}
         </div>
-        <button
-          onClick={createNewProfile}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-        >
+        <button onClick={createNewProfile} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
           Add Address
         </button>
       </div>
@@ -252,11 +246,7 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Address Type</label>
-              <select
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                value={addressRole}
-                onChange={(event) => setAddressRole(event.target.value as MerchantAddressRole)}
-              >
+              <select className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={addressRole} onChange={(event) => setAddressRole(event.target.value as MerchantAddressRole)}>
                 {ROLE_OPTIONS.map((role) => (
                   <option key={role} value={role}>{role}</option>
                 ))}
@@ -303,20 +293,12 @@ export default function CollectionAddressesManager({ activeWorkspaceName = "" }:
               <textarea rows={3} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={form.instructions} onChange={(event) => setForm((prev) => ({ ...prev, instructions: event.target.value }))} />
             </div>
             <label className="sm:col-span-2 flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.isDefault === true}
-                onChange={(event) => setForm((prev) => ({ ...prev, isDefault: event.target.checked }))}
-              />
+              <input type="checkbox" checked={form.isDefault === true} onChange={(event) => setForm((prev) => ({ ...prev, isDefault: event.target.checked }))} />
               Set as default collection profile
             </label>
           </div>
 
-          <button
-            disabled={saving}
-            onClick={() => void saveProfile()}
-            className="mt-4 rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
+          <button disabled={saving} onClick={() => void saveProfile()} className="mt-4 rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Saving..." : "Save Address"}
           </button>
         </div>

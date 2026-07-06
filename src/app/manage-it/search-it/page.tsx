@@ -9,12 +9,15 @@ import { supabase } from "@/lib/supabaseClient";
 type MerchantWorkspace = {
   id: string;
   merchantName: string;
-  contactEmail: string;
+  contact: string;
+  email: string;
+  telephone: string;
   status: string;
 };
 
 type MerchantCustomer = {
   id: string;
+  companyId: string;
   customerName: string;
   company: string;
   contactName: string;
@@ -63,8 +66,6 @@ type SearchResult = {
   context: string;
   actions: Array<{ label: string; href: string }>;
 };
-
-const MERCHANT_WORKSPACES_KEY = "nexus.manageit.merchantWorkspaces.v1";
 
 type SortKey = "type" | "title" | "context";
 
@@ -223,12 +224,14 @@ function SearchItPageContent() {
       }
       const orders = ordersPayload.jobs ?? [];
 
-      const merchantRows =
-        typeof window !== "undefined"
-          ? ((JSON.parse(window.localStorage.getItem(MERCHANT_WORKSPACES_KEY) ?? "[]") as MerchantWorkspace[]) ?? [])
-          : [];
-      const merchants = merchantRows.filter((merchant) =>
-        [merchant.merchantName, merchant.contactEmail, merchant.status]
+      const merchantResponse = await fetch(`/api/manage-it/merchants?search=${encodeURIComponent(needle)}&page=1&pageSize=100`, {
+        headers,
+      });
+      const merchantPayload = (await merchantResponse.json().catch(() => ({}))) as {
+        merchants?: MerchantWorkspace[];
+      };
+      const merchants = (merchantResponse.ok ? (merchantPayload.merchants ?? []) : []).filter((merchant) =>
+        [merchant.merchantName, merchant.contact, merchant.email, merchant.telephone, merchant.status]
           .join(" ")
           .toLowerCase()
           .includes(needle.toLowerCase())
@@ -239,10 +242,10 @@ function SearchItPageContent() {
           id: `merchant-${merchant.id}`,
           type: "merchant" as const,
           title: merchant.merchantName,
-          context: `${merchant.contactEmail} · ${merchant.status}`,
+          context: `${merchant.contact || merchant.email || "no contact"} · ${merchant.status}`,
           actions: [
-            { label: "Open Merchant", href: "/manage-it" },
-            { label: "Create Order from Customer", href: "/create-it" },
+            { label: "Open Merchant", href: `/manage-it?merchantId=${encodeURIComponent(merchant.id)}` },
+            { label: "Open Orders", href: `/orders?companyId=${encodeURIComponent(merchant.id)}` },
           ],
         })),
         ...customers.map((customer) => ({
@@ -251,7 +254,7 @@ function SearchItPageContent() {
           title: customer.customerName,
           context: [customer.company, customer.contactName, customer.email].filter(Boolean).join(" · "),
           actions: [
-            { label: "Open Customer", href: "/manage-it" },
+            { label: "Open Customer", href: `/manage-it?merchantId=${encodeURIComponent(customer.companyId)}` },
             { label: "Create Order from Customer", href: `/create-it?customerId=${encodeURIComponent(customer.id)}` },
           ],
         })),
@@ -280,7 +283,8 @@ function SearchItPageContent() {
             .filter(Boolean)
             .join(" · "),
           actions: [
-            { label: "Open Order", href: "/process-it" },
+            { label: "Open Order", href: `/orders?orderId=${encodeURIComponent(order.id)}` },
+            { label: "Open in Process", href: `/process-it?selected=${encodeURIComponent(order.id)}` },
             { label: "Create Order from Customer", href: "/create-it" },
           ],
         })),
