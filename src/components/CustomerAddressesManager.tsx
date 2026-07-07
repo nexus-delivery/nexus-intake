@@ -246,9 +246,10 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
     setMessage(null);
 
     try {
+      const companyQuery = activeWorkspaceCompanyId.trim() ? `?companyId=${encodeURIComponent(activeWorkspaceCompanyId.trim())}` : "";
       const targetUrl = editingAddressId
-        ? `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(editingAddressId)}`
-        : `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses`;
+        ? `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(editingAddressId)}${companyQuery}`
+        : `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses${companyQuery}`;
 
       const responseFinal = await fetch(targetUrl, {
         method: editingAddressId ? "PATCH" : "POST",
@@ -337,8 +338,9 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
     if (!selectedCustomerId) return;
 
     try {
+      const companyQuery = activeWorkspaceCompanyId.trim() ? `?companyId=${encodeURIComponent(activeWorkspaceCompanyId.trim())}` : "";
       const response = await fetch(
-        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(address.id)}`,
+        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(address.id)}${companyQuery}`,
         {
           method: "PATCH",
           headers: {
@@ -364,8 +366,9 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
     if (!selectedCustomerId) return;
 
     try {
+      const companyQuery = activeWorkspaceCompanyId.trim() ? `?companyId=${encodeURIComponent(activeWorkspaceCompanyId.trim())}` : "";
       const response = await fetch(
-        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(address.id)}`,
+        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses/${encodeURIComponent(address.id)}${companyQuery}`,
         {
           method: "PATCH",
           headers: {
@@ -391,8 +394,9 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
     if (!selectedCustomerId) return;
 
     try {
+      const companyQuery = activeWorkspaceCompanyId.trim() ? `?companyId=${encodeURIComponent(activeWorkspaceCompanyId.trim())}` : "";
       const response = await fetch(
-        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses`,
+        `/api/merchant/customers/${encodeURIComponent(selectedCustomerId)}/addresses${companyQuery}`,
         {
           method: "POST",
           headers: {
