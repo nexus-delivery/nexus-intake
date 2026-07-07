@@ -75,15 +75,15 @@ export async function getMerchantContext(
 
   const { data: profile, error: profileError } = await privilegedClient
     .from("profiles")
-    .select("id, company_id, organisation_id, role")
+    .select("id, company_id, role")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
-  if (profileError || (!profile?.company_id && !profile?.organisation_id)) {
+  if (profileError || !profile?.company_id) {
     return { ok: false, error: "No company linked to user", status: 403 };
   }
 
-  const organizationId = String(profile.organisation_id ?? profile.company_id);
+  const organizationId = String(profile.company_id);
 
   return {
     ok: true,

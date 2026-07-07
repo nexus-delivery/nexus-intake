@@ -92,7 +92,7 @@ async function fetchAuthenticatedProfileContext(
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, company_id, organisation_id")
+    .select("id, company_id")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -105,11 +105,11 @@ async function fetchAuthenticatedProfileContext(
     throw new Error(NO_COMPANY_ERROR);
   }
 
-  if (!profile.company_id && !profile.organisation_id) {
+  if (!profile.company_id) {
     throw new Error(NO_COMPANY_ERROR);
   }
 
-  const organizationId = profile.organisation_id ?? profile.company_id;
+  const organizationId = profile.company_id;
 
   return {
     authUserId,
@@ -153,7 +153,7 @@ export function generateMockJobId(): string {
  * Upload a multi-format document (PDF, images, Word, Excel) to the
  * merchant-documents Supabase Storage bucket.
  *
- * Path structure: /{organisation_id}/uploads/{timestamp}-{filename}
+ * Path structure: /{company_id}/uploads/{timestamp}-{filename}
  */
 export async function uploadMultiFormatFile(
   file: File,
