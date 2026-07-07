@@ -10,7 +10,6 @@ const workspaceCards = [
   { title: "Upload it", href: "/create-it", detail: "Document uploads routed through Create it intake workflow." },
   { title: "Send it", href: "/create-it", detail: "Email and channel intake orchestration inside Create it." },
   { title: "Get it", href: "/create-it", detail: "Inbound and return intake managed inside Create it." },
-  { title: "Manage Address Books", href: "/manage-it", detail: "Create reusable collection and delivery address books in CRM and load them in Create it." },
   { title: "Public Forms", href: "/booking-forms/public", detail: "Customer-facing intake forms connected to Create it." },
   { title: "Review Queue", href: "/process-it", detail: "Move new orders into Process it with release controls." },
   { title: "Order History", href: "/portal/orders", detail: "Review live and historical bookings." },

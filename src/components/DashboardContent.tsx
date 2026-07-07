@@ -14,7 +14,7 @@ const managementCards = [
       { label: 'Edit or archive', href: '/manage-it?section=companies' },
       { label: 'Open organisation', href: '/manage-it?section=companies' },
     ],
-    bullets: ['Merchants', 'Orders', 'Operational metrics', 'Users', 'Connected systems', 'Accounting integrations', 'Future integrations'],
+    bullets: ['Orders', 'Operational metrics', 'Users', 'Connected systems', 'Accounting integrations', 'Future integrations'],
   },
   {
     title: 'Merchants',

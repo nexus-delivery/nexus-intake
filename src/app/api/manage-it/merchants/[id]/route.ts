@@ -89,6 +89,7 @@ export async function PATCH(
     const merchantName = String(body.merchantName ?? "").trim();
     const tradingName = String(body.company ?? "").trim();
     const businessType = String(body.businessType ?? "").trim();
+    const status = String(body.status ?? "").trim().toLowerCase();
 
     if (!merchantName) {
       return NextResponse.json({ error: "Merchant name is required." }, { status: 400 });
@@ -97,6 +98,12 @@ export async function PATCH(
     updatePayload.name = merchantName;
     updatePayload.trading_name = tradingName || null;
     updatePayload.business_type = businessType || null;
+
+    if (["active", "disabled", "archived"].includes(status)) {
+      const applied = applyAction(company, status === "active" ? "restore" : status);
+      updatePayload.name = applied.name;
+      updatePayload.business_type = applied.business_type;
+    }
   } else {
     const next = applyAction(company, action);
     updatePayload.name = next.name;

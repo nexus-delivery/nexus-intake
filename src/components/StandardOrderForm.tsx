@@ -58,6 +58,12 @@ type NewCustomerForm = {
   contactName: string;
   email: string;
   phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressLine3: string;
+  postcode: string;
+  country: string;
+  instructions: string;
 };
 
 type CustomerAddressType = "collection" | "delivery";
@@ -82,6 +88,9 @@ type CustomerAddress = {
 type MerchantWorkspace = {
   id: string;
   merchantName: string;
+  tradingName?: string;
+  contactName?: string;
+  telephone?: string;
   contactEmail: string;
   status: string;
 };
@@ -107,6 +116,10 @@ function loadActiveWorkspaceId(workspaces: MerchantWorkspace[]): string {
     return preferredId;
   }
   return workspaces[0]?.id ?? "";
+}
+
+function normalizeText(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 const inputClass =
@@ -152,7 +165,10 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [salesChannelId, setSalesChannelId] = useState("");
   const [salesChannelName, setSalesChannelName] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [merchantSearch, setMerchantSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
+  const [customerOrderRefMap, setCustomerOrderRefMap] = useState<Record<string, string[]>>({});
   const [merchantWorkspaces] = useState<MerchantWorkspace[]>(() => loadStoredMerchantWorkspaces());
   const [selectedMerchantWorkspaceId, setSelectedMerchantWorkspaceId] = useState(() =>
     loadActiveWorkspaceId(loadStoredMerchantWorkspaces())
@@ -162,7 +178,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [selectedDeliveryAddressId, setSelectedDeliveryAddressId] = useState("");
   const [trackPodReleaseDecision, setTrackPodReleaseDecision] = useState<"send_now" | "hold_for_date">("send_now");
   const [adminOverrideRelease, setAdminOverrideRelease] = useState(false);
-  const [bookingProfileName, setBookingProfileName] = useState("");
   const [bookingProfiles, setBookingProfiles] = useState<BookingProfile[]>([]);
   const [catalogueItems, setCatalogueItems] = useState<CatalogueItem[]>([]);
   const [selectedBookingProfileId, setSelectedBookingProfileId] = useState("");
@@ -174,6 +189,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     contactName: "",
     email: "",
     phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    addressLine3: "",
+    postcode: "",
+    country: "UK",
+    instructions: "",
   });
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submitMessage, setSubmitMessage] = useState("");
@@ -188,8 +209,23 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return new URLSearchParams(window.location.search).get("profileId")?.trim() ?? "";
   });
 
-  const effectiveCompanyId = profileCompanyId;
-  const isMerchantView = sourceSystem === "merchant_portal";
+const isMerchantView = sourceSystem === "merchant_portal";
+
+ const effectiveCompanyId = isMerchantView
+  ? (selectedMerchantWorkspaceId || profileCompanyId)
+  : profileCompanyId;
+  const isAdminUser = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = window.localStorage.getItem("nexus.manageit.accessProfile.v1") ?? "";
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { roles?: string[] };
+      const roles = Array.isArray(parsed.roles) ? parsed.roles : [];
+      return roles.some((role) => ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalizeText(String(role))));
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,7 +253,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       if (!session?.access_token) return;
 
-      const response = await fetch("/api/merchant/customers", {
+      const customerParams = new URLSearchParams();
+      if (selectedMerchantWorkspaceId) {
+        customerParams.set("companyId", selectedMerchantWorkspaceId);
+      }
+
+      const response = await fetch(`/api/merchant/customers${customerParams.toString() ? `?${customerParams.toString()}` : ""}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
@@ -230,6 +271,33 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       if (!cancelled) {
         setCustomers(payload.customers ?? []);
       }
+
+      if (!selectedMerchantWorkspaceId) return;
+      const ordersResponse = await fetch(
+        `/api/orders/dashboard?scope=admin&companyId=${encodeURIComponent(selectedMerchantWorkspaceId)}&limit=500`,
+        { headers: { Authorization: `Bearer ${session.access_token}` } }
+      );
+      if (!ordersResponse.ok || cancelled) return;
+      const ordersPayload = (await ordersResponse.json().catch(() => ({}))) as {
+        jobs?: Array<{
+          customerMerchant?: string;
+          internalOrderNumber?: string;
+          externalOrderReference?: string;
+        }>;
+      };
+      const nextMap: Record<string, string[]> = {};
+      for (const job of ordersPayload.jobs ?? []) {
+        const key = normalizeText(job.customerMerchant ?? "");
+        if (!key) continue;
+        const refs = [job.internalOrderNumber ?? "", job.externalOrderReference ?? ""].map((value) => value.trim()).filter(Boolean);
+        if (!refs.length) continue;
+        const bucket = new Set(nextMap[key] ?? []);
+        for (const ref of refs) bucket.add(ref);
+        nextMap[key] = Array.from(bucket);
+      }
+      if (!cancelled) {
+        setCustomerOrderRefMap(nextMap);
+      }
     }
 
     void loadCustomers();
@@ -237,7 +305,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return () => {
       cancelled = true;
     };
-  }, [isMerchantView]);
+  }, [isMerchantView, selectedMerchantWorkspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,8 +326,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       if (!session?.access_token) return;
 
+      const params = new URLSearchParams();
+      if (selectedMerchantWorkspaceId) {
+        params.set("companyId", selectedMerchantWorkspaceId);
+      }
+
       const response = await fetch(
-        `/api/merchant/customers/${encodeURIComponent(customerId)}/addresses`,
+        `/api/merchant/customers/${encodeURIComponent(customerId)}/addresses${params.toString() ? `?${params.toString()}` : ""}`,
         {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }
@@ -306,7 +379,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return () => {
       cancelled = true;
     };
-  }, [customerId, isMerchantView]);
+  }, [customerId, isMerchantView, selectedMerchantWorkspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -375,8 +448,13 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       if (!session?.access_token) return;
 
+      const params = new URLSearchParams({ archived: "false" });
+      if (selectedMerchantWorkspaceId) {
+        params.set("companyId", selectedMerchantWorkspaceId);
+      }
+
       const response = await fetch(
-        `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles?archived=false`,
+        `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${session.access_token}` },
         }
@@ -397,7 +475,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return () => {
       cancelled = true;
     };
-  }, [customerId, isMerchantView]);
+  }, [customerId, isMerchantView, selectedMerchantWorkspaceId]);
 
   useEffect(() => {
     if (autoSelectionApplied) return;
@@ -435,11 +513,60 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return selected?.merchantName ?? "";
   }, [merchantWorkspaces, selectedMerchantWorkspaceId]);
 
+  useEffect(() => {
+    if (!isMerchantView) return;
+    if (!selectedWorkspaceName) return;
+    setOrder((prev) => ({ ...prev, merchant: selectedWorkspaceName }));
+  }, [isMerchantView, selectedWorkspaceName]);
+
+  useEffect(() => {
+    if (!isMerchantView) return;
+    if (isAdminUser) return;
+    if (!profileCompanyId) return;
+    if (selectedMerchantWorkspaceId === profileCompanyId) return;
+    setSelectedMerchantWorkspaceId(profileCompanyId);
+  }, [isAdminUser, isMerchantView, profileCompanyId, selectedMerchantWorkspaceId]);
+
   const workspaceScopedCustomers = useMemo(() => {
     const needle = selectedWorkspaceName.trim().toLowerCase();
     if (!needle) return customers;
     return customers.filter((customer) => customer.company.trim().toLowerCase() === needle);
   }, [customers, selectedWorkspaceName]);
+
+  const filteredMerchantWorkspaces = useMemo(() => {
+    const needle = normalizeText(merchantSearch);
+    if (!needle) return merchantWorkspaces;
+    return merchantWorkspaces.filter((workspace) => {
+      return [
+        workspace.merchantName,
+        workspace.tradingName ?? "",
+        workspace.contactName ?? "",
+        workspace.contactEmail,
+        workspace.telephone ?? "",
+      ].some((value) => normalizeText(value).includes(needle));
+    });
+  }, [merchantSearch, merchantWorkspaces]);
+
+  const filteredCustomers = useMemo(() => {
+    const needle = normalizeText(customerSearch);
+    if (!needle) return workspaceScopedCustomers;
+    return workspaceScopedCustomers.filter((customer) => {
+      const refs = customerOrderRefMap[normalizeText(customer.customerName)] ?? [];
+      return [
+        customer.customerName,
+        customer.company,
+        customer.contactName,
+        customer.email,
+        customer.phone,
+        customer.mobile,
+        customer.defaultDeliveryAddress,
+        customer.defaultCollectionAddress,
+        customer.billingAddress,
+        customer.deliveryInstructions,
+        refs.join(" "),
+      ].some((value) => normalizeText(value).includes(needle));
+    });
+  }, [customerOrderRefMap, customerSearch, workspaceScopedCustomers]);
 
   const merchantCollectionAddresses = useMemo(
     () => {
@@ -468,7 +595,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
       if (!session?.access_token) return;
 
-      const response = await fetch("/api/reference/default-collection-profile", {
+      const params = new URLSearchParams();
+      if (selectedMerchantWorkspaceId) {
+        params.set("companyId", selectedMerchantWorkspaceId);
+      }
+
+      const response = await fetch(`/api/reference/default-collection-profile${params.toString() ? `?${params.toString()}` : ""}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
@@ -515,7 +647,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     return () => {
       cancelled = true;
     };
-  }, [bookingVariant]);
+  }, [bookingVariant, selectedMerchantWorkspaceId]);
 
   const activeCollectionProfile =
     collectionProfiles.find((profile) => profile.id === selectedCollectionProfileId) ??
@@ -590,96 +722,17 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.access_token) return;
+    const params = new URLSearchParams({ archived: "false" });
+    if (selectedMerchantWorkspaceId) {
+      params.set("companyId", selectedMerchantWorkspaceId);
+    }
     const response = await fetch(
-      `/api/merchant/customers/${encodeURIComponent(targetCustomerId)}/booking-profiles?archived=false`,
+      `/api/merchant/customers/${encodeURIComponent(targetCustomerId)}/booking-profiles?${params.toString()}`,
       { headers: { Authorization: `Bearer ${session.access_token}` } }
     );
     if (!response.ok) return;
     const payload = (await response.json().catch(() => ({}))) as { profiles?: BookingProfile[] };
     setBookingProfiles(payload.profiles ?? []);
-  };
-
-  const saveCurrentAsTemplate = async () => {
-    const normalizedName = bookingProfileName.trim();
-    if (!normalizedName) {
-      setSubmitState("error");
-      setSubmitMessage("Enter an address book name before saving.");
-      return;
-    }
-
-    if (!customerId) {
-      setSubmitState("error");
-      setSubmitMessage("Select a customer before saving an address book.");
-      return;
-    }
-
-    const authHeaders = await getAuthHeaders();
-    if (!authHeaders.Authorization) {
-      setSubmitState("error");
-      setSubmitMessage("No active session found.");
-      return;
-    }
-
-    const firstGoods = order.goods[0] ?? createEmptyStandardOrder(sourceSystem).goods[0];
-    const payload = {
-      profileName: normalizedName,
-      collectionAddressId: selectedCollectionAddressId || null,
-      deliveryAddressId: selectedDeliveryAddressId || null,
-      collectionSnapshot: { ...order.collection },
-      deliverySnapshot: { ...order.delivery },
-      serviceDefaults: {
-        serviceType: order.operations.serviceType,
-        collectionMode,
-      },
-      goodsDefaults: [
-        {
-          fragile: Boolean(firstGoods.fragile),
-          twoMan: Boolean(firstGoods.twoMan),
-          roomOfChoice: Boolean(firstGoods.roomOfChoice),
-          assembly: Boolean(firstGoods.assembly),
-          tailLiftRequired: Boolean(firstGoods.tailLiftRequired),
-          dedicatedVehicle: Boolean(firstGoods.dedicatedVehicle),
-          northernIrelandDelivery: Boolean(firstGoods.northernIrelandDelivery),
-          sameDay: Boolean(firstGoods.sameDay),
-        },
-      ],
-      commercialDefaults: { ...order.commercial },
-      instructions: order.notes,
-    };
-
-    const url = selectedBookingProfileId
-      ? `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles/${encodeURIComponent(selectedBookingProfileId)}`
-      : `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles`;
-    const method = selectedBookingProfileId ? "PATCH" : "POST";
-
-    const response = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify(payload),
-    });
-
-    const responseBody = (await response.json().catch(() => ({}))) as {
-      error?: string;
-      profile?: BookingProfile;
-    };
-
-    if (!response.ok) {
-      setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not save address book.");
-      return;
-    }
-
-    await loadBookingProfiles(customerId);
-    if (responseBody.profile?.id) {
-      setSelectedBookingProfileId(responseBody.profile.id);
-    }
-    setBookingProfileName("");
-    setSubmitState("success");
-    setSubmitMessage(
-      selectedBookingProfileId
-        ? `Address book updated: ${normalizedName}.`
-        : `Address book created: ${normalizedName}.`
-    );
   };
 
   function applyTemplate(template: BookingProfile) {
@@ -731,62 +784,8 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
     }
 
     setSubmitState("success");
-    setSubmitMessage(`Loaded address book: ${template.profileName}. Enter Order Number, Job Reference, External ID, and today\'s goods for this order.`);
+    setSubmitMessage(`Loaded saved defaults: ${template.profileName}. Enter order-specific fields and submit.`);
   }
-
-  const deleteTemplate = async (templateId: string) => {
-    if (!customerId) return;
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(
-      `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles/${encodeURIComponent(templateId)}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({ archive: true }),
-      }
-    );
-
-    const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
-    if (!response.ok) {
-      setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not archive address book.");
-      return;
-    }
-
-    await loadBookingProfiles(customerId);
-    if (selectedBookingProfileId === templateId) {
-      setSelectedBookingProfileId("");
-    }
-    setSubmitState("success");
-    setSubmitMessage("Address book archived.");
-  };
-
-  const duplicateTemplate = async (template: BookingProfile) => {
-    if (!customerId) return;
-    const authHeaders = await getAuthHeaders();
-    const response = await fetch(
-      `/api/merchant/customers/${encodeURIComponent(customerId)}/booking-profiles`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders },
-        body: JSON.stringify({
-          profileName: `${template.profileName} (Copy)`,
-          duplicateFromProfileId: template.id,
-        }),
-      }
-    );
-
-    const responseBody = (await response.json().catch(() => ({}))) as { error?: string };
-    if (!response.ok) {
-      setSubmitState("error");
-      setSubmitMessage(responseBody.error ?? "Could not duplicate address book.");
-      return;
-    }
-
-    await loadBookingProfiles(customerId);
-    setSubmitState("success");
-    setSubmitMessage("Address book duplicated.");
-  };
 
   const createCustomerInline = async () => {
     if (!newCustomerForm.customerName.trim()) {
@@ -814,6 +813,7 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
           email: newCustomerForm.email,
           phone: newCustomerForm.phone,
           mobile: newCustomerForm.phone,
+          companyId: selectedMerchantWorkspaceId || undefined,
         }),
       });
 
@@ -829,11 +829,50 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       setCustomers(nextCustomers);
       setCustomerId(payload.customer.id);
       setOrder((prev) => applyCustomerDefaults(prev, payload.customer as MerchantCustomer));
+
+      if (newCustomerForm.addressLine1.trim() && newCustomerForm.postcode.trim()) {
+        await fetch(
+          `/api/merchant/customers/${encodeURIComponent(payload.customer.id)}/addresses${selectedMerchantWorkspaceId ? `?companyId=${encodeURIComponent(selectedMerchantWorkspaceId)}` : ""}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders },
+            body: JSON.stringify({
+              companyId: selectedMerchantWorkspaceId || undefined,
+              merchant_customer_id: payload.customer.id,
+              addressType: "delivery",
+              label: "Default delivery",
+              contactName: newCustomerForm.contactName,
+              phone: newCustomerForm.phone,
+              email: newCustomerForm.email,
+              addressLine1: newCustomerForm.addressLine1,
+              addressLine2: newCustomerForm.addressLine2,
+              addressLine3: newCustomerForm.addressLine3,
+              postcode: newCustomerForm.postcode,
+              country: newCustomerForm.country || "UK",
+              instructions: newCustomerForm.instructions,
+              isDefault: true,
+            }),
+          }
+        );
+      }
+
       await loadBookingProfiles(payload.customer.id);
       setShowNewCustomerForm(false);
-      setNewCustomerForm({ customerName: "", company: "", contactName: "", email: "", phone: "" });
+      setNewCustomerForm({
+        customerName: "",
+        company: "",
+        contactName: "",
+        email: "",
+        phone: "",
+        addressLine1: "",
+        addressLine2: "",
+        addressLine3: "",
+        postcode: "",
+        country: "UK",
+        instructions: "",
+      });
       setSubmitState("success");
-      setSubmitMessage(`Customer created: ${payload.customer.customerName}. You can now add addresses and save address books.`);
+      setSubmitMessage(`Customer created: ${payload.customer.customerName}. Default delivery address saved and selected.`);
     } catch (error) {
       setSubmitState("error");
       setSubmitMessage(error instanceof Error ? error.message : "Could not create customer");
@@ -980,72 +1019,6 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <section className={sectionClass}>
-          <h2 className="text-base font-semibold text-slate-900">Manage Address Books</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Address books are reusable CRM defaults per customer. Create it loads these defaults so operators only enter
-            order-specific values: order number, job reference, external ID, dates, and today&apos;s goods.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
-            <input
-              className={inputClass}
-              value={bookingProfileName}
-              onChange={(event) => setBookingProfileName(event.target.value)}
-              placeholder="Address book name e.g. Daily Deliveries"
-            />
-            <button
-              type="button"
-              onClick={() => void saveCurrentAsTemplate()}
-              className="self-end rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-            >
-              {selectedBookingProfileId ? "Edit Address Book" : "New Address Book"}
-            </button>
-          </div>
-
-          {bookingProfiles.length > 0 ? (
-            <div className="mt-4 grid gap-2 lg:grid-cols-2">
-              {bookingProfiles.map((template) => (
-                <div key={template.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-sm font-semibold text-slate-900">{template.profileName}</p>
-                  <p className="mt-1 text-xs text-slate-500">Updated {new Date(template.updatedAt).toLocaleString()}</p>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => applyTemplate(template)}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                    >
-                      Load Address Book
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedBookingProfileId(template.id);
-                        setBookingProfileName(template.profileName);
-                      }}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void duplicateTemplate(template)}
-                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
-                    >
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void deleteTemplate(template.id)}
-                      className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700"
-                    >
-                      Archive
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
 
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Booking Mode</h2>
@@ -1170,6 +1143,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
 
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Order</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Use saved merchant/customer/address defaults. Enter only order-specific details below.
+          </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {isMerchantView ? (
               <div className="sm:col-span-2 lg:col-span-3">
@@ -1178,10 +1154,19 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                     <label className="text-sm font-medium text-slate-700" htmlFor="merchantWorkspaceSelect">
                       Select Merchant
                     </label>
+                    {isAdminUser ? (
+                      <input
+                        className={inputClass}
+                        value={merchantSearch}
+                        onChange={(event) => setMerchantSearch(event.target.value)}
+                        placeholder="Search merchant, company, contact, email, or telephone"
+                      />
+                    ) : null}
                     <select
                       id="merchantWorkspaceSelect"
                       className={inputClass}
                       value={selectedMerchantWorkspaceId}
+                      disabled={!isAdminUser}
                       onChange={(event) => {
                         const nextWorkspaceId = event.target.value;
                         setSelectedMerchantWorkspaceId(nextWorkspaceId);
@@ -1202,12 +1187,29 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                       }}
                     >
                       <option value="">Select merchant...</option>
-                      {merchantWorkspaces.map((workspace) => (
+                      {(isAdminUser ? filteredMerchantWorkspaces : merchantWorkspaces).map((workspace) => (
                         <option key={workspace.id} value={workspace.id}>
                           {workspace.merchantName}
                         </option>
                       ))}
                     </select>
+                    {selectedMerchantWorkspaceId ? (
+                      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                        {(() => {
+                          const selectedWorkspace = merchantWorkspaces.find((workspace) => workspace.id === selectedMerchantWorkspaceId);
+                          if (!selectedWorkspace) return <p>No merchant selected.</p>;
+                          return (
+                            <>
+                              <p className="font-semibold text-slate-900">{selectedWorkspace.merchantName}</p>
+                              <p>Company: {selectedWorkspace.tradingName || "-"}</p>
+                              <p>Contact: {selectedWorkspace.contactName || "-"}</p>
+                              <p>Email: {selectedWorkspace.contactEmail || "-"}</p>
+                              <p>Telephone: {selectedWorkspace.telephone || "-"}</p>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1235,14 +1237,20 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   }}
                 >
                   <option value="">Select customer...</option>
-                  {workspaceScopedCustomers.map((customer) => (
+                  {filteredCustomers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
                       {customer.customerName} {customer.company ? `(${customer.company})` : ""}
                     </option>
                   ))}
                 </select>
+                <input
+                  className={inputClass}
+                  value={customerSearch}
+                  onChange={(event) => setCustomerSearch(event.target.value)}
+                  placeholder="Search customer, company, postcode, town, address, phone, email, order ref"
+                />
                 <p className="mt-1 text-xs text-slate-500">
-                  Selecting a customer auto-populates defaults for collection, delivery, instructions, and service profile.
+                  Selecting a customer loads saved delivery address, contact, phone, email, instructions, service defaults, and pricing defaults.
                 </p>
 
                 {showNewCustomerForm ? (
@@ -1254,6 +1262,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                       <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Contact name" value={newCustomerForm.contactName} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, contactName: event.target.value }))} />
                       <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Email" value={newCustomerForm.email} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, email: event.target.value }))} />
                       <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2" placeholder="Phone" value={newCustomerForm.phone} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, phone: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2" placeholder="Default delivery address line 1" value={newCustomerForm.addressLine1} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine1: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Address line 2" value={newCustomerForm.addressLine2} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine2: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Address line 3 / town" value={newCustomerForm.addressLine3} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine3: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Postcode" value={newCustomerForm.postcode} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, postcode: event.target.value }))} />
+                      <input className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Country" value={newCustomerForm.country} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, country: event.target.value }))} />
+                      <textarea className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm md:col-span-2" rows={2} placeholder="Delivery instructions" value={newCustomerForm.instructions} onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, instructions: event.target.value }))} />
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button type="button" onClick={() => void createCustomerInline()} disabled={newCustomerSaving} className="rounded-lg bg-[#7C3AED] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">
@@ -1270,37 +1284,28 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
                     <div className="md:col-span-2">
                       <label className="text-sm font-medium text-slate-700" htmlFor="bookingProfileSelect">
-                        Address Book
+                        Service / Pricing Defaults
                       </label>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        <select
-                          id="bookingProfileSelect"
-                          className="block flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
-                          value={selectedBookingProfileId}
-                          onChange={(event) => {
-                            const nextId = event.target.value;
-                            setSelectedBookingProfileId(nextId);
-                            const selected = bookingProfiles.find((profile) => profile.id === nextId);
-                            if (!selected) return;
-                            applyTemplate(selected);
-                          }}
-                        >
-                          <option value="">Load address book...</option>
-                          {bookingProfiles.map((profile) => (
-                            <option key={profile.id} value={profile.id}>{profile.profileName}</option>
-                          ))}
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedBookingProfileId("");
-                            setBookingProfileName("");
-                          }}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
-                        >
-                          New Profile
-                        </button>
-                      </div>
+                      <select
+                        id="bookingProfileSelect"
+                        className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        value={selectedBookingProfileId}
+                        onChange={(event) => {
+                          const nextId = event.target.value;
+                          setSelectedBookingProfileId(nextId);
+                          const selected = bookingProfiles.find((profile) => profile.id === nextId);
+                          if (!selected) return;
+                          applyTemplate(selected);
+                        }}
+                      >
+                        <option value="">Load saved defaults...</option>
+                        {bookingProfiles.map((profile) => (
+                          <option key={profile.id} value={profile.id}>{profile.profileName}</option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Address/profile management belongs in Manage it / Customer Management.
+                      </p>
                     </div>
 
                     <div>
@@ -1393,12 +1398,12 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700" htmlFor="merchant">Business / Organisation (optional)</label>
-              <input id="merchant" className={inputClass} value={order.merchant} onChange={(e) => setOrder((prev) => ({ ...prev, merchant: e.target.value }))} placeholder="Optional" />
+              <label className="text-sm font-medium text-slate-700" htmlFor="merchant">Business / Organisation</label>
+              <input id="merchant" className={inputClass} value={order.merchant} onChange={(e) => setOrder((prev) => ({ ...prev, merchant: e.target.value }))} placeholder="From selected merchant" disabled />
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700" htmlFor="customer">Contact Name</label>
-              <input id="customer" className={inputClass} value={order.customer} onChange={(e) => setOrder((prev) => ({ ...prev, customer: e.target.value }))} placeholder="Optional" />
+              <input id="customer" className={inputClass} value={order.customer} onChange={(e) => setOrder((prev) => ({ ...prev, customer: e.target.value }))} placeholder="From selected customer" disabled />
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700" htmlFor="priority">Priority</label>
@@ -1423,33 +1428,33 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
             </p>
           ) : null}
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} placeholder="Optional" /></div>
-            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Phone</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.phone} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, phone: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine1: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine2: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine3: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, postcode: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Country</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.country} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, country: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Email</label><input disabled={collectionMode === "depot"} className={inputClass} value={order.collection.email} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, email: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Business / Organisation</label><input disabled className={inputClass} value={order.collection.company} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, company: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input disabled className={inputClass} value={order.collection.contact} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, contact: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Phone</label><input disabled className={inputClass} value={order.collection.phone} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, phone: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input disabled className={inputClass} value={order.collection.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine1: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input disabled className={inputClass} value={order.collection.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine2: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input disabled className={inputClass} value={order.collection.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, addressLine3: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input disabled className={inputClass} value={order.collection.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, postcode: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Country</label><input disabled className={inputClass} value={order.collection.country} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, country: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Email</label><input disabled className={inputClass} value={order.collection.email} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, email: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Collection Date</label><input type="date" className={inputClass} value={order.collection.date} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, date: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Collection Time</label><input type="time" className={inputClass} value={order.collection.time} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, time: e.target.value } }))} /></div>
-            <div className="sm:col-span-2 lg:col-span-3"><label className="text-sm font-medium text-slate-700">Instructions</label><textarea disabled={collectionMode === "depot"} className={inputClass} rows={2} value={order.collection.instructions} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, instructions: e.target.value } }))} /></div>
+            <div className="sm:col-span-2 lg:col-span-3"><label className="text-sm font-medium text-slate-700">Instructions</label><textarea className={inputClass} rows={2} value={order.collection.instructions} onChange={(e) => setOrder((prev) => ({ ...prev, collection: { ...prev.collection, instructions: e.target.value } }))} /></div>
           </div>
         </section>
 
         <section className={sectionClass}>
           <h2 className="text-base font-semibold text-slate-900">Delivery</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div><label className="text-sm font-medium text-slate-700">Business / Organisation (optional)</label><input className={inputClass} value={order.delivery.company} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, company: e.target.value } }))} placeholder="Optional" /></div>
-            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input className={inputClass} value={order.delivery.contact} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, contact: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Phone</label><input className={inputClass} value={order.delivery.phone} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, phone: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input className={inputClass} value={order.delivery.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine1: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input className={inputClass} value={order.delivery.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine2: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input className={inputClass} value={order.delivery.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine3: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input className={inputClass} value={order.delivery.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, postcode: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Country</label><input className={inputClass} value={order.delivery.country} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, country: e.target.value } }))} /></div>
-            <div><label className="text-sm font-medium text-slate-700">Email</label><input className={inputClass} value={order.delivery.email} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, email: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Business / Organisation</label><input disabled className={inputClass} value={order.delivery.company} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, company: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Contact Name</label><input disabled className={inputClass} value={order.delivery.contact} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, contact: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Phone</label><input disabled className={inputClass} value={order.delivery.phone} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, phone: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 1</label><input disabled className={inputClass} value={order.delivery.addressLine1} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine1: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 2</label><input disabled className={inputClass} value={order.delivery.addressLine2} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine2: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Address Line 3</label><input disabled className={inputClass} value={order.delivery.addressLine3} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, addressLine3: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Postcode</label><input disabled className={inputClass} value={order.delivery.postcode} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, postcode: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Country</label><input disabled className={inputClass} value={order.delivery.country} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, country: e.target.value } }))} /></div>
+            <div><label className="text-sm font-medium text-slate-700">Email</label><input disabled className={inputClass} value={order.delivery.email} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, email: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Delivery Date</label><input type="date" className={inputClass} value={order.delivery.date} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, date: e.target.value } }))} /></div>
             <div><label className="text-sm font-medium text-slate-700">Delivery Time</label><input type="time" className={inputClass} value={order.delivery.time} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, time: e.target.value } }))} /></div>
             <div className="sm:col-span-2 lg:col-span-3"><label className="text-sm font-medium text-slate-700">Instructions</label><textarea className={inputClass} rows={2} value={order.delivery.instructions} onChange={(e) => setOrder((prev) => ({ ...prev, delivery: { ...prev.delivery, instructions: e.target.value } }))} /></div>

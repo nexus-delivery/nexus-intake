@@ -135,6 +135,10 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
   const [formMerchantName, setFormMerchantName] = useState("");
   const [formCompany, setFormCompany] = useState("");
   const [formBusinessType, setFormBusinessType] = useState("");
+  const [formContactName, setFormContactName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formTelephone, setFormTelephone] = useState("");
+  const [formStatus, setFormStatus] = useState<MerchantStatus>("active");
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -316,6 +320,10 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
           merchantName: formMerchantName,
           company: formCompany,
           businessType: formBusinessType,
+          status: formStatus,
+          contactName: formContactName,
+          email: formEmail,
+          telephone: formTelephone,
         }),
       });
 
@@ -567,6 +575,10 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
                             setFormMerchantName(merchant.merchantName);
                             setFormCompany(merchant.company || "");
                             setFormBusinessType("");
+                            setFormContactName(merchant.contact || "");
+                            setFormEmail(merchant.email || "");
+                            setFormTelephone(merchant.telephone || "");
+                            setFormStatus(merchant.status);
                           }}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
                         >
@@ -755,6 +767,14 @@ export default function MerchantManagementBoard({ title = "Merchant Management",
             <input value={formMerchantName} onChange={(event) => setFormMerchantName(event.target.value)} placeholder="Merchant Name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formCompany} onChange={(event) => setFormCompany(event.target.value)} placeholder="Company" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
             <input value={formBusinessType} onChange={(event) => setFormBusinessType(event.target.value)} placeholder="Business Type" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <input value={formContactName} onChange={(event) => setFormContactName(event.target.value)} placeholder="Contact Name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <input value={formEmail} onChange={(event) => setFormEmail(event.target.value)} placeholder="Email" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <input value={formTelephone} onChange={(event) => setFormTelephone(event.target.value)} placeholder="Telephone" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+            <select value={formStatus} onChange={(event) => setFormStatus(event.target.value as MerchantStatus)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+              <option value="archived">Archived</option>
+            </select>
             <button onClick={() => void submitEdit()} className="rounded-xl bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white">Save</button>
           </div>
         </Modal>

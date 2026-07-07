@@ -14,6 +14,7 @@ type CompanyRow = {
 
 type ProfileRow = {
   company_id: string;
+  full_name: string | null;
   email: string | null;
   role: string | null;
 };
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
     companyIds.length
       ? context.value.privilegedClient
           .from("profiles")
-          .select("company_id, email, role")
+          .select("company_id, full_name, email, role")
           .in("company_id", companyIds)
           .returns<ProfileRow[]>()
       : Promise.resolve({ data: [], error: null }),
@@ -153,13 +154,16 @@ export async function GET(request: NextRequest) {
 
       const totalOrders = jobs.filter((job) => (job.lifecycle_status ?? "").toLowerCase() !== "archived").length;
 
+      const contactName = contactProfile?.full_name ?? "";
+      const telephone = "";
+
       return {
         id: company.id,
         merchantName: company.name,
         company: company.trading_name ?? "",
-        contact: contactProfile?.email ?? "",
+        contact: contactName,
         email: contactProfile?.email ?? "",
-        telephone: "",
+        telephone,
         status,
         activeOrders,
         totalOrders,

@@ -42,6 +42,24 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function isAdminRole(role: string): boolean {
+  const normalized = role.trim().toLowerCase();
+  return ["admin", "owner", "operations_admin", "ops_admin", "platform_admin", "super_admin"].includes(normalized);
+}
+
+function resolveTargetCompanyId(args: {
+  authCompanyId: string;
+  role: string;
+  queryCompanyId?: string;
+  bodyCompanyId?: string;
+}): string {
+  const requested = (args.queryCompanyId ?? args.bodyCompanyId ?? "").trim();
+  if (requested && isAdminRole(args.role)) {
+    return requested;
+  }
+  return args.authCompanyId;
+}
+
 function mapProfile(row: BookingProfileRow) {
   return {
     id: row.id,
@@ -91,12 +109,17 @@ export async function GET(
 
   const params = await context.params;
   const customerId = text(params.id);
+  const targetCompanyId = resolveTargetCompanyId({
+    authCompanyId: auth.value.companyId,
+    role: auth.value.role,
+    queryCompanyId: request.nextUrl.searchParams.get("companyId") ?? "",
+  });
   if (!customerId) {
     return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });
   }
 
   const hasCustomer = await ensureCustomerBelongsToCompany({
-    companyId: auth.value.companyId,
+    companyId: targetCompanyId,
     customerId,
     client: auth.value.privilegedClient,
   });
@@ -110,7 +133,7 @@ export async function GET(
   let query = auth.value.privilegedClient
     .from("merchant_customer_booking_profiles")
     .select(selectFields)
-    .eq("company_id", auth.value.companyId)
+    .eq("company_id", targetCompanyId)
     .eq("merchant_customer_id", customerId)
     .order("updated_at", { ascending: false });
 
@@ -138,12 +161,19 @@ export async function POST(
 
   const params = await context.params;
   const customerId = text(params.id);
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const targetCompanyId = resolveTargetCompanyId({
+    authCompanyId: auth.value.companyId,
+    role: auth.value.role,
+    queryCompanyId: request.nextUrl.searchParams.get("companyId") ?? "",
+    bodyCompanyId: typeof body.companyId === "string" ? body.companyId : "",
+  });
   if (!customerId) {
     return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });
   }
 
   const hasCustomer = await ensureCustomerBelongsToCompany({
-    companyId: auth.value.companyId,
+    companyId: targetCompanyId,
     customerId,
     client: auth.value.privilegedClient,
   });
@@ -152,7 +182,6 @@ export async function POST(
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const profileName = text(body.profileName);
   if (!profileName) {
     return NextResponse.json({ error: "Profile name is required" }, { status: 400 });
@@ -164,7 +193,7 @@ export async function POST(
       .from("merchant_customer_booking_profiles")
       .select(selectFields)
       .eq("id", duplicateFromProfileId)
-      .eq("company_id", auth.value.companyId)
+      .eq("company_id", targetCompanyId)
       .eq("merchant_customer_id", customerId)
       .is("archived_at", null)
       .maybeSingle<BookingProfileRow>();
@@ -180,7 +209,7 @@ export async function POST(
     const { data, error } = await auth.value.privilegedClient
       .from("merchant_customer_booking_profiles")
       .insert({
-        company_id: auth.value.companyId,
+        company_id: targetCompanyId,
         merchant_customer_id: customerId,
         profile_name: profileName,
         collection_address_id: existing.collection_address_id,
@@ -205,7 +234,7 @@ export async function POST(
   }
 
   const payload: Record<string, unknown> = {
-    company_id: auth.value.companyId,
+    company_id: targetCompanyId,
     merchant_customer_id: customerId,
     profile_name: profileName,
     collection_address_id: text(body.collectionAddressId) || null,
