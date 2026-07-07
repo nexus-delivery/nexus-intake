@@ -9,6 +9,7 @@ function isValidEmail(value: string): boolean {
 }
 
 export default function ForgotPasswordPage() {
+  const PASSWORD_RESET_REDIRECT = "https://www.nexusit.today/reset-password";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +31,8 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo,
+        redirectTo: PASSWORD_RESET_REDIRECT,
       });
 
       if (resetError) {
