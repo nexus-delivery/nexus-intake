@@ -169,7 +169,9 @@ export default function StandardOrderForm({ sourceSystem, title, subtitle, booki
   const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers] = useState<MerchantCustomer[]>([]);
   const [customerOrderRefMap, setCustomerOrderRefMap] = useState<Record<string, string[]>>({});
-  const [merchantWorkspaces] = useState<MerchantWorkspace[]>(() => loadStoredMerchantWorkspaces());
+  const [merchantWorkspaces, setMerchantWorkspaces] = useState<MerchantWorkspace[]>(() =>
+  loadStoredMerchantWorkspaces()
+  );
   const [selectedMerchantWorkspaceId, setSelectedMerchantWorkspaceId] = useState(() =>
     loadActiveWorkspaceId(loadStoredMerchantWorkspaces())
   );
@@ -228,18 +230,69 @@ const isMerchantView = sourceSystem === "merchant_portal";
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+  if (!isMerchantView || !isAdminUser || !supabase) return;
 
-    void fetchCurrentProfile().then((result) => {
-      if (!cancelled && result.success) {
-        setProfileCompanyId(result.data.companyId);
+  let cancelled = false;
+
+  async function loadMerchantWorkspacesFromApi() {
+    try {
+      const {
+        data: { session },
+      } = await supabase!.auth.getSession();
+
+      if (!session?.access_token) return;
+
+      const response = await fetch("/api/manage-it/merchants", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const rawMerchants = Array.isArray(payload) ? payload : payload?.merchants ?? [];
+
+      const fetched: MerchantWorkspace[] = rawMerchants
+        .map((merchant: any) => ({
+          id: String(merchant.id ?? ""),
+          merchantName: merchant.merchantName ?? merchant.merchant_name ?? "",
+          tradingName: merchant.tradingName ?? merchant.trading_name ?? "",
+          contactName: merchant.contactName ?? merchant.contact_name ?? "",
+          telephone: merchant.telephone ?? "",
+          contactEmail: merchant.contactEmail ?? merchant.contact_email ?? "",
+          status: merchant.status ?? "active",
+        }))
+        .filter((merchant: MerchantWorkspace) => merchant.id && merchant.merchantName);
+
+      if (cancelled || fetched.length === 0) return;
+
+      setMerchantWorkspaces(fetched);
+
+      try {
+        window.localStorage.setItem(
+          "nexus.manageit.merchantWorkspaces.v1",
+          JSON.stringify(fetched)
+        );
+      } catch {
+        // cache only
       }
-    });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      setSelectedMerchantWorkspaceId((prev) => {
+        if (prev && fetched.some((merchant) => merchant.id === prev)) {
+          return prev;
+        }
+        return fetched[0]?.id ?? "";
+      });
+    } catch {
+      // keep existing cached merchant list if API fetch fails
+    }
+  }
+
+  void loadMerchantWorkspacesFromApi();
+
+  return () => {
+    cancelled = true;
+  };
+}, [isMerchantView, isAdminUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,7 +302,7 @@ const isMerchantView = sourceSystem === "merchant_portal";
 
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } = await supabase!.auth.getSession();
 
       if (!session?.access_token) return;
 
