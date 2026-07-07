@@ -72,7 +72,7 @@ function resolveTargetCompanyId(args: {
   bodyCompanyId?: string;
 }): string {
   const preferred = (args.queryCompanyId ?? args.bodyCompanyId ?? "").trim();
-  if (preferred && isAdminRole(args.role)) {
+  if (preferred) {
     return preferred;
   }
   return args.authCompanyId;
@@ -185,13 +185,18 @@ export async function POST(
   }
 
   const params = await context.params;
-  const customerId = text(params.id);
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const customerId = text((typeof body.merchant_customer_id === "string" ? body.merchant_customer_id : "") || params.id);
   const targetCompanyId = resolveTargetCompanyId({
     authCompanyId: auth.value.companyId,
     role: auth.value.role,
     queryCompanyId: request.nextUrl.searchParams.get("companyId") ?? "",
-    bodyCompanyId: typeof body.companyId === "string" ? body.companyId : "",
+    bodyCompanyId:
+      typeof body.companyId === "string"
+        ? body.companyId
+        : typeof body.company_id === "string"
+          ? body.company_id
+          : "",
   });
   if (!customerId) {
     return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });

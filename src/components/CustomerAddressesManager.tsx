@@ -256,7 +256,13 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
           "Content-Type": "application/json",
           ...(await authHeaders()),
         },
-        body: JSON.stringify({ ...form, companyId: activeWorkspaceCompanyId }),
+        body: JSON.stringify({
+          ...form,
+          companyId: activeWorkspaceCompanyId,
+          company_id: activeWorkspaceCompanyId,
+          merchant_id: activeWorkspaceCompanyId,
+          merchant_customer_id: selectedCustomerId,
+        }),
       });
 
       const payload = (await responseFinal.json().catch(() => ({}))) as {
