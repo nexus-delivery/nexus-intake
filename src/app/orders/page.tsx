@@ -6,8 +6,8 @@ export default function OrdersPage() {
     <AppShell>
       <OrdersStatusBoard
         scope="admin"
-        title="Orders and Jobs Dashboard"
-        subtitle="All orders with lifecycle state, Track-POD status, IDs, errors, and timeline history."
+        title="Oversee it"
+        subtitle="Today's orders first, then date-window filtering, status visibility, and Track-POD references with pagination."
       />
     </AppShell>
   );

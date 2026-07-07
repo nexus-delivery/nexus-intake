@@ -9,10 +9,10 @@ const managementCards = [
     title: 'Organisations',
     detail: 'Search, create, edit, archive, and open organisations from one operational home.',
     actions: [
-      { label: 'Search organisations', href: '/merchants' },
-      { label: 'Create organisation', href: '/merchants' },
-      { label: 'Edit or archive', href: '/merchants' },
-      { label: 'Open organisation', href: '/manage-it' },
+      { label: 'Search organisations', href: '/manage-it?section=companies' },
+      { label: 'Create organisation', href: '/manage-it?section=companies' },
+      { label: 'Edit or archive', href: '/manage-it?section=companies' },
+      { label: 'Open organisation', href: '/manage-it?section=companies' },
     ],
     bullets: ['Merchants', 'Orders', 'Operational metrics', 'Users', 'Connected systems', 'Accounting integrations', 'Future integrations'],
   },
@@ -42,11 +42,11 @@ const managementCards = [
     title: 'Systems / Integrations',
     detail: 'Management placeholders for organisation integrations and future module switches.',
     actions: [
-      { label: 'Manage integrations', href: '/account-it' },
-      { label: 'Accounting view', href: '/account-it' },
+      { label: 'Manage integrations', href: '/integrate-it' },
+      { label: 'Accounting view', href: '/integrate-it' },
       { label: 'Environment settings', href: '/settings' },
     ],
-    bullets: ['Xero', 'QuickFile', 'Track-POD', 'WooCommerce', 'Airtable', 'Stripe'],
+    bullets: ['Xero', 'QuickFile', 'Track-POD', 'WooCommerce', 'Airtable', 'Stripe', 'Resend'],
   },
 ];
 
@@ -62,7 +62,7 @@ export default function DashboardContent() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Operational Management</p>
-          <h2 className="text-2xl font-semibold text-slate-950">Super Admin Dashboard</h2>
+          <h2 className="text-2xl font-semibold text-slate-950">Super Admin Oversee it</h2>
           <p className="text-sm text-slate-600">Manage organisations, merchants, orders, and integrations from one usable dashboard.</p>
         </div>
 
@@ -97,9 +97,9 @@ export default function DashboardContent() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Integration Placeholders</p>
         <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          {['Xero', 'QuickFile', 'Track-POD', 'WooCommerce', 'Airtable', 'Stripe'].map((provider) => (
+          {['Xero', 'QuickFile', 'Track-POD', 'WooCommerce', 'Airtable', 'Stripe', 'Resend'].map((provider) => (
             <div key={provider} className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm font-semibold text-slate-600">
-              {provider}
+              {provider} · Coming Soon
             </div>
           ))}
         </div>

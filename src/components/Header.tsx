@@ -11,12 +11,12 @@ type HeaderProps = {
 export default function Header({ title, subtitle }: HeaderProps) {
   const pathname = usePathname() || "/";
   const overseeHref = pathname.startsWith("/portal") ? "/portal/orders" : "/orders";
-  const dashboardHref = pathname.startsWith("/portal") ? "/portal" : "/dashboard";
+  const dashboardHref = pathname.startsWith("/portal") ? "/portal/orders" : "/dashboard";
 
   return (
     <div className="flex flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
       <div className="space-y-3">
-        <p className="nexus-kicker">NEXUS It Today</p>
+        <p className="nexus-kicker">Nexus it today</p>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--nexus-graphite)] sm:text-4xl">{title}</h1>
         <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{subtitle}</p>
         <PlatformBreadcrumbs />

@@ -80,7 +80,7 @@ export async function getMerchantContext(
     .maybeSingle();
 
   if (profileError || (!profile?.company_id && !profile?.organisation_id)) {
-    return { ok: false, error: "No organisation linked to user", status: 403 };
+    return { ok: false, error: "No company linked to user", status: 403 };
   }
 
   const organizationId = String(profile.organisation_id ?? profile.company_id);

@@ -7,17 +7,17 @@ const groups = [
   {
     title: "Customer Contact",
     items: [
-      "Email Customer (Coming Soon)",
-      "WhatsApp Customer (Coming Soon)",
-      "Click to Call Customer (Coming Soon)",
+      "📧 Email Customer (Coming Soon)",
+      "💬 WhatsApp Customer (Coming Soon)",
+      "📞 Click to Call Customer (Coming Soon)",
     ],
   },
   {
     title: "Merchant Contact",
     items: [
-      "Email Merchant (Coming Soon)",
-      "WhatsApp Merchant (Coming Soon)",
-      "Click to Call Merchant (Coming Soon)",
+      "📧 Email Merchant (Coming Soon)",
+      "💬 WhatsApp Merchant (Coming Soon)",
+      "📞 Click to Call Merchant (Coming Soon)",
     ],
   },
   {

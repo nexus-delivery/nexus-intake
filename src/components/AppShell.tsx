@@ -8,27 +8,109 @@ import { getManageItAccessProfile } from "@/lib/manageIt";
 import { getTitleForPath } from "@/lib/routeTitles";
 
 const adminNavItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Create it", href: "/create-it" },
-  { label: "Oversee it", href: "/orders" },
-  { label: "Process it", href: "/process-it" },
-  { label: "Manage it", href: "/manage-it" },
-  { label: "Report it", href: "/report-it" },
-  { label: "Store it", href: "/store-it" },
-  { label: "Account it", href: "/account-it" },
-  { label: "Settings", href: "/settings" },
+  {
+    label: "Oversee it",
+    href: "/dashboard",
+    children: [
+      { label: "Today's Orders", href: "/orders" },
+      { label: "Organisations", href: "/manage-it?section=companies" },
+      { label: "Merchants", href: "/merchants" },
+      { label: "Integrate it", href: "/integrate-it" },
+    ],
+  },
+  {
+    label: "Create it",
+    href: "/create-it",
+    children: [
+      { label: "Create Home", href: "/create-it" },
+      { label: "Booking Forms", href: "/booking-forms" },
+      { label: "Order Input", href: "/order-input" },
+    ],
+  },
+  {
+    label: "Process it",
+    href: "/process-it",
+    children: [
+      { label: "Review Queue", href: "/review-it" },
+      { label: "Track-POD Queue", href: "/track-it" },
+      { label: "Dispatch Queue", href: "/process-it?filter=sent" },
+      { label: "Exceptions", href: "/process-it?filter=error" },
+    ],
+  },
+  {
+    label: "Manage it",
+    href: "/manage-it",
+    children: [
+      { label: "Organisations", href: "/manage-it?section=companies" },
+      { label: "Merchants", href: "/merchants" },
+      { label: "Customers", href: "/manage-it?section=customers" },
+      { label: "Search", href: "/manage-it/search-it" },
+    ],
+  },
+  {
+    label: "Integrate it",
+    href: "/integrate-it",
+    children: [
+      { label: "Providers", href: "/integrate-it" },
+      { label: "Health", href: "/integrate-it" },
+    ],
+  },
+  { label: "Report it", href: "/report-it", children: [{ label: "Reports", href: "/report-it" }] },
+  { label: "Store it", href: "/store-it", children: [{ label: "Store Home", href: "/store-it" }] },
+  { label: "Account it", href: "/account-it", children: [{ label: "Account Home", href: "/account-it" }] },
+  { label: "Settings", href: "/settings", children: [{ label: "Settings Home", href: "/settings" }] },
 ];
 
 const merchantNavItems = [
-  { label: "Dashboard", href: "/portal" },
-  { label: "Create it", href: "/portal/create-it" },
-  { label: "Oversee it", href: "/portal/orders" },
-  { label: "Process it", href: "/process-it" },
-  { label: "Manage it", href: "/portal/manage-it" },
-  { label: "Report it", href: "/portal/reports" },
-  { label: "Store it", href: "/store-it" },
-  { label: "Account it", href: "/account-it" },
-  { label: "Settings", href: "/portal/settings" },
+  {
+    label: "Oversee it",
+    href: "/portal/orders",
+    children: [
+      { label: "Today's Orders", href: "/portal/orders" },
+      { label: "Track it", href: "/portal/track-it" },
+      { label: "Customers", href: "/portal/customers" },
+    ],
+  },
+  {
+    label: "Create it",
+    href: "/portal/create-it",
+    children: [
+      { label: "Create Home", href: "/portal/create-it" },
+      { label: "Book it", href: "/portal/book-it" },
+      { label: "Intake", href: "/portal/intake" },
+    ],
+  },
+  {
+    label: "Process it",
+    href: "/process-it",
+    children: [
+      { label: "Review Queue", href: "/review-it" },
+      { label: "Track-POD Queue", href: "/track-it" },
+      { label: "Dispatch Queue", href: "/process-it?filter=sent" },
+      { label: "Exceptions", href: "/process-it?filter=error" },
+    ],
+  },
+  {
+    label: "Manage it",
+    href: "/portal/manage-it",
+    children: [
+      { label: "Merchant Workspace", href: "/portal/manage-it" },
+      { label: "Customers", href: "/portal/customers" },
+      { label: "Documents", href: "/portal/documents" },
+    ],
+  },
+  {
+    label: "Integrate it",
+    href: "/integrate-it",
+    children: [
+      { label: "Providers", href: "/integrate-it" },
+      { label: "Coming Soon", href: "/integrate-it" },
+    ],
+  },
+  { label: "Report it", href: "/portal/reports", children: [{ label: "Reports", href: "/portal/reports" }] },
+  { label: "Store it", href: "/store-it", children: [{ label: "Store Home", href: "/store-it" }] },
+  { label: "Account it", href: "/account-it", children: [{ label: "Account Home", href: "/account-it" }] },
+  { label: "Settings", href: "/portal/settings", children: [{ label: "Settings Home", href: "/portal/settings" }] },
 ];
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() || "/";
@@ -40,7 +122,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     // keep browser title in sync with page title mapping
     if (typeof document !== "undefined") {
-      document.title = `${pageTitle} - NEXUS It Today`;
+      document.title = `${pageTitle} - Nexus it today`;
     }
   }, [pageTitle]);
 
