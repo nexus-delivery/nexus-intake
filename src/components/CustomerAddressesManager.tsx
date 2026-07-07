@@ -121,12 +121,14 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
   }, [addresses, search, typeFilter]);
 
   const workspaceCustomers = useMemo(() => {
+    // When company context is provided, trust API scoping and avoid name-based filtering churn.
+    if (activeWorkspaceCompanyId.trim()) return customers;
     const workspaceNeedle = activeWorkspaceName.trim().toLowerCase();
     if (!workspaceNeedle) return customers;
     return customers.filter((customer) => customer.company.trim().toLowerCase() === workspaceNeedle);
-  }, [activeWorkspaceName, customers]);
+  }, [activeWorkspaceCompanyId, activeWorkspaceName, customers]);
 
-  const loadCustomers = useCallback(async () => {
+  const loadCustomers = useCallback(async (): Promise<MerchantCustomer[]> => {
     const params = new URLSearchParams();
     if (activeWorkspaceCompanyId.trim()) params.set("companyId", activeWorkspaceCompanyId.trim());
     const response = await fetch(`/api/merchant/customers?${params.toString()}`, { headers: await authHeaders() });
@@ -138,12 +140,8 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
       throw new Error(payload.error ?? "Failed to load customers");
     }
 
-    const nextCustomers = payload.customers ?? [];
-    setCustomers(nextCustomers);
-    if (!selectedCustomerId && nextCustomers.length > 0) {
-      setSelectedCustomerId(nextCustomers[0].id);
-    }
-  }, [activeWorkspaceCompanyId, selectedCustomerId]);
+    return payload.customers ?? [];
+  }, [activeWorkspaceCompanyId]);
 
   const loadAddresses = useCallback(async (customerId: string) => {
     if (!customerId) {
@@ -171,32 +169,39 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
 
   useEffect(() => {
     let active = true;
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      setSelectedCustomerId("");
-      setAddresses([]);
-      setError(null);
+    setLoading(true);
+    setError(null);
+    setAddresses([]);
 
-      void (async () => {
-        try {
-          await loadCustomers();
-        } catch (err) {
-          if (active) {
-            setError(err instanceof Error ? err.message : "Failed to load customers");
+    void (async () => {
+      try {
+        const nextCustomers = await loadCustomers();
+        if (!active) return;
+
+        setCustomers(nextCustomers);
+        setSelectedCustomerId((current) => {
+          if (current && nextCustomers.some((customer) => customer.id === current)) {
+            return current;
           }
-        } finally {
-          if (active) {
-            setLoading(false);
-          }
+          return nextCustomers[0]?.id ?? "";
+        });
+      } catch (err) {
+        if (active) {
+          setCustomers([]);
+          setSelectedCustomerId("");
+          setError(err instanceof Error ? err.message : "Failed to load customers");
         }
-      })();
-    }, 0);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    })();
 
     return () => {
-      window.clearTimeout(timer);
       active = false;
     };
-  }, [activeWorkspaceCompanyId, loadCustomers]);
+  }, [loadCustomers]);
 
   useEffect(() => {
     let active = true;
@@ -223,16 +228,12 @@ export default function CustomerAddressesManager({ activeWorkspaceName = "", act
   }, [loadAddresses, selectedCustomerId]);
 
   useEffect(() => {
-    if (!workspaceCustomers.length) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedCustomerId("");
-      return;
-    }
-
-    if (!workspaceCustomers.some((customer) => customer.id === selectedCustomerId)) {
-      setSelectedCustomerId(workspaceCustomers[0].id);
-    }
-  }, [selectedCustomerId, workspaceCustomers]);
+    setSelectedCustomerId((current) => {
+      if (!workspaceCustomers.length) return "";
+      if (workspaceCustomers.some((customer) => customer.id === current)) return current;
+      return workspaceCustomers[0].id;
+    });
+  }, [workspaceCustomers]);
 
   async function createAddress(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
