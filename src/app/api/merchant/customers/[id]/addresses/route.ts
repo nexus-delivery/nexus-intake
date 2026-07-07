@@ -35,6 +35,12 @@ type AddressRow = {
   updated_at: string;
 };
 
+type CustomerRow = {
+  id: string;
+  company_id: string;
+  archived_at: string | null;
+};
+
 const selectFields = [
   "id",
   "company_id",
@@ -101,6 +107,28 @@ function mapAddress(row: AddressRow) {
   };
 }
 
+async function fetchCustomer(args: {
+  customerId: string;
+  client: SupabaseClient;
+}) {
+  const { data, error } = await args.client
+    .from("merchant_customers")
+    .select("id, company_id, archived_at")
+    .eq("id", args.customerId)
+    .is("archived_at", null)
+    .maybeSingle<CustomerRow>();
+
+  if (error) {
+    return { error } as const;
+  }
+
+  if (!data?.id || !data.company_id) {
+    return { customer: null } as const;
+  }
+
+  return { customer: data } as const;
+}
+
 async function ensureCustomerBelongsToCompany(args: {
   companyId: string;
   customerId: string;
@@ -138,13 +166,17 @@ export async function GET(
     return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });
   }
 
-  const hasCustomer = await ensureCustomerBelongsToCompany({
-    companyId: targetCompanyId,
-    customerId,
-    client: auth.value.privilegedClient,
-  });
+  const customerResult = await fetchCustomer({ customerId, client: auth.value.privilegedClient });
+  if ("error" in customerResult && customerResult.error) {
+    return NextResponse.json({ error: customerResult.error.message }, { status: 500 });
+  }
 
-  if (!hasCustomer) {
+  if (!customerResult.customer) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
+
+  const customerCompanyId = customerResult.customer.company_id;
+  if (targetCompanyId && targetCompanyId !== customerCompanyId) {
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
@@ -154,7 +186,7 @@ export async function GET(
   let query = auth.value.privilegedClient
     .from("merchant_customer_addresses")
     .select(selectFields)
-    .eq("company_id", targetCompanyId)
+    .eq("company_id", customerCompanyId)
     .eq("merchant_customer_id", customerId)
     .order("is_default", { ascending: false })
     .order("updated_at", { ascending: false });
@@ -202,13 +234,17 @@ export async function POST(
     return NextResponse.json({ error: "Customer ID is required" }, { status: 400 });
   }
 
-  const hasCustomer = await ensureCustomerBelongsToCompany({
-    companyId: targetCompanyId,
-    customerId,
-    client: auth.value.privilegedClient,
-  });
+  const customerResult = await fetchCustomer({ customerId, client: auth.value.privilegedClient });
+  if ("error" in customerResult && customerResult.error) {
+    return NextResponse.json({ error: customerResult.error.message }, { status: 500 });
+  }
 
-  if (!hasCustomer) {
+  if (!customerResult.customer) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
+
+  const customerCompanyId = customerResult.customer.company_id;
+  if (targetCompanyId && targetCompanyId !== customerCompanyId) {
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
@@ -227,7 +263,7 @@ export async function POST(
     body.isDefault === true && (addressType === "collection" || addressType === "delivery");
 
   const insertPayload: Record<string, unknown> = {
-    company_id: targetCompanyId,
+    company_id: customerCompanyId,
     merchant_customer_id: customerId,
     address_type: addressType,
     label: text(body.label) || null,
@@ -260,7 +296,7 @@ export async function POST(
     await auth.value.privilegedClient
       .from("merchant_customer_addresses")
       .update({ is_default: false, updated_by_user_id: auth.value.user.id })
-      .eq("company_id", targetCompanyId)
+      .eq("company_id", customerCompanyId)
       .eq("merchant_customer_id", customerId)
       .eq("address_type", addressType)
       .is("archived_at", null)

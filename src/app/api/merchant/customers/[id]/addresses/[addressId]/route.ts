@@ -24,6 +24,12 @@ type AddressRow = {
   updated_at: string;
 };
 
+type CustomerRow = {
+  id: string;
+  company_id: string;
+  archived_at: string | null;
+};
+
 const selectFields = [
   "id",
   "company_id",
@@ -90,6 +96,28 @@ function mapAddress(row: AddressRow) {
   };
 }
 
+async function fetchCustomer(args: {
+  customerId: string;
+  client: import("@supabase/supabase-js").SupabaseClient;
+}) {
+  const { data, error } = await args.client
+    .from("merchant_customers")
+    .select("id, company_id, archived_at")
+    .eq("id", args.customerId)
+    .is("archived_at", null)
+    .maybeSingle<CustomerRow>();
+
+  if (error) {
+    return { error } as const;
+  }
+
+  if (!data?.id || !data.company_id) {
+    return { customer: null } as const;
+  }
+
+  return { customer: data } as const;
+}
+
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string; addressId: string }> }
@@ -107,6 +135,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Customer ID and address ID are required" }, { status: 400 });
   }
 
+  const customerResult = await fetchCustomer({ customerId, client: auth.value.privilegedClient });
+  if ("error" in customerResult && customerResult.error) {
+    return NextResponse.json({ error: customerResult.error.message }, { status: 500 });
+  }
+
+  if (!customerResult.customer) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
+
+  const customerCompanyId = customerResult.customer.company_id;
+
   const targetCompanyId = resolveTargetCompanyId({
     authCompanyId: auth.value.companyId,
     role: auth.value.role,
@@ -123,7 +162,7 @@ export async function PATCH(
     .from("merchant_customer_addresses")
     .select(selectFields)
     .eq("id", addressId)
-    .eq("company_id", targetCompanyId)
+    .eq("company_id", customerCompanyId)
     .eq("merchant_customer_id", customerId)
     .maybeSingle<AddressRow>();
 
@@ -175,7 +214,7 @@ export async function PATCH(
     .from("merchant_customer_addresses")
     .update(updatePayload)
     .eq("id", addressId)
-    .eq("company_id", targetCompanyId)
+    .eq("company_id", customerCompanyId)
     .eq("merchant_customer_id", customerId)
     .select(selectFields)
     .single<AddressRow>();
@@ -188,7 +227,7 @@ export async function PATCH(
     await auth.value.privilegedClient
       .from("merchant_customer_addresses")
       .update({ is_default: false, updated_by_user_id: auth.value.user.id })
-      .eq("company_id", targetCompanyId)
+      .eq("company_id", customerCompanyId)
       .eq("merchant_customer_id", customerId)
       .eq("address_type", data.address_type)
       .is("archived_at", null)
@@ -198,7 +237,7 @@ export async function PATCH(
       .from("merchant_customer_addresses")
       .update({ is_default: true, updated_by_user_id: auth.value.user.id })
       .eq("id", data.id)
-        .eq("company_id", targetCompanyId);
+        .eq("company_id", customerCompanyId);
   }
 
   return NextResponse.json({ success: true, address: mapAddress(data) });
